@@ -43,7 +43,8 @@ describe('Spheres', () => {
         (lon, lat, r) => {
           const a = arcPosition(fromArc(earth, lon, lat, r), earth);
           // Longitude matters less toward the poles: compare the east–west arc it makes.
-          expect(Math.cos(lat) * Math.abs(a.lon - lon)).toBeLessThan(1e-7);
+          const dLon = Math.abs(Math.atan2(Math.sin(a.lon - lon), Math.cos(a.lon - lon))); // wrapped at ±180°
+          expect(Math.cos(lat) * dLon).toBeLessThan(1e-7);
           expect(a.lat).toBeCloseTo(lat, 7);
           expect(a.r / r).toBeCloseTo(1, 7);
         },
