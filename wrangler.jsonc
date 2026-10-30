@@ -1,0 +1,11 @@
+// Cloudflare deployment: static assets only, no server code.
+// Deploy with `npx wrangler deploy` after `npm run build`,
+// or connect the GitHub repo in the Cloudflare dashboard (build: `npm run build`, output: `dist`).
+{
+  "name": "sp4cetime",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

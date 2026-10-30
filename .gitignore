@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.wrangler/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+_to_delete/

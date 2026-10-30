@@ -1,0 +1,267 @@
+:root {
+  --panel: rgba(10, 14, 28, 0.62);
+  --panel-border: rgba(160, 180, 230, 0.18);
+  --text: #e9eefc;
+  --text-dim: rgba(220, 228, 250, 0.68);
+  --accent: #ffb347;
+  --button: rgba(255, 255, 255, 0.06);
+  --button-hover: rgba(255, 255, 255, 0.12);
+  --moon-dark: rgba(20, 24, 40, 0.9);
+  --moon-lit: #eef0f6;
+  --focus: #7cc4ff;
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root[data-ui='light'] {
+  --panel: rgba(255, 253, 248, 0.78);
+  --panel-border: rgba(30, 30, 30, 0.14);
+  --text: #1d1d1f;
+  --text-dim: rgba(29, 29, 31, 0.64);
+  --accent: #c2410c;
+  --button: rgba(0, 0, 0, 0.04);
+  --button-hover: rgba(0, 0, 0, 0.09);
+  --moon-dark: #6b6b70;
+  --moon-lit: #fffdf8;
+  --focus: #c2410c;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #05070f;
+  color: var(--text);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}
+
+.stage:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.galactic-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.galactic-canvas:active {
+  cursor: grabbing;
+}
+
+.hud {
+  position: absolute;
+  top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.hud-left {
+  left: 16px;
+  max-width: min(440px, calc(100vw - 32px));
+}
+
+.hud-right {
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.brand span {
+  margin-left: 6px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-dim);
+}
+
+.center-date {
+  display: block;
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.facts .moon {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tier {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-weight: 600;
+}
+
+.tier-ephemeris {
+  color: #4ade80;
+}
+.tier-modelled {
+  color: #fbbf24;
+}
+.tier-schematic {
+  color: #f472b6;
+}
+
+:root[data-ui='light'] .tier-ephemeris {
+  color: #15803d;
+}
+:root[data-ui='light'] .tier-modelled {
+  color: #b45309;
+}
+:root[data-ui='light'] .tier-schematic {
+  color: #be185d;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+button,
+select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--button);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+select:hover {
+  background: var(--button-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+select option {
+  color: #111;
+}
+
+.presets button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.credit {
+  position: absolute;
+  right: 16px;
+  bottom: 48px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.credit a {
+  color: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .hud {
+    top: 10px;
+    padding: 10px;
+  }
+  .hud-left {
+    left: 10px;
+    right: 10px;
+    max-width: none;
+  }
+  .hud-right {
+    top: auto;
+    bottom: 64px;
+    left: 10px;
+    right: 10px;
+    align-items: stretch;
+  }
+  .row {
+    justify-content: flex-start;
+  }
+  .center-date {
+    font-size: 20px;
+  }
+  .credit {
+    bottom: 40px;
+    right: 10px;
+  }
+}
