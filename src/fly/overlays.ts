@@ -28,7 +28,7 @@ export interface OverlayLabel {
   /** Heliocentric ecliptic position, km. */
   readonly pos: Vec3;
   readonly text: string;
-  readonly kind: 'time' | 'space';
+  readonly kind: 'time' | 'space' | 'galaxy';
 }
 
 const K = 300; // helix samples each side of now

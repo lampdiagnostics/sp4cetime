@@ -1,13 +1,20 @@
 /**
- * The real sky behind the calendar: the Milky Way and the naked-eye stars on a
- * whole-sky disc that turns with the view (src/core/skymap.ts). Uses the same data
+ * The real sky behind the calendar: the Milky Way and the naked-eye stars, seen
+ * through the same lens as Fly mode, turning with the view (src/core/skymap.ts). Uses the same data
  * as Fly mode (public/sky). On light themes it is drawn as dark ink, like a star chart.
  */
 import { ECL_TO_EQ, type Mat3, type Vec3 } from '../core/geometry';
 import { apply, applyT, projectSky, unprojectSky, viewToGalactic } from '../core/skymap';
 
+export interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
 export interface Backdrop {
-  draw(ctx: CanvasRenderingContext2D, view: Mat3, cx: number, cy: number, R: number, ink: 'light' | 'dark', strength: number): void;
+  draw(ctx: CanvasRenderingContext2D, view: Mat3, cx: number, cy: number, focal: number, box: Box, ink: 'light' | 'dark', strength: number): void;
 }
 
 interface SkyFile {
@@ -15,7 +22,7 @@ interface SkyFile {
 }
 
 const DEG = Math.PI / 180;
-const N = 256; // Milky Way raster size, px (scaled up smoothly when drawn)
+const STEP = 4; // screen px per Milky Way raster px (scaled up smoothly when drawn)
 const MAX_MAG = 5.5;
 
 async function loadMap(url: string): Promise<{ px: Uint8ClampedArray; W: number; H: number }> {
@@ -71,23 +78,24 @@ export async function loadBackdrop(base: string): Promise<Backdrop> {
   };
 
   const raster = document.createElement('canvas');
-  raster.width = raster.height = N;
   const rctx = raster.getContext('2d') as CanvasRenderingContext2D;
-  const image = rctx.createImageData(N, N);
+  let image: ImageData | null = null;
   let key = '';
   let projected: Array<{ x: number; y: number; size: number; alpha: number; colour: string }> = [];
 
-  const rebuild = (view: Mat3, ink: 'light' | 'dark'): void => {
+  const rebuild = (view: Mat3, ink: 'light' | 'dark', cx: number, cy: number, focal: number, box: Box): void => {
     // Milky Way: every raster pixel looks up the sky in its direction.
+    const nw = Math.max(1, Math.ceil(box.w / STEP)), nh = Math.max(1, Math.ceil(box.h / STEP));
+    if (!image || image.width !== nw || image.height !== nh) {
+      raster.width = nw;
+      raster.height = nh;
+      image = rctx.createImageData(nw, nh);
+    }
     const data = image.data;
-    for (let py = 0; py < N; py++) {
-      for (let px = 0; px < N; px++) {
-        const d = unprojectSky(px + 0.5 - N / 2, py + 0.5 - N / 2, N / 2);
-        const i = (py * N + px) * 4;
-        if (!d) {
-          data[i + 3] = 0;
-          continue;
-        }
+    for (let py = 0; py < nh; py++) {
+      for (let px = 0; px < nw; px++) {
+        const d = unprojectSky(box.x + (px + 0.5) * STEP - cx, box.y + (py + 0.5) * STEP - cy, focal);
+        const i = (py * nw + px) * 4;
         const { l, b } = viewToGalactic(view, d);
         const v = brightness(l, b);
         const warm = Math.min(1, Math.max(0, (v - 0.35) / 0.55));
@@ -104,34 +112,41 @@ export async function loadBackdrop(base: string): Promise<Backdrop> {
       }
     }
     rctx.putImageData(image, 0, 0);
-    // Stars on the unit disc.
-    projected = stars.map((s) => {
-      const p = projectSky(apply(view, s.d), 1);
-      return {
+    // Stars, as screen offsets from the view centre.
+    projected = [];
+    for (const s of stars) {
+      const p = projectSky(apply(view, s.d), focal);
+      if (!p || Math.abs(p.x) > 4 * focal || Math.abs(p.y) > 4 * focal) continue;
+      projected.push({
         x: p.x,
         y: p.y,
-        size: 0.7 + 3.2 * 10 ** (-0.22 * (s.mag + 1.5)),
-        alpha: Math.min(1, 0.25 + 1.2 * 10 ** (-0.28 * s.mag)),
+        // As in Fly mode: bright stars much larger and brighter than faint ones.
+        size: 1.1 + 7 * 10 ** (-0.3 * (s.mag + 1.5)),
+        alpha: Math.min(1, 0.3 + 1.5 * 10 ** (-0.3 * s.mag)),
         colour: colour(s.bv, ink),
-      };
-    });
+      });
+    }
   };
 
   return {
-    draw(ctx, view, cx, cy, R, ink, strength) {
-      const k = `${ink}|${view.flat().map((x) => x.toFixed(5)).join(',')}`;
+    draw(ctx, view, cx, cy, focal, box, ink, strength) {
+      const k = `${ink}|${[cx, cy, focal, box.x, box.y, box.w, box.h].map((x) => x.toFixed(1)).join(',')}|${view
+        .flat()
+        .map((x) => x.toFixed(5))
+        .join(',')}`;
       if (k !== key) {
-        rebuild(view, ink);
+        rebuild(view, ink, cx, cy, focal, box);
         key = k;
       }
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.globalAlpha = (ink === 'light' ? 0.3 : 0.55) * strength;
-      ctx.drawImage(raster, cx - R, cy - R, 2 * R, 2 * R);
-      const scale = Math.max(0.8, Math.min(1.4, R / 420));
+      ctx.drawImage(raster, box.x, box.y, raster.width * STEP, raster.height * STEP);
+      const scale = Math.max(0.8, Math.min(1.4, box.h / 800));
       for (const s of projected) {
-        const x = cx + s.x * R, y = cy + s.y * R;
+        const x = cx + s.x, y = cy + s.y;
+        if (x < box.x - 8 || x > box.x + box.w + 8 || y < box.y - 8 || y > box.y + box.h + 8) continue;
         ctx.globalAlpha = s.alpha * strength * (ink === 'light' ? 0.55 : 1);
         ctx.fillStyle = s.colour;
         const r = s.size * scale;

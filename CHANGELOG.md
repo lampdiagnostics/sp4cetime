@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0 — 2026-10-30
+
+- The calendar's sky now matches Fly mode exactly: the same perspective lens (60° top to bottom) looking the same way, instead of a whole-sky disc that bent the Milky Way into a ring. It still turns with the solar system.
+- **Whole galaxy**: a new ◎ Galaxy button in the calendar (and a Fly destination) shows the Milky Way from 40 kpc above, with Sgr A*, the spiral arms and the Sun marked. Scroll or fly in and out continuously from there to the solar system: the outside view fades in beyond ~300 light years from the Sun, and the sky seen from the Sun fades out. The galaxy is a schematic model (no one has photographed it from outside).
+- Stars in the calendar are larger, with more difference between bright and faint, as in Fly mode.
+
 ## 0.15.0 — 2026-10-30
 
 - The calendar now has the real sky behind it: the Milky Way and the naked-eye stars on a whole-sky disc. It turns exactly with the solar system when you rotate the view. The direction the Sun is travelling (galactic longitude 90°, in Cygnus) is to the right, like the future.

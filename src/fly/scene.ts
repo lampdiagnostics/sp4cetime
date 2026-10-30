@@ -36,6 +36,8 @@ export interface FlyScene {
   readonly scene: THREE.Scene;
   /** Place everything for this moment and camera, then draw. */
   render(bodies: readonly BodyState[], camPos: Vec3, camQuat: THREE.Quaternion): void;
+  /** Near clipping distance, km. */
+  setNear(km: number): void;
   /** Lens: vertical field of view in degrees (narrow = telescope). */
   setFov(deg: number): void;
   resize(width: number, height: number): void;
@@ -163,7 +165,8 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
   // Units are kilometres. A logarithmic depth buffer keeps 10 m and 10 billion km both sharp.
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.01, 1e13);
+  // Far enough to see the whole galaxy from outside (~10^18 km).
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.01, 1e20);
 
   // The sky (stars, Milky Way, constellations) is added by sky.ts once loaded.
   // The Sun is the only real light. A faint ambient term stands in for earthshine and scatter.
@@ -253,6 +256,14 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
         (earthAtmosphere.material as THREE.ShaderMaterial).uniforms.sunDir!.value.copy(sunDirWorld.transformDirection(camera.matrixWorldInverse));
       }
       renderer.render(scene, camera);
+    },
+    setNear(km) {
+      // Keep the near plane a small fraction of the distance to the nearest surface.
+      // With a tiny near plane and a far-off subject (the whole galaxy, ~10^18 km),
+      // depth in clip space rounds onto the far plane and the GPU clips it away.
+      if (Math.abs(camera.near - km) < camera.near * 0.2) return;
+      camera.near = km;
+      camera.updateProjectionMatrix();
     },
     setFov(deg) {
       if (camera.fov === deg) return;

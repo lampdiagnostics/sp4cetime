@@ -27,6 +27,7 @@ import {
 import { galacticAngle, moonPhase } from './models';
 import { orbitalPeriod, planetById, type PlanetId } from './planets';
 import type { Theme } from './theme';
+import { focalFor } from './skymap';
 import { distanceGrid, formatDistanceStep, generateTicks } from './ticks';
 import { diffSeconds, fromYearsApprox, type Time } from './time';
 
@@ -68,7 +69,16 @@ export interface FrameInput {
 }
 
 export interface SkyBackdrop {
-  draw(ctx: CanvasRenderingContext2D, view: Mat3, cx: number, cy: number, R: number, ink: 'light' | 'dark', strength: number): void;
+  draw(
+    ctx: CanvasRenderingContext2D,
+    view: Mat3,
+    cx: number,
+    cy: number,
+    focal: number,
+    box: { x: number; y: number; w: number; h: number },
+    ink: 'light' | 'dark',
+    strength: number,
+  ): void;
 }
 
 /** What the canvas needs back from a frame: where the Sun was drawn, for grabbing it. */
@@ -543,10 +553,20 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   }
 
   if (f.backdrop) {
-    // The whole sky, turning with the solar system: in the round window it fills the
-    // window; full-screen it reaches the corners.
-    const R = L.clipR ?? Math.hypot(W, H) / 2;
-    f.backdrop.draw(ctx, viewMatrix(view.roll, view.yaw), L.cx, L.clipY, R, theme.ui === 'dark' ? 'dark' : 'light', Math.min(1, theme.galaxyAlpha * 2));
+    // The sky as Fly mode's camera sees it (60° from top to bottom), turning with the
+    // solar system. In the round window, the window's radius spans 30°.
+    const half = L.clipR ?? H / 2;
+    const box = L.clipR ? { x: L.cx - L.clipR, y: L.clipY - L.clipR, w: 2 * L.clipR, h: 2 * L.clipR } : { x: 0, y: 0, w: W, h: H };
+    f.backdrop.draw(
+      ctx,
+      viewMatrix(view.roll, view.yaw),
+      L.cx,
+      L.clipY,
+      focalFor(half),
+      box,
+      theme.ui === 'dark' ? 'dark' : 'light',
+      Math.min(1, theme.galaxyAlpha * 2),
+    );
   } else {
     drawGalaxy(ctx, f, L);
   }

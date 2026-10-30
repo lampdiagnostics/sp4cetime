@@ -26,6 +26,7 @@ import {
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
 import { createSky, loadSky, type SkyLabel } from './sky';
+import { createGalaxy, galaxyFade, loadGalaxyMap } from './galaxy';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
 import type { Theme } from '../core/theme';
 
@@ -34,6 +35,8 @@ interface Props {
   theme: Theme;
   overlays: OverlayOptions;
   onOverlays: (change: Partial<OverlayOptions>) => void;
+  /** Where to start (default: the Solar system view, like the calendar). */
+  start?: Destination;
 }
 
 const RATES: ReadonlyArray<{ label: string; rate: number }> = [
@@ -90,7 +93,7 @@ function clock(t: Time): string {
   return `${formatTime(t, 3600)} · ${p(t.sec / 3600)}:${p((t.sec % 3600) / 60)}:${p(t.sec % 60)} GMT`;
 }
 
-export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) {
+export default function FlyView({ onExit, theme, overlays, onOverlays, start = 'overview' }: Props) {
   const overlaysRef = useRef(overlays);
   overlaysRef.current = overlays;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -151,10 +154,16 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
     // Start at geostationary orbit, with Earth and the Moon in view.
     // Start like the calendar: the Sun in the centre, its paths flowing past.
     const aspect = (): number => canvas.clientWidth / Math.max(1, canvas.clientHeight);
-    poseRef.current = vantage('overview', solarSystemAt(simNow()), aspect()).pose;
+    poseRef.current = vantage(start, solarSystemAt(simNow()), aspect(), simNow()).pose;
     const paths = createOverlays(scene.scene, theme);
     let sky: ReturnType<typeof createSky> | null = null;
     let disposed = false;
+    let galaxy: ReturnType<typeof createGalaxy> | null = null;
+    loadGalaxyMap(import.meta.env.BASE_URL)
+      .then((map) => {
+        if (!disposed) galaxy = createGalaxy(scene.scene, map);
+      })
+      .catch((e: unknown) => console.warn('Galaxy map not loaded:', e));
     loadSky(import.meta.env.BASE_URL)
       .then(({ data, milkyWay }) => {
         if (!disposed) sky = createSky(scene.scene, data, milkyWay, scene.renderer.getPixelRatio());
@@ -173,7 +182,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
       const bodies = solarSystemAt(simNow());
       const cur = poseRef.current ? worldOf(poseRef.current, bodies) : vantage(d, bodies, aspect());
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      flightRef.current = { fromPos: cur.pos, fromQuat: cur.quat, to: vantage(d, bodies, aspect()).pose, start: performance.now(), ms: reduced ? 0 : 2200 };
+      flightRef.current = { fromPos: cur.pos, fromQuat: cur.quat, to: vantage(d, bodies, aspect(), simNow()).pose, start: performance.now(), ms: reduced ? 0 : 2200 };
     };
     // Turn smoothly to face a body, staying where you are.
     const aim = (id: BodyId): void => {
@@ -355,8 +364,18 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         poseRef.current = poseFrom(pos, quat, anchor, frame, bodies);
       }
 
-      const gl = paths.update(overlaysRef.current, now, bodies, pos);
+      // Far out, the outside view of the galaxy takes over from the sky seen from the Sun,
+      // and the solar-system paths and grids (too small to see) step aside.
+      const far = galaxyFade(Math.hypot(...pos));
+      sky?.setFade(1 - far);
+      const galaxyLabels = galaxy ? galaxy.update(now, pos) : [];
+      const o = overlaysRef.current;
+      const gl = [
+        ...paths.update(far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o, now, bodies, pos),
+        ...galaxyLabels.map((g) => ({ ...g, kind: 'galaxy' as const })),
+      ];
       scene.setFov(fovRef.current);
+      scene.setNear(Math.min(1000, Math.max(0.01, nearest(pos, bodies).altitude * 1e-4)));
       scene.render(bodies, pos, quat);
 
       // Labels.
@@ -371,7 +390,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         const d = rel.length();
         v3.copy(rel).project(cam);
         const behind = rel.clone().applyQuaternion(quat.clone().invert()).z > 0;
-        if (behind || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) {
+        if (behind || far > 0.5 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) {
           el.style.display = 'none';
           continue;
         }
@@ -431,7 +450,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
           continue;
         }
         el.style.display = 'block';
-        el.style.color = g.kind === 'time' ? theme.tickText : theme.distanceText;
+        el.style.color = g.kind === 'time' ? theme.tickText : g.kind === 'galaxy' ? 'rgba(225, 215, 255, 0.9)' : theme.distanceText;
         el.style.transform = `translate(${((v3.x + 1) / 2) * W + 4}px, ${((1 - v3.y) / 2) * H + (g.kind === 'time' ? -16 : 2)}px)`;
         if (el.textContent !== g.text) el.textContent = g.text;
       }
@@ -469,9 +488,10 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         const p = poseRef.current;
         setHud({
           time: now,
-          nearName: NAME(near.id),
+          nearName: galaxyFade(Math.hypot(...pos)) > 0.5 ? 'Galaxy' : NAME(near.id),
           ...(() => {
-            const m = measureRef.current;
+            // Far out, "nearest body" means little: measure on the galaxy's sphere instead.
+            const m = measureRef.current === 'near' && galaxyFade(Math.hypot(...pos)) > 0.5 ? 'galaxy' : measureRef.current;
             const sphere = sphereOf(m === 'near' ? near.id : m, bodies, now);
             const nearR = find(bodies, near.id).info.radiusKm;
             return {
@@ -508,6 +528,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
       skyLabels.forEach((el) => el.remove());
       disposed = true;
       sky?.dispose();
+      galaxy?.dispose();
       paths.dispose();
       scene.dispose();
     };

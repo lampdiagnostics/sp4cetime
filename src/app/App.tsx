@@ -46,7 +46,7 @@ function gmtClock(t: Time): string | null {
 }
 
 export function App() {
-  const [mode, setMode] = useState<'calendar' | 'fly'>('calendar');
+  const [mode, setMode] = useState<'calendar' | 'fly' | 'galaxy'>('calendar');
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
   useEffect(() => saveSettings(settings), [settings]);
@@ -130,11 +130,12 @@ export function App() {
   const clock = gmtClock(now);
   const banded = cam ? settings.spirals && densePaths(settings.planets, cam.secondsPerPixel) : false;
 
-  if (mode === 'fly') {
+  if (mode !== 'calendar') {
     return (
       <FlyBoundary onExit={() => setMode('calendar')}>
         <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
           <FlyView
+            start={mode === 'galaxy' ? 'galaxy' : 'overview'}
             onExit={() => setMode('calendar')}
             // Space is dark: a light calendar theme would draw dark lines on black, so Fly uses the dark one.
             theme={theme.ui === 'dark' ? theme : (THEMES[0] as Theme)}
@@ -227,6 +228,9 @@ export function App() {
             ))}
           </select>
         </label>
+        <button type="button" onClick={() => setMode('galaxy')} title="See the whole Milky Way from outside, with the Sun marked">
+          ◎ Galaxy
+        </button>
         <button type="button" onClick={() => setMode('fly')} title="Fly through the solar system in 3D">
           ✦ Fly
         </button>

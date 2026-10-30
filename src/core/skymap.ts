@@ -1,33 +1,31 @@
 /**
- * The whole sky on a flat disc, for the calendar's background (docs/adr/0011-calendar-sky.md).
+ * The sky behind the calendar, seen exactly as Fly mode's camera would see it
+ * (docs/adr/0011-calendar-sky.md).
  *
  * The calendar looks at the solar system from +Z toward −Z (view frame: X = the
- * Sun's direction of travel, to the right; Y up). The sky is drawn as the inside of
- * a sphere seen from its centre, with every direction on one disc (an azimuthal
- * equidistant projection): the direction straight ahead (−Z) in the middle, the
- * directions to the sides (X, Y) halfway out, and the direction behind you (+Z)
- * all around the rim. It turns with the view, so rotating the solar system turns
- * the sky with it.
+ * Sun's direction of travel, to the right; Y up). The sky is the inside of a sphere
+ * around the viewer, seen through a perspective lens: `focal` is pixels per unit
+ * of tan(angle from the view direction). It turns with the view, so rotating the
+ * solar system turns the sky with it.
  */
 import { ECL_TO_GAL, type Mat3, type Vec3 } from './geometry';
 
-/** A view-frame direction → position on a disc of radius R (screen y down). */
-export function projectSky(d: Vec3, R: number): { x: number; y: number } {
-  const theta = Math.acos(Math.max(-1, Math.min(1, -d[2])));
-  const s = Math.hypot(d[0], d[1]);
-  if (s < 1e-12) return { x: 0, y: theta < 1 ? 0 : R }; // dead ahead, or dead behind (the whole rim)
-  const r = (theta / Math.PI) * R;
-  return { x: (r * d[0]) / s, y: (-r * d[1]) / s };
+/** A view-frame direction → screen offset from the view centre (y down), or null if behind the viewer. */
+export function projectSky(d: Vec3, focal: number): { x: number; y: number } | null {
+  if (d[2] > -1e-6) return null;
+  return { x: (focal * d[0]) / -d[2], y: (-focal * d[1]) / -d[2] };
 }
 
-/** Position on the disc → view-frame direction (inverse of projectSky); null outside the disc. */
-export function unprojectSky(x: number, y: number, R: number): Vec3 | null {
-  const r = Math.hypot(x, y);
-  if (r > R) return null;
-  const theta = (r / R) * Math.PI;
-  if (r < 1e-9) return [0, 0, -1];
-  const st = Math.sin(theta);
-  return [(st * x) / r, (-st * y) / r, -Math.cos(theta)];
+/** Screen offset from the view centre → view-frame direction (unit vector). */
+export function unprojectSky(x: number, y: number, focal: number): Vec3 {
+  const v: Vec3 = [x / focal, -y / focal, -1];
+  const n = Math.hypot(...v);
+  return [v[0] / n, v[1] / n, v[2] / n];
+}
+
+/** Pixels per unit tan(angle) for a lens whose half-height (or radius) `halfPx` spans `halfAngle` radians. */
+export function focalFor(halfPx: number, halfAngle = Math.PI / 6): number {
+  return halfPx / Math.tan(halfAngle);
 }
 
 /** Apply a matrix (rows) to a vector. */

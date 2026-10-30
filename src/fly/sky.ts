@@ -46,8 +46,9 @@ export interface SkyLabel {
 }
 
 // The sky is drawn first with depth testing off, so its size does not matter as long as it
-// is inside the camera's range; a small radius keeps the GPU's arithmetic precise.
-const SKY_KM = 1000;
+// is beyond the near plane (at most 1,000 km) and inside the far one; a modest radius keeps
+// the GPU's arithmetic precise.
+const SKY_KM = 1e5;
 const DEG = Math.PI / 180;
 
 /** The twelve signs of the (tropical) zodiac, from the March equinox, 30° each. */
@@ -119,6 +120,8 @@ export async function loadSky(base: string): Promise<{ data: SkyData; milkyWay: 
 
 export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Texture, pixelRatio: number) {
   const disposables: Array<{ dispose(): void }> = [];
+  /** 1 near the Sun; fades to 0 far away, where this sky (seen from here) no longer applies. */
+  const fadeU = { value: 1 };
   const eq = new THREE.Group(); // equatorial frame, turned into the ecliptic frame
   eq.matrixAutoUpdate = false;
   eq.matrix.makeBasis(
@@ -145,7 +148,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
 
   // Milky Way: a photographic map in galactic coordinates, looked up by direction.
   const mwMat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: milkyWay } },
+    uniforms: { map: { value: milkyWay }, fade: fadeU },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -154,6 +157,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
+      uniform float fade;
       varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir);
@@ -164,7 +168,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
         float v = texture2D(map, uv).r;
         // Warmer toward the bright bulge, cooler in the faint arms.
         vec3 tint = mix(vec3(0.55, 0.62, 0.85), vec3(0.95, 0.88, 0.78), smoothstep(0.35, 0.9, v));
-        gl_FragColor = vec4(tint * v * 0.5, 1.0);
+        gl_FragColor = vec4(tint * v * 0.5 * fade, 1.0);
       }`,
     side: THREE.BackSide,
     depthTest: false,
@@ -196,7 +200,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   starGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   starGeo.setAttribute('size', new THREE.BufferAttribute(size, 1));
   const starMat = new THREE.ShaderMaterial({
-    uniforms: { pixelRatio: { value: pixelRatio } },
+    uniforms: { pixelRatio: { value: pixelRatio }, fade: fadeU },
     vertexShader: /* glsl */ `
       attribute float size;
       attribute vec3 color;
@@ -209,11 +213,12 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       }`,
     fragmentShader: /* glsl */ `
       varying vec3 vColor;
+      uniform float fade;
       void main() {
         float r = length(gl_PointCoord - 0.5) * 2.0;
         // A bright core and a soft halo.
         float a = (1.0 - smoothstep(0.15, 0.55, r)) + 0.35 * (1.0 - smoothstep(0.3, 1.0, r));
-        gl_FragColor = vec4(vColor * a, 1.0);
+        gl_FragColor = vec4(vColor * a * fade, 1.0);
       }`,
     depthTest: false,
     depthWrite: false,
@@ -225,6 +230,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   eq.add(starPoints);
   disposables.push(starGeo, starMat);
 
+  const lineMats: Array<{ m: THREE.LineBasicMaterial; base: THREE.Color }> = [];
   const lineSet = (pts: number[], colour: number, opacity: number, parent: THREE.Group): THREE.LineSegments => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
@@ -235,6 +241,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       depthTest: false,
       depthWrite: false,
     });
+    lineMats.push({ m, base: m.color.clone() });
     const l = new THREE.LineSegments(g, m);
     behind(l, -18);
     parent.add(l);
@@ -309,7 +316,15 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
 
   return {
     /** Show or hide parts; returns the labels to place. */
+    /** How much of this sky to show (0–1): it is the sky as seen from the solar system. */
+    setFade(f: number): void {
+      if (f === fadeU.value) return;
+      fadeU.value = f;
+      for (const { m, base } of lineMats) m.color.copy(base).multiplyScalar(f);
+      eq.visible = ecl.visible = gal.visible = f > 0.002;
+    },
     update(o: SkyOptions): SkyLabel[] {
+      if (fadeU.value < 0.3) return [];
       figures.visible = o.constellations;
       zodiacFigures.visible = o.constellations || o.zodiac;
       ecliptic.visible = signs.visible = o.zodiac;

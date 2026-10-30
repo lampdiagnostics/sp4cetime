@@ -7,6 +7,9 @@ import * as THREE from 'three';
 import { bodyInfo, type BodyId, type BodyState, GEO_RADIUS_KM } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
 import { CALENDAR_AXES } from '../core/paths3d';
+import { J2000 } from '../core/ticks';
+import type { Time } from '../core/time';
+import { galaxyVantage } from './galaxy';
 
 export type Frame = 'inertial' | 'body';
 
@@ -100,7 +103,7 @@ function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
   return addv(scale(a, c), scale(cross(n, a), s));
 }
 
-export type Destination = 'overview' | 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
+export type Destination = 'galaxy' | 'overview' | 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
 
 export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'overview', label: 'Solar system' },
@@ -112,6 +115,7 @@ export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'jupiter', label: 'Jupiter' },
   { id: 'saturn', label: 'Saturn' },
   { id: 'sun', label: 'Sun' },
+  { id: 'galaxy', label: 'Whole galaxy' },
 ];
 
 /**
@@ -170,6 +174,7 @@ export function vantage(
   dest: Destination,
   bodies: readonly BodyState[],
   aspect = 1.6,
+  now: Time = J2000,
 ): { pose: Pose; pos: Vec3; quat: THREE.Quaternion } {
   const sun = find(bodies, 'sun').pos;
   const view = (anchor: BodyId, frame: Frame, v: { pos: Vec3; quat: THREE.Quaternion }) => ({
@@ -182,6 +187,11 @@ export function vantage(
   };
 
   switch (dest) {
+    case 'galaxy': {
+      // 40 kpc above the north galactic pole, the whole disc in view, the Sun toward the bottom.
+      const g = galaxyVantage(now);
+      return view('sun', 'inertial', { pos: g.pos, quat: lookAt(g.pos, g.target, g.up) });
+    }
     case 'overview': {
       // The calendar's view: the Sun in the centre, the future to the right,
       // seen from 3.2 AU off the Sun's line of travel, ecliptic north up.
