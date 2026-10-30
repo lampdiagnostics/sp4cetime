@@ -467,10 +467,55 @@ select option {
   cursor: grabbing;
 }
 
+/* Fly mode is always a dark sky, whatever the calendar theme: light text, clear states. */
+.fly {
+  --panel: rgba(4, 7, 16, 0.74);
+  --panel-border: rgba(200, 215, 255, 0.22);
+  --text: #f4f7ff;
+  --text-dim: rgba(232, 238, 255, 0.86);
+  --accent: #ffb347;
+  --button: rgba(255, 255, 255, 0.1);
+  --button-hover: rgba(255, 255, 255, 0.2);
+  --pressed: rgba(255, 220, 160, 0.26);
+  --focus: #7cc4ff;
+  color: var(--text);
+}
+
 .fly .corner {
-  background: rgba(0, 0, 0, 0.45);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #e9eefc;
+  background: var(--panel);
+  border-color: var(--panel-border);
+  color: var(--text);
+  backdrop-filter: blur(6px);
+}
+
+.fly button,
+.fly select {
+  color: var(--text);
+  background: var(--button);
+  border-color: rgba(220, 230, 255, 0.28);
+}
+
+.fly button[aria-pressed='true'] {
+  background: var(--pressed);
+  border-color: rgba(255, 210, 140, 0.75);
+  color: #fff;
+}
+
+.fly button[aria-pressed='false'] {
+  color: rgba(232, 238, 255, 0.7);
+}
+
+.fly button.ghost {
+  color: var(--text-dim);
+}
+
+.fly .note,
+.fly .facts {
+  color: var(--text-dim);
+}
+
+.fly-hold {
+  color: var(--text);
 }
 
 .fly-labels {

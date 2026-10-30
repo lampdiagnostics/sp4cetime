@@ -136,7 +136,8 @@ export function App() {
         <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
           <FlyView
             onExit={() => setMode('calendar')}
-            theme={theme}
+            // Space is dark: a light calendar theme would draw dark lines on black, so Fly uses the dark one.
+            theme={theme.ui === 'dark' ? theme : (THEMES[0] as Theme)}
             overlays={{
               spirals: settings.spirals,
               orbits: settings.rings,

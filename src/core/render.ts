@@ -15,6 +15,7 @@ import { EARTH_AGE_YEARS, MAX_TIME, MIN_TIME, SUN_GALACTIC_SPEED_KM_S, SYNODIC_M
 import {
   KM_PER_AU,
   makeScale,
+  type Mat3,
   makeTrack,
   MOON_DISTANCE_KM,
   moonOffset,
@@ -59,6 +60,15 @@ export interface FrameInput {
   /** The real present moment. */
   readonly now: Time;
   readonly view: ViewOptions;
+  /**
+   * The real sky behind everything, once loaded (drawn by the app: it needs images).
+   * `view` maps ecliptic directions into the view frame; the sky fills a disc of radius R.
+   */
+  readonly backdrop?: SkyBackdrop | null;
+}
+
+export interface SkyBackdrop {
+  draw(ctx: CanvasRenderingContext2D, view: Mat3, cx: number, cy: number, R: number, ink: 'light' | 'dark', strength: number): void;
 }
 
 /** What the canvas needs back from a frame: where the Sun was drawn, for grabbing it. */
@@ -532,7 +542,14 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
     ctx.clip();
   }
 
-  drawGalaxy(ctx, f, L);
+  if (f.backdrop) {
+    // The whole sky, turning with the solar system: in the round window it fills the
+    // window; full-screen it reaches the corners.
+    const R = L.clipR ?? Math.hypot(W, H) / 2;
+    f.backdrop.draw(ctx, viewMatrix(view.roll, view.yaw), L.cx, L.clipY, R, theme.ui === 'dark' ? 'dark' : 'light', Math.min(1, theme.galaxyAlpha * 2));
+  } else {
+    drawGalaxy(ctx, f, L);
+  }
 
   // Horizontal guide lines, centred on the Sun line wherever it is dragged.
   const gs = theme.gridSpacingPx;

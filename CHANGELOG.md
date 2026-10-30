@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0 — 2026-10-30
+
+- The calendar now has the real sky behind it: the Milky Way and the naked-eye stars on a whole-sky disc. It turns exactly with the solar system when you rotate the view. The direction the Sun is travelling (galactic longitude 90°, in Cygnus) is to the right, like the future.
+- Fly mode's controls are easier to read: bright text on darker panels whatever theme the calendar uses, and buttons that are on are clearly highlighted. Fly mode always draws with a dark theme.
+- On light themes the calendar's sky is drawn as faint ink, like a star chart.
+
 ## 0.14.0 — 2026-10-30
 
 A truer sky, and real surfaces.

@@ -1,7 +1,8 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { type Camera, clampZoom, pan, zoomAt } from '../core/camera';
 import { DEFAULT_ROLL, MAX_YAW } from '../core/geometry';
-import { drawFrame, layout, type ViewOptions } from '../core/render';
+import { drawFrame, layout, type SkyBackdrop, type ViewOptions } from '../core/render';
+import { loadBackdrop } from './skyBackdrop';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
 import { clampTime, diffSeconds, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
@@ -67,6 +68,20 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
   const panYRef = useRef(0);
   /** Where the Sun was drawn last frame (for grabbing it). */
   const sunRef = useRef({ x: NaN, y: NaN });
+  // The real sky behind the calendar, loaded after the first frames.
+  const skyRef = useRef<SkyBackdrop | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadBackdrop(import.meta.env.BASE_URL).then(
+      (b) => {
+        if (live) skyRef.current = b;
+      },
+      (e: unknown) => console.warn('Sky backdrop not loaded:', e),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
   const spaceZoomRef = useRef(1);
   const onSpaceRef = useRef(onSpaceZoomChange);
   onSpaceRef.current = onSpaceZoomChange;
@@ -338,6 +353,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
           theme: themeRef.current,
           now,
           view: { ...viewRef.current, roll: rollRef.current, yaw: yawRef.current, spaceZoom: spaceZoomRef.current, panY: panYRef.current },
+          backdrop: skyRef.current,
         });
         sunRef.current = { x: r.sunX, y: r.sunY };
       }
