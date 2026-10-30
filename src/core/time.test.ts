@@ -106,7 +106,7 @@ describe('Calendar', () => {
 
   it('formats with detail suited to the zoom', () => {
     const t = fromCivil(2026, 10, 30, 5 * 3600 + 20 * 60);
-    expect(formatTime(t, 10)).toBe('30 Oct 2026, 05:20 UTC');
+    expect(formatTime(t, 10)).toBe('30 Oct 2026, 05:20 GMT');
     expect(formatTime(t, 3600)).toBe('30 Oct 2026');
     expect(formatTime(fromCivil(-43_123_861, 10, 3), 3600)).toBe('3 Oct 43123862 BCE');
     expect(formatTime(t, 1e8)).toBe('2026');

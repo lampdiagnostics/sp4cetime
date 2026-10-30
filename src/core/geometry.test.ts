@@ -13,7 +13,7 @@ import {
   type Sample,
   viewMatrix,
 } from './geometry';
-import { PLANETS, planetById } from './planets';
+import { meanMotion, PLANETS, planetById } from './planets';
 import { fromCivil, toUnixMs } from './time';
 
 const DEG = 180 / Math.PI;
@@ -111,11 +111,35 @@ describe('Tracks', () => {
   const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
 
   it('return to the same place after one orbit', () => {
-    const track = makeTrack(earth, 0.27, view, makeScale('fit', 150, 1.1, 1000, 230));
+    const track = makeTrack(earth, fromCivil(2027, 4, 1), view, makeScale('fit', 150, 1.1, 1000, 230));
     const a = { ...track.at(0, s) };
     const b = track.at(track.period, { ...s });
     expect(b.sx).toBeCloseTo(a.sx, 6);
     expect(b.sy).toBeCloseTo(a.sy, 6);
+  });
+
+  it('agree with the direct position calculation', () => {
+    for (const planet of PLANETS) {
+      for (const year of [1850, 2000, 2026, 2300]) {
+        const t = fromCivil(year, 3, 10, 5000);
+        const track = makeTrack(planet, t, view, makeScale('linear', 100, 1, 1, 230));
+        const direct = heliocentricEcliptic(planet, (t.day + t.sec / 86_400 - 0.5) / 36_525);
+        const lon = Math.atan2(direct[1], direct[0]);
+        const d = Math.abs(Math.atan2(Math.sin(track.at(0, s).lon - lon), Math.cos(track.at(0, s).lon - lon)));
+        expect(d * DEG, `${planet.name} ${year}`).toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  it('move smoothly in deep time: one second later is a tiny step, never a jump', () => {
+    for (const planet of PLANETS) {
+      const t0 = { day: -1_600_000_000_000, sec: 40_000 };
+      const t1 = { day: t0.day, sec: t0.sec + 1 };
+      const a = makeTrack(planet, t0, view, makeScale('fit', 150, 49, 1, 230)).M0;
+      const b = makeTrack(planet, t1, view, makeScale('fit', 150, 49, 1, 230)).M0;
+      const step = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+      expect(Math.abs(step - meanMotion(planet))).toBeLessThan(1e-4);
+    }
   });
 
   it('true scale puts 1 AU at the distance the Sun travels in 7.5 days', () => {

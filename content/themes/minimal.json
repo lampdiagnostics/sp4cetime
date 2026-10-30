@@ -5,6 +5,8 @@
   "grid": "rgba(30, 30, 30, 0.05)",
   "gridMajor": "rgba(30, 30, 30, 0.13)",
   "gridSpacingPx": 48,
+  "distanceGrid": "rgba(194, 65, 12, 0.22)",
+  "distanceText": "rgba(194, 65, 12, 0.85)",
   "galaxy": "#1d1d1f",
   "galaxyAlpha": 0.12,
   "sunLine": "#1d1d1f",

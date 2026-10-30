@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — 2026-10-30
+
+Stable spirals, burning fuses, two grids.
+
+- Spirals for every chosen body run into past and future at every zoom. Samples are anchored to fixed points on each orbit, so coils no longer shimmer or change thickness. Very dense coils are drawn at a readable minimum width, labelled on screen. Spirals can be switched off.
+- The Sun, planets and Moon burn like fuses: a bright tip with a glowing, fading trail along each path.
+- Time grid and space grid are separate overlays, both on by default. The space grid is fixed in space, so in live mode it sweeps past the Sun exactly like the time grid; a legend gives its spacing (km, AU, light years).
+- Opens live at the present moment; clock shown in GMT.
+- 49 tests; clock labels now include the date when a view spans more than a day.
+
 ## 0.2.0 — 2026-10-30
 
 Spatial model, live time, round window.

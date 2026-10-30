@@ -198,7 +198,7 @@ export function formatTime(t: Time, secondsPerPixel: number): string {
   if (secondsPerPixel > 600) return date;
   const h = Math.floor(t.sec / 3600);
   const m = Math.floor((t.sec % 3600) / 60);
-  return `${date}, ${pad2(h)}:${pad2(m)} UTC`;
+  return `${date}, ${pad2(h)}:${pad2(m)} GMT`;
 }
 
 /** "1 px ≈ 3.2 days" style description of a zoom level. */

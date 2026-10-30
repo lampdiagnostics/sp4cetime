@@ -2,8 +2,8 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { Camera } from './camera';
 import { MIN_SECONDS_PER_PIXEL } from './constants';
-import { chooseMinor, generateTicks, nests, stepSeconds, TICK_STEPS } from './ticks';
-import { fromCivil, fromYearsApprox } from './time';
+import { chooseMinor, distanceGrid, formatDistanceStep, generateTicks, nests, stepSeconds, TICK_STEPS } from './ticks';
+import { addSeconds, fromCivil, fromYearsApprox } from './time';
 
 const cam = (yearsFromNow: number, secondsPerPixel: number): Camera => ({
   center: fromYearsApprox(yearsFromNow),
@@ -65,6 +65,12 @@ describe('Time ticks', () => {
     }
   });
 
+  it('keeps clock labels unique when more than a day is in view', () => {
+    const c: Camera = { center: fromCivil(2000, 1, 1), secondsPerPixel: 72, width: 1200, height: 800 };
+    const labels = generateTicks(c).major.map((t) => t.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
   it('shows seconds when zoomed right in', () => {
     const c: Camera = { center: fromCivil(2026, 10, 30, 12 * 3600 + 30), secondsPerPixel: 0.05, width: 1200, height: 800 };
     const labels = generateTicks(c).major.map((t) => t.label);
@@ -77,31 +83,38 @@ describe('Time ticks', () => {
   });
 });
 
-describe('Distance ticks', () => {
+describe('Distance grid', () => {
   const now = fromCivil(2026, 10, 30);
 
-  it('mark the present as zero and count outward', () => {
-    const c: Camera = { center: now, secondsPerPixel: 1, width: 1200, height: 800 };
-    const { major } = generateTicks(c, 'distance', now);
-    const zero = major.find((t) => t.label === 'Now');
-    expect(zero?.x).toBeCloseTo(600, 6);
-    expect(major.some((t) => t.label.startsWith('+') && t.label.endsWith(' km'))).toBe(true);
+  it('is fixed in space: a second later every line has moved by exactly 230 km of travel', () => {
+    const spp = 0.05;
+    const c: Camera = { center: now, secondsPerPixel: spp, width: 1200, height: 800 };
+    const later: Camera = { ...c, center: addSeconds(now, 1) };
+    const a = distanceGrid(c).major;
+    const b = distanceGrid(later).major;
+    const shift = 1 / spp; // px per second
+    const moved = b.map((x) => x + shift);
+    for (const x of moved) {
+      if (x > 50 && x < 1150) expect(a.some((y) => Math.abs(y - x) < 1e-3)).toBe(true);
+    }
   });
 
-  it('switch to light years when zoomed out', () => {
+  it('uses light years when zoomed out', () => {
     const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1e4, width: 1200, height: 800 };
-    const { major } = generateTicks(c, 'distance', now);
-    expect(major.length).toBeGreaterThan(2);
-    for (const t of major) expect(t.label === 'Now' || t.label.endsWith(' ly')).toBe(true);
+    expect(distanceGrid(c).step.unit).toBe('ly');
+    expect(distanceGrid(c).major.length).toBeGreaterThan(2);
   });
 
-  it('space 1 light year ≈ 1,303 years of travel', () => {
-    const spp = 3.15576e7; // 1 yr per px
-    const c: Camera = { center: now, secondsPerPixel: spp, width: 30_000, height: 800 };
-    const { major } = generateTicks(c, 'distance', now, 1100);
-    const zero = major.findIndex((t) => t.label === 'Now');
-    const next = major[zero + 1];
-    expect(next?.label).toBe('+1 ly');
-    expect((next?.x ?? 0) - (major[zero]?.x ?? 0)).toBeCloseTo(1303.3, 0);
+  it('spaces 1 light year ≈ 1,303 years of travel', () => {
+    const c: Camera = { center: now, secondsPerPixel: 3.15576e7, width: 30_000, height: 800 };
+    const g = distanceGrid(c, 1100);
+    expect(formatDistanceStep(g.step)).toBe('1 ly');
+    expect((g.major[1] ?? 0) - (g.major[0] ?? 0)).toBeCloseTo(1303.3, 0);
+  });
+
+  it('never draws lines finer than double precision allows in deep time', () => {
+    const c: Camera = { center: fromYearsApprox(-4e9), secondsPerPixel: 0.05, width: 1200, height: 800 };
+    const g = distanceGrid(c);
+    expect(g.step.km).toBeGreaterThanOrEqual(Math.abs(230 * 4e9 * 3.15576e7) * 2e-12 * 0.9);
   });
 });

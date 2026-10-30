@@ -1,6 +1,5 @@
 import type { ScaleMode } from '../core/geometry';
 import { PLANET_IDS, type PlanetId } from '../core/planets';
-import type { AxisUnit } from '../core/ticks';
 
 /** Per-viewer preferences, remembered in this browser only. */
 export interface Settings {
@@ -10,7 +9,9 @@ export interface Settings {
   readonly rings: boolean;
   readonly labels: boolean;
   readonly round: boolean;
-  readonly axis: AxisUnit;
+  readonly spirals: boolean;
+  readonly timeGrid: boolean;
+  readonly distanceGrid: boolean;
   readonly scale: ScaleMode;
 }
 
@@ -21,7 +22,9 @@ export const DEFAULT_SETTINGS: Settings = {
   rings: true,
   labels: true,
   round: true,
-  axis: 'time',
+  spirals: true,
+  timeGrid: true,
+  distanceGrid: true,
   scale: 'fit',
 };
 
@@ -42,7 +45,9 @@ export function loadSettings(): Settings {
       rings: typeof data.rings === 'boolean' ? data.rings : DEFAULT_SETTINGS.rings,
       labels: typeof data.labels === 'boolean' ? data.labels : DEFAULT_SETTINGS.labels,
       round: typeof data.round === 'boolean' ? data.round : DEFAULT_SETTINGS.round,
-      axis: data.axis === 'distance' ? 'distance' : 'time',
+      spirals: typeof data.spirals === 'boolean' ? data.spirals : DEFAULT_SETTINGS.spirals,
+      timeGrid: typeof data.timeGrid === 'boolean' ? data.timeGrid : DEFAULT_SETTINGS.timeGrid,
+      distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
       scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
     };
   } catch {

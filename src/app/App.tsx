@@ -3,9 +3,9 @@ import { THEMES } from '../../content/themes';
 import type { Camera } from '../core/camera';
 import { KM_PER_AU, KM_PER_LIGHT_YEAR, type ScaleMode } from '../core/geometry';
 import { bodyState, TIER_LABELS } from '../core/models';
-import { travelKm } from '../core/render';
+import { pitchExaggerated, travelKm } from '../core/render';
 import type { Theme } from '../core/theme';
-import { formatDuration, formatTime, fromUnixMs } from '../core/time';
+import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, fromUnixMs, type Time, toCivil } from '../core/time';
 import { type CanvasHandle, GalacticCanvas } from './GalacticCanvas';
 import { MoonIcon, moonPhaseName } from './MoonIcon';
 import { PlanetPicker } from './PlanetPicker';
@@ -30,8 +30,11 @@ function formatTravel(km: number): string {
   return `${sign}${fmt(a / KM_PER_LIGHT_YEAR)} ly`;
 }
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** "07:39:12 GMT" for moments within the calendar range, else null. */
+function gmtClock(t: Time): string | null {
+  if (Math.abs(toCivil(t).year) > CALENDAR_YEAR_LIMIT) return null;
+  const p = (n: number): string => String(Math.floor(n)).padStart(2, '0');
+  return `${p(t.sec / 3600)}:${p((t.sec % 3600) / 60)}:${p(t.sec % 60)} GMT`;
 }
 
 export function App() {
@@ -47,7 +50,8 @@ export function App() {
     document.documentElement.dataset.ui = theme.ui;
   }, [theme]);
 
-  const [live, setLive] = useState(() => !prefersReducedMotion());
+  // The centre is the present moment by default.
+  const [live, setLive] = useState(true);
   const [cam, setCam] = useState<Camera | null>(null);
   const canvas = useRef<CanvasHandle>(null);
 
@@ -72,7 +76,9 @@ export function App() {
       rings: settings.rings,
       labels: settings.labels,
       round: settings.round,
-      axis: settings.axis,
+      spirals: settings.spirals,
+      timeGrid: settings.timeGrid,
+      distanceGrid: settings.distanceGrid,
     }),
     [settings],
   );
@@ -106,6 +112,8 @@ export function App() {
   const state = cam ? bodyState(cam.center) : null;
   const now = fromUnixMs(Date.now());
   const travel = cam ? travelKm(now, cam.center) : 0;
+  const clock = cam ? gmtClock(cam.center) : null;
+  const widened = cam ? settings.spirals && pitchExaggerated(settings.planets, cam.secondsPerPixel) : false;
 
   return (
     <div className={`app ${settings.round ? 'is-round' : 'is-full'}`} style={{ background: theme.background }}>
@@ -134,8 +142,9 @@ export function App() {
           sp4cetime <span>Galactic Calendar</span>
         </div>
         <output className="center-date" aria-live="off">
-          {cam ? formatTime(cam.center, cam.secondsPerPixel) : ''}
+          {cam ? formatTime(cam.center, Math.max(cam.secondsPerPixel, 3600)) : ''}
         </output>
+        {clock && <div className="clock">{clock}</div>}
         {cam && state && (
           <div className="facts">
             <span className={`tier tier-${state.tier}`} title="How precisely positions are known here">
@@ -181,12 +190,19 @@ export function App() {
       {/* Bottom left: what is drawn */}
       <nav className="corner bl" aria-label="Bodies and units">
         <PlanetPicker theme={theme} settings={settings} onChange={update} />
-        <div className="segmented" role="group" aria-label="Axis units">
-          <button type="button" aria-pressed={settings.axis === 'time'} onClick={() => update({ axis: 'time' })}>
-            Time
+        <div className="segmented" role="group" aria-label="Overlays">
+          <button type="button" aria-pressed={settings.spirals} onClick={() => update({ spirals: !settings.spirals })}>
+            Spirals
           </button>
-          <button type="button" aria-pressed={settings.axis === 'distance'} onClick={() => update({ axis: 'distance' })}>
-            Distance
+          <button type="button" aria-pressed={settings.timeGrid} onClick={() => update({ timeGrid: !settings.timeGrid })}>
+            Time grid
+          </button>
+          <button
+            type="button"
+            aria-pressed={settings.distanceGrid}
+            onClick={() => update({ distanceGrid: !settings.distanceGrid })}
+          >
+            Space grid
           </button>
         </div>
         <label className="select">
@@ -197,7 +213,10 @@ export function App() {
             <option value="true">True scale</option>
           </select>
         </label>
-        <p className="note">{SCALE_NOTES[settings.scale]}</p>
+        <p className="note">
+          {SCALE_NOTES[settings.scale]}
+          {widened && <><br />Coils widened to stay readable at this zoom</>}
+        </p>
       </nav>
 
       {/* Bottom right: zoom */}

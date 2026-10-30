@@ -184,25 +184,48 @@ export interface Track {
   readonly planet: Planet;
   /** Seconds per orbit. */
   readonly period: number;
+  /** Mean motion, radians per second. */
+  readonly n: number;
+  /** Mean anomaly at the camera centre, radians in [0, 2π). */
+  readonly M0: number;
   /** Position dt seconds after the camera centre. */
   at(dt: number, out: Sample): Sample;
+  /** Position at mean anomaly M (radians, any value). */
+  atMean(M: number, out: Sample): Sample;
   /** Point on the orbit at eccentric anomaly E, for drawing the orbit ring. */
   ringAt(E: number, out: Sample): Sample;
-  /** Projected half-height of the orbit, px (for the level-of-detail band). */
-  readonly extentY: readonly [number, number];
+  /** Largest on-screen offset of the orbit from the Sun, px. */
+  readonly extent: number;
+}
+
+/** x mod 2π into [0, 2π). */
+export function wrap2pi(x: number): number {
+  const r = x % TWO_PI;
+  return r < 0 ? r + TWO_PI : r;
 }
 
 /**
- * Build a planet's track for one frame. Elements are evaluated once at the camera
- * centre (T centuries); positions advance by mean motion over camera-relative dt.
+ * Mean anomaly at a moment, computed from the day and second separately so it
+ * stays smooth to a tiny fraction of a degree even billions of years away.
  */
-export function makeTrack(planet: Planet, T: number, view: Mat3, scale: Scale): Track {
+export function meanAnomalyAt(planet: Planet, day: number, sec: number, varpiDeg: number): number {
+  const ratePerDay = (planet.rate.L * DEG) / 36_525;
+  const base = (planet.el.L - varpiDeg) * DEG;
+  return wrap2pi(base + wrap2pi(ratePerDay * day) + ratePerDay * (sec / 86_400 - 0.5));
+}
+
+/**
+ * Build a planet's track for one frame. Slow elements are evaluated once at the
+ * camera centre; positions advance by mean motion from the precise centre anomaly.
+ */
+export function makeTrack(planet: Planet, center: { day: number; sec: number }, view: Mat3, scale: Scale): Track {
+  const T = centuriesFromDays(center.day + center.sec / 86_400);
   const el = elementsAt(planet, T);
   const e = el.e;
   const a = el.a;
   const b = a * Math.sqrt(1 - e * e);
   const n = meanMotion(planet);
-  const M0 = ((((el.L - el.varpi) % 360) + 360) % 360) * DEG;
+  const M0 = meanAnomalyAt(planet, center.day, center.sec, el.varpi);
   const [P, Q] = orbitBasis((el.varpi - el.node) * DEG, el.node * DEG, el.I * DEG);
   const U = mul(view, P);
   const W = mul(view, Q);
@@ -219,19 +242,22 @@ export function makeTrack(planet: Planet, T: number, view: Mat3, scale: Scale): 
     return out;
   };
 
-  let lo = Infinity, hi = -Infinity;
+  let extent = 0;
   const tmp: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
   for (let i = 0; i < 64; i++) {
     place((i / 64) * TWO_PI, tmp);
-    lo = Math.min(lo, tmp.sy);
-    hi = Math.max(hi, tmp.sy);
+    extent = Math.max(extent, Math.abs(tmp.sx), Math.abs(tmp.sy));
   }
 
+  const atMean = (M: number, out: Sample): Sample => place(eccentricAnomaly(M, e), out);
   return {
     planet,
     period: TWO_PI / n,
-    extentY: [lo, hi],
-    at: (dt, out) => place(eccentricAnomaly(M0 + n * dt, e), out),
+    n,
+    M0,
+    extent,
+    at: (dt, out) => atMean(M0 + n * dt, out),
+    atMean,
     ringAt: place,
   };
 }

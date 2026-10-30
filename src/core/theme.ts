@@ -13,6 +13,9 @@ export interface Theme {
   readonly grid: string;
   readonly gridMajor: string;
   readonly gridSpacingPx: number;
+  /** Space grid (fixed points along the galactic path) and its legend. */
+  readonly distanceGrid: string;
+  readonly distanceText: string;
   /** Galactic background stars. */
   readonly galaxy: string;
   readonly galaxyAlpha: number;
@@ -43,7 +46,7 @@ export interface Theme {
 }
 
 const STRING_KEYS = [
-  'id', 'name', 'background', 'grid', 'gridMajor', 'galaxy', 'sunLine', 'sun', 'moon', 'moonTrail',
+  'id', 'name', 'background', 'grid', 'gridMajor', 'distanceGrid', 'distanceText', 'galaxy', 'sunLine', 'sun', 'moon', 'moonTrail',
   'tickLine', 'tickText', 'cursor', 'today', 'bezel', 'font',
 ] as const;
 const NUMBER_KEYS = [
