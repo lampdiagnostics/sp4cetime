@@ -129,6 +129,17 @@ export function solarSystemAt(t: Time): BodyState[] {
   });
 }
 
+/** The Moon's position relative to Earth, km (true within the ephemeris tier, else the mean Moon). */
+export function moonGeocentric(t: Time): Vec3 {
+  if (accuracyTier(t) === 'ephemeris') {
+    return scale(toEcl(Astronomy.GeoMoon(new Astronomy.AstroTime(toDaysApprox(t) - 0.5))), KM_PER_AU);
+  }
+  const T = (toDaysApprox(t) - 0.5) / 36_525;
+  const e = heliocentricEcliptic(planetById('earth'), T);
+  const lon = Math.atan2(e[1], e[0]) + Math.PI + moonPhaseMean(t);
+  return [MOON_MEAN_DISTANCE_KM * Math.cos(lon), MOON_MEAN_DISTANCE_KM * Math.sin(lon), 0];
+}
+
 /** Fraction of a body's disc lit by the Sun, as seen from a point (0 = new, 1 = full). */
 export function litFraction(body: Vec3, viewer: Vec3): number {
   const toSun = scale(body, -1);

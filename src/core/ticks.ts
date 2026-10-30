@@ -124,7 +124,7 @@ function clockLabel(t: Time, withSeconds: boolean, withDate: boolean): string {
 }
 
 /** Times of every tick of `step` in [start, end], with labels. */
-function timeTicks(start: Time, end: Time, step: TickStep, labels: boolean): Array<[Time, string]> {
+export function timeTicks(start: Time, end: Time, step: TickStep, labels: boolean): Array<[Time, string]> {
   const out: Array<[Time, string]> = [];
   const push = (t: Time, label: string): boolean => {
     out.push([t, labels ? label : '']);
@@ -218,7 +218,7 @@ export interface DistanceGrid {
 }
 
 /** The fixed point in space the distance grid is measured from: the Sun's position at J2000.0. */
-const J2000: Time = makeTime(0, 43_200);
+export const J2000: Time = makeTime(0, 43_200);
 
 /**
  * A grid fixed in space along the Sun's galactic path. The Sun crosses it at

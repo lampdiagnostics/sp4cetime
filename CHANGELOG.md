@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0 — 2026-10-30
+
+The calendar, in 3D.
+
+- Fly mode now opens on the **Solar system** view: the Sun in the centre, the future to the right, just like the calendar.
+- **Spirals**, **Orbits**, **Time grid** and **Space grid** work in Fly mode too, with the same toggles (shared with the calendar). Spirals are each body's true path through space as the Sun travels at 230 km/s, passing exactly through where each body is now; the Sun's own line runs through the middle.
+- Time and space grid lines stand across the Sun's line and flow past as time runs, labelled with dates and with distance travelled since 2000.
+- Spirals and orbits follow your planet choices and the Moon setting from the calendar.
+- Names no longer pile up when bodies are close together on screen.
+
 ## 0.10.1 — 2026-10-30
 
 - Fix: Fly mode could hang on "Loading the solar system" in the dev server. Three.js is now pre-bundled when the server starts.

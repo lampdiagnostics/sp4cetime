@@ -132,7 +132,26 @@ export function App() {
     return (
       <FlyBoundary onExit={() => setMode('calendar')}>
         <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
-          <FlyView onExit={() => setMode('calendar')} />
+          <FlyView
+            onExit={() => setMode('calendar')}
+            theme={theme}
+            overlays={{
+              spirals: settings.spirals,
+              orbits: settings.rings,
+              timeGrid: settings.timeGrid,
+              spaceGrid: settings.distanceGrid,
+              planets: settings.planets,
+              moon: settings.moon,
+            }}
+            onOverlays={(c) =>
+              update({
+                ...(c.spirals !== undefined && { spirals: c.spirals }),
+                ...(c.orbits !== undefined && { rings: c.orbits }),
+                ...(c.timeGrid !== undefined && { timeGrid: c.timeGrid }),
+                ...(c.spaceGrid !== undefined && { distanceGrid: c.spaceGrid }),
+              })
+            }
+          />
         </Suspense>
       </FlyBoundary>
     );

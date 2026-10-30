@@ -23,10 +23,15 @@ import {
   vantage,
   worldOf,
 } from './flight';
+import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
+import type { Theme } from '../core/theme';
 
 interface Props {
   onExit: () => void;
+  theme: Theme;
+  overlays: OverlayOptions;
+  onOverlays: (change: Partial<OverlayOptions>) => void;
 }
 
 const RATES: ReadonlyArray<{ label: string; rate: number }> = [
@@ -70,7 +75,9 @@ function clock(t: Time): string {
   return `${formatTime(t, 3600)} · ${p(t.sec / 3600)}:${p((t.sec % 3600) / 60)}:${p(t.sec % 60)} GMT`;
 }
 
-export default function FlyView({ onExit }: Props) {
+export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) {
+  const overlaysRef = useRef(overlays);
+  overlaysRef.current = overlays;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const [hud, setHud] = useState<Hud | null>(null);
@@ -123,7 +130,9 @@ export default function FlyView({ onExit }: Props) {
     observer.observe(canvas);
 
     // Start at geostationary orbit, with Earth and the Moon in view.
-    poseRef.current = vantage('geo', solarSystemAt(simNow())).pose;
+    // Start like the calendar: the Sun in the centre, its paths flowing past.
+    poseRef.current = vantage('overview', solarSystemAt(simNow())).pose;
+    const paths = createOverlays(scene.scene, theme);
 
     goRef.current = (d) => {
       const bodies = solarSystemAt(simNow());
@@ -151,6 +160,14 @@ export default function FlyView({ onExit }: Props) {
     };
 
     // Labels: one element per body, positioned each frame.
+    const gridLabels: HTMLDivElement[] = [];
+    for (let i = 0; i < 60; i++) {
+      const el = document.createElement('div');
+      el.className = 'fly-grid-label';
+      el.style.display = 'none';
+      labelHost.appendChild(el);
+      gridLabels.push(el);
+    }
     const labels = new Map<BodyId, HTMLDivElement>();
     for (const b of BODIES) {
       const el = document.createElement('div');
@@ -295,6 +312,7 @@ export default function FlyView({ onExit }: Props) {
         poseRef.current = poseFrom(pos, quat, anchor, frame, bodies);
       }
 
+      const gl = paths.update(overlaysRef.current, now, bodies, pos);
       scene.setFov(fovRef.current);
       scene.render(bodies, pos, quat);
 
@@ -302,6 +320,7 @@ export default function FlyView({ onExit }: Props) {
       const cam = scene.camera;
       const W = canvas.clientWidth, H = canvas.clientHeight;
       const v3 = new THREE.Vector3();
+      const placed: Array<[number, number]> = [];
       for (const b of bodies) {
         const el = labels.get(b.info.id);
         if (!el) continue;
@@ -315,9 +334,38 @@ export default function FlyView({ onExit }: Props) {
         }
         const angR = Math.asin(Math.min(1, b.info.radiusKm / d));
         const pxR = (angR / ((cam.fov * Math.PI) / 180)) * H;
+        const lx = ((v3.x + 1) / 2) * W + Math.max(6, pxR * 0.72), ly = ((1 - v3.y) / 2) * H - Math.max(6, pxR * 0.72);
+        // Don't stack names: a body right beside one already named (the Moon by Earth, from afar) stays unnamed.
+        if (placed.some(([x, y]) => Math.abs(x - lx) < 60 && Math.abs(y - ly) < 12)) {
+          el.style.display = 'none';
+          continue;
+        }
+        placed.push([lx, ly]);
         el.style.display = 'block';
-        el.style.transform = `translate(${((v3.x + 1) / 2) * W + Math.max(6, pxR * 0.72)}px, ${((1 - v3.y) / 2) * H - Math.max(6, pxR * 0.72)}px)`;
+        el.style.transform = `translate(${lx}px, ${ly}px)`;
         el.textContent = `${b.info.name} · ${formatKm(d - b.info.radiusKm)}`;
+      }
+
+      // Grid labels.
+      const inv = quat.clone().invert();
+      for (let i = 0; i < gridLabels.length; i++) {
+        const el = gridLabels[i]!;
+        const g = gl[i];
+        if (!g) {
+          el.style.display = 'none';
+          continue;
+        }
+        const rel = new THREE.Vector3(g.pos[0] - pos[0], g.pos[1] - pos[1], g.pos[2] - pos[2]);
+        const z = rel.clone().applyQuaternion(inv).z;
+        v3.copy(rel).project(cam);
+        if (z > 0 || Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1) {
+          el.style.display = 'none';
+          continue;
+        }
+        el.style.display = 'block';
+        el.style.color = g.kind === 'time' ? theme.tickText : theme.distanceText;
+        el.style.transform = `translate(${((v3.x + 1) / 2) * W + 4}px, ${((1 - v3.y) / 2) * H + (g.kind === 'time' ? -16 : 2)}px)`;
+        if (el.textContent !== g.text) el.textContent = g.text;
       }
 
       if (ts - hudAt > 160) {
@@ -351,6 +399,8 @@ export default function FlyView({ onExit }: Props) {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       labels.forEach((el) => el.remove());
+      gridLabels.forEach((el) => el.remove());
+      paths.dispose();
       scene.dispose();
     };
     // Set up once; the loop reads live values through refs.
@@ -400,6 +450,20 @@ export default function FlyView({ onExit }: Props) {
             </button>
           ))}
         </div>
+        {hud && (
+          <div className="row toggles" role="group" aria-label="Overlays">
+            {([
+              ['spirals', 'Spirals'],
+              ['orbits', 'Orbits'],
+              ['timeGrid', 'Time grid'],
+              ['spaceGrid', 'Space grid'],
+            ] as const).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={overlays[k]} onClick={() => onOverlays({ [k]: !overlays[k] })}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {hud && (
           <label className="fly-hold">
             <input

@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { bodyInfo, type BodyId, type BodyState, GEO_RADIUS_KM } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
+import { CALENDAR_AXES } from '../core/paths3d';
 
 export type Frame = 'inertial' | 'body';
 
@@ -100,9 +101,10 @@ function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
   return addv(scale(a, c), scale(cross(n, a), s));
 }
 
-export type Destination = 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
+export type Destination = 'overview' | 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
 
 export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
+  { id: 'overview', label: 'Solar system' },
   { id: 'geo', label: 'Geostationary orbit' },
   { id: 'leo', label: 'Low Earth orbit' },
   { id: 'earthMoon', label: 'Earth & Moon' },
@@ -125,6 +127,16 @@ export function vantage(dest: Destination, bodies: readonly BodyState[]): { pose
   let up: Vec3 = ECL_NORTH;
 
   switch (dest) {
+    case 'overview': {
+      // The calendar's view: the Sun in the centre, the future to the right,
+      // seen from 3.2 AU off the Sun's line of travel.
+      anchor = 'sun';
+      const sun = find(bodies, 'sun').pos;
+      pos = addv(sun, scale(CALENDAR_AXES[2], 3.2 * 149_597_870.7));
+      target = sun;
+      up = CALENDAR_AXES[1];
+      break;
+    }
     case 'geo': {
       // In Earth's equatorial plane, 42,164 km out, placed so the Moon is in view
       // beside Earth. Held geostationary: it turns with Earth.

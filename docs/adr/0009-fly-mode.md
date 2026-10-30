@@ -22,3 +22,7 @@ A separate **Fly mode**, entered from the calendar, rendered in 3D.
 
 - One more dependency (three, MIT) and a second rendering path to maintain. Core maths (`src/core/bodies.ts`, `src/fly/flight.ts`) is pure and tested in Node.
 - Requires WebGL; without it Fly mode says so and the calendar still works.
+
+## Update (v0.11): the calendar's overlays in 3D
+
+Spirals, orbits, the Sun's line and both grids are drawn in Fly mode at true scale (`src/core/paths3d.ts`). A moment τ away sits 230 km/s × τ along the Sun's line of travel, so each body's path is a helix. Paths are sampled from the Keplerian model (cheap enough to rebuild every frame) and shifted to pass exactly through each body's true position now, with samples packed quadratically around the present so the line never visibly misses the body. Everything is rebuilt each frame relative to the camera in double precision. Fly mode opens on the calendar's own view: the Sun centred, the future to the right.

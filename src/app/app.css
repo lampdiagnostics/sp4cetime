@@ -521,3 +521,18 @@ select option {
   max-width: 360px;
   justify-content: flex-start;
 }
+
+.fly-grid-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 10.5px;
+  white-space: nowrap;
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+}
+
+.fly .toggles {
+  flex-wrap: wrap;
+  gap: 4px;
+}

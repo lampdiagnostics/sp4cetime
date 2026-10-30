@@ -26,6 +26,7 @@ export const BODY_COLORS: Record<BodyId, number> = {
 export interface FlyScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly camera: THREE.PerspectiveCamera;
+  readonly scene: THREE.Scene;
   /** Place everything for this moment and camera, then draw. */
   render(bodies: readonly BodyState[], camPos: Vec3, camQuat: THREE.Quaternion): void;
   /** Lens: vertical field of view in degrees (narrow = telescope). */
@@ -226,6 +227,7 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   return {
     renderer,
     camera,
+    scene,
     render(bodies, camPos, camQuat) {
       camera.position.set(0, 0, 0);
       camera.quaternion.copy(camQuat);
