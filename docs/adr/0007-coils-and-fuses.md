@@ -16,7 +16,7 @@ Coils sampled at fixed screen pixels shimmered: when an orbit spans only a few p
 
 **Two grid overlays.** The time grid sits on the time ticks. The space grid is fixed to points along the Sun's galactic path, measured from its J2000.0 position. In live mode both sweep past the Sun at the same real rate. Spacing runs from km to AU to light years and is stated in a legend. Steps finer than double precision allows at that distance are skipped, so lines never jitter.
 
-**Present moment.** The view opens live at the present, shown in GMT.
+**The Sun is the present.** The Sun and every fuse tip are always drawn at the present moment, and the grids flow past it in real time: a line labelled 02:55:00 crosses the Sun when the clock reads 02:55:00 GMT. Dragging sideways sets an exact offset (whole days + seconds) ahead of or behind the present; the view keeps flowing at that offset, the Sun moves off-centre, and a cursor with hollow markers shows where each body is at the viewed moment. "Back to now" returns the offset to zero. There is no separate "Now" marker. Coils are anchored at the present's position, so widened coils still pass exactly through each body's real position now.
 
 ## Consequences
 

@@ -54,6 +54,23 @@ export function addDays(t: Time, days: number): Time {
   return makeTime(t.day + days, t.sec);
 }
 
+/**
+ * a − b as an exact interval (whole days + seconds), for storing offsets that
+ * must stay exact however large they are.
+ */
+export function timeDiff(a: Time, b: Time): Time {
+  return makeTime(a.day - b.day, a.sec - b.sec);
+}
+
+/** t + an interval from timeDiff. */
+export function timeAdd(t: Time, interval: Time): Time {
+  return makeTime(t.day + interval.day, t.sec + interval.sec);
+}
+
+export function isZeroInterval(i: Time): boolean {
+  return i.day === 0 && i.sec === 0;
+}
+
 /** a − b in seconds. Exact when a and b are close; approximate when far apart. */
 export function diffSeconds(a: Time, b: Time): number {
   return (a.day - b.day) * SECONDS_PER_DAY + (a.sec - b.sec);

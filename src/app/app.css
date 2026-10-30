@@ -108,8 +108,9 @@ body {
 .tr {
   top: var(--gap);
   right: var(--gap);
+  max-width: none;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   align-items: center;
 }
@@ -156,6 +157,12 @@ body {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   color: var(--text-dim);
+}
+
+.viewing {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .facts {

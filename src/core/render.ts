@@ -338,13 +338,14 @@ export interface Scene {
   readonly moonPx: number | null;
 }
 
-export function buildScene(f: FrameInput, L: Layout): Scene {
+/** Bodies' tracks, evaluated at the anchor time (the present when it is in view). */
+export function buildScene(f: FrameInput, L: Layout, anchor: Time): Scene {
   const { cam, view } = f;
   const chosen = view.planets.map(planetById);
   const fitAU = Math.max(0.5, ...chosen.map((p) => p.el.a * (1 + p.el.e)));
   const scale = makeScale(view.scale, L.fitR, fitAU, cam.secondsPerPixel, SUN_GALACTIC_SPEED_KM_S);
   const vm = viewMatrix(view.roll);
-  const tracks = chosen.map((p) => makeTrack(p, cam.center, vm, scale));
+  const tracks = chosen.map((p) => makeTrack(p, anchor, vm, scale));
   let moonPx: number | null = null;
   if (view.moon && view.planets.includes('earth')) {
     moonPx =
@@ -360,7 +361,14 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   const L = layout(cam, view.round);
   const W = cam.width;
   const H = cam.height;
-  const scene = buildScene(f, L);
+  // The Sun is always the present. Its screen position is where "now" falls on
+  // the axis; coils are anchored there so every body's fuse sits exactly at now.
+  const xNow = timeToX(cam, f.now);
+  const nowInView = xNow > -W && xNow < 2 * W;
+  const anchorTime = nowInView ? f.now : cam.center;
+  const A: Layout = { ...L, cx: nowInView ? xNow : L.cx };
+  const scene = buildScene(f, L, anchorTime);
+  const viewingAway = Math.abs(xNow - L.cx) > 1.5;
   const additive = theme.ui === 'dark';
   const pulse = Math.sin((f.now.sec % 1.6) / 1.6 * TWO_PI);
 
@@ -401,7 +409,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   const sunStartX = Math.max(0, timeToX(cam, MIN_TIME));
   const sunEndX = Math.min(W, timeToX(cam, MAX_TIME));
   const bodiesFromX = Math.max(sunStartX, timeToX(cam, PLANETS_FORM));
-  const centreBorn = bodiesFromX <= L.cx && L.cx <= sunEndX;
+  const nowBorn = nowInView && bodiesFromX <= A.cx && A.cx <= sunEndX;
 
   // Coils and fuse trails.
   const maxExtent = 4 * Math.max(W, H);
@@ -415,17 +423,17 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     if (!view.spirals || track.extent < 0.5 || track.extent > maxExtent || bodiesFromX >= sunEndX) continue;
     const from = Math.max(bodiesFromX, -track.extent);
     const to = Math.min(sunEndX, W + track.extent);
-    coils.push({ id: track.planet.id, path: drawCoilPath(track, pitch, L, from, to) });
+    coils.push({ id: track.planet.id, path: drawCoilPath(track, pitch, A, from, to) });
   }
   const earth = scene.tracks.find((t) => t.planet.id === 'earth');
   if (earth && scene.moonPx !== null && scene.moonPx < maxExtent) {
     moonCoil = {
       pitchPx: Math.max(SYNODIC_MONTH_SECONDS / cam.secondsPerPixel, MIN_MOON_COIL_PX),
-      phase0: moonPhase(cam.center),
+      phase0: moonPhase(anchorTime),
       radiusPx: scene.moonPx,
     };
     if (view.spirals && bodiesFromX < sunEndX) {
-      moonPath = drawMoonPath(earth, pitches.get('earth') as number, moonCoil, f, L, Math.max(bodiesFromX, -earth.extent), Math.min(sunEndX, W + earth.extent));
+      moonPath = drawMoonPath(earth, pitches.get('earth') as number, moonCoil, f, A, Math.max(bodiesFromX, -earth.extent), Math.min(sunEndX, W + earth.extent));
     }
   }
 
@@ -443,7 +451,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   }
   ctx.globalAlpha = 1;
 
-  const rings = view.rings ? scene.tracks.map((t) => ringPaths(t, L, maxExtent)) : [];
+  const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPaths(t, A, maxExtent)) : [];
   ctx.lineWidth = 1;
   for (const r of rings) {
     if (!r) continue;
@@ -463,11 +471,11 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     ctx.lineTo(sunEndX, L.cy);
     ctx.stroke();
     ctx.globalAlpha = 1;
-    if (centreBorn || (sunStartX <= L.cx && L.cx <= sunEndX)) {
-      const len = Math.min(L.cx - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
+    if (nowInView && sunStartX <= A.cx && A.cx <= sunEndX) {
+      const len = Math.min(A.cx - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
       const pts = new Float64Array(TRAIL_STEPS * 2);
       for (let i = 0; i < TRAIL_STEPS; i++) {
-        pts[i * 2] = L.cx - len + (len * i) / (TRAIL_STEPS - 1);
+        pts[i * 2] = A.cx - len + (len * i) / (TRAIL_STEPS - 1);
         pts[i * 2 + 1] = L.cy;
       }
       strokeFuse(ctx, pts, theme.sun, theme.sunLineWidth * 1.6, additive);
@@ -499,30 +507,30 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   const m: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
   const vm = viewMatrix(view.roll);
   const tips: Array<{ x: number; y: number; r: number; color: string; name: string; front: boolean }> = [];
-  if (centreBorn) {
+  if (nowBorn) {
     for (const track of scene.tracks) {
       if (track.extent > maxExtent) continue;
       const pitch = pitches.get(track.planet.id) as number;
-      const len = Math.min(trailLength(pitch), L.cx - bodiesFromX);
+      const len = Math.min(trailLength(pitch), A.cx - bodiesFromX);
       const pts = new Float64Array(TRAIL_STEPS * 2);
       for (let i = 0; i < TRAIL_STEPS; i++) {
-        const xBase = L.cx - len + (len * i) / (TRAIL_STEPS - 1);
-        track.atMean(track.M0 + (TWO_PI * (xBase - L.cx)) / pitch, s);
+        const xBase = A.cx - len + (len * i) / (TRAIL_STEPS - 1);
+        track.atMean(track.M0 + (TWO_PI * (xBase - A.cx)) / pitch, s);
         pts[i * 2] = xBase + s.sx;
         pts[i * 2 + 1] = L.cy - s.sy;
       }
       const color = theme.planets[track.planet.id];
       strokeFuse(ctx, pts, color, theme.trailWidth * 1.4, additive);
       track.at(0, s);
-      tips.push({ x: L.cx + s.sx, y: L.cy - s.sy, r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name, front: s.depth >= 0 });
+      tips.push({ x: A.cx + s.sx, y: L.cy - s.sy, r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name, front: s.depth >= 0 });
 
       if (track === earth && moonCoil) {
-        const mlen = Math.min(trailLength(moonCoil.pitchPx), L.cx - bodiesFromX);
+        const mlen = Math.min(trailLength(moonCoil.pitchPx), A.cx - bodiesFromX);
         const mp = new Float64Array(TRAIL_STEPS * 2);
         for (let i = 0; i < TRAIL_STEPS; i++) {
-          const xBase = L.cx - mlen + (mlen * i) / (TRAIL_STEPS - 1);
-          earth.atMean(earth.M0 + (TWO_PI * (xBase - L.cx)) / pitch, s);
-          const phase = moonCoil.phase0 + (TWO_PI * (xBase - L.cx)) / moonCoil.pitchPx;
+          const xBase = A.cx - mlen + (mlen * i) / (TRAIL_STEPS - 1);
+          earth.atMean(earth.M0 + (TWO_PI * (xBase - A.cx)) / pitch, s);
+          const phase = moonCoil.phase0 + (TWO_PI * (xBase - A.cx)) / moonCoil.pitchPx;
           moonOffset(s.lon + Math.PI + phase, moonCoil.radiusPx, vm, m);
           mp[i * 2] = xBase + s.sx + m.sx;
           mp[i * 2 + 1] = L.cy - s.sy - m.sy;
@@ -534,7 +542,36 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     }
   }
 
-  if (sunStartX <= L.cx && L.cx <= sunEndX) spark(ctx, L.cx, L.cy, 5.5, theme.sun, pulse, additive);
+  if (nowInView && sunStartX <= A.cx && A.cx <= sunEndX) spark(ctx, A.cx, L.cy, 5.5, theme.sun, pulse, additive);
+
+  // Looking ahead or back: a cursor at the viewed moment, with hollow markers
+  // where each body is on its coil then.
+  if (viewingAway) {
+    const top = L.topY + 12, bottom = L.labelY - 18;
+    ctx.strokeStyle = theme.cursor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(L.cx) + 0.5, top);
+    ctx.lineTo(Math.round(L.cx) + 0.5, bottom);
+    ctx.stroke();
+    if (bodiesFromX <= L.cx && L.cx <= sunEndX) {
+      for (const track of scene.tracks) {
+        if (track.extent > maxExtent) continue;
+        const pitch = pitches.get(track.planet.id) as number;
+        track.atMean(track.M0 + (TWO_PI * (L.cx - A.cx)) / pitch, s);
+        ctx.strokeStyle = theme.planets[track.planet.id];
+        ctx.beginPath();
+        ctx.arc(L.cx + s.sx, L.cy - s.sy, 4, 0, TWO_PI);
+        ctx.stroke();
+      }
+    }
+    if (sunStartX <= L.cx && L.cx <= sunEndX) {
+      ctx.strokeStyle = theme.sun;
+      ctx.beginPath();
+      ctx.arc(L.cx, L.cy, 5, 0, TWO_PI);
+      ctx.stroke();
+    }
+  }
   for (const t of tips) spark(ctx, t.x, t.y, t.r, t.color, pulse, additive);
 
   // Names, Earth first so it wins when labels would overlap.
@@ -600,20 +637,6 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   if (space) {
     ctx.fillStyle = theme.distanceText;
     ctx.fillText(`Space grid · ${formatDistanceStep(space.step)} between lines`, L.cx, L.topY);
-  }
-
-  // The present, when the view is away from it.
-  const nowX = timeToX(cam, f.now);
-  if (nowX >= 0 && nowX <= W && Math.abs(diffSeconds(f.now, cam.center)) / cam.secondsPerPixel > 1.5) {
-    ctx.strokeStyle = theme.today;
-    ctx.setLineDash([4, 5]);
-    ctx.beginPath();
-    ctx.moveTo(Math.round(nowX) + 0.5, L.topY + 12);
-    ctx.lineTo(Math.round(nowX) + 0.5, L.labelY - 18);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = theme.today;
-    ctx.fillText('Now', nowX, L.topY + 24);
   }
 
   if (L.clipR) {

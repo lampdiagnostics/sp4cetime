@@ -12,6 +12,8 @@ import {
   makeTime,
   SECONDS_PER_DAY,
   toCivil,
+  timeAdd,
+  timeDiff,
   toUnixMs,
 } from './time';
 
@@ -56,6 +58,16 @@ describe('Time basics', () => {
     fc.assert(
       fc.property(anyTime, fc.integer({ min: -1e9, max: 1e9 }), (t, s) => {
         expect(diffSeconds(addSeconds(t, s), t)).toBeCloseTo(s, 6);
+      }),
+    );
+  });
+
+  it('keeps offsets exact: now + (then − now) is then, at any depth', () => {
+    fc.assert(
+      fc.property(anyTime, anyTime, (a, b) => {
+        const back = timeAdd(b, timeDiff(a, b));
+        expect(back.day === a.day || Math.abs(diffSeconds(back, a)) < 1e-6).toBe(true);
+        expect(Math.abs(diffSeconds(back, a))).toBeLessThan(1e-6);
       }),
     );
   });

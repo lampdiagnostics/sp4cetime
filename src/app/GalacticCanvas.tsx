@@ -3,11 +3,14 @@ import { type Camera, clampZoom, pan, zoomAt } from '../core/camera';
 import { DEFAULT_ROLL } from '../core/geometry';
 import { drawFrame, layout, type ViewOptions } from '../core/render';
 import type { Theme } from '../core/theme';
-import { fromUnixMs, type Time } from '../core/time';
+import { MAX_TIME, MIN_TIME } from '../core/constants';
+import { clampTime, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
 
 export interface CanvasHandle {
-  /** Animate to a zoom level (seconds across the screen), optionally recentring. */
-  flyTo(spanSeconds: number | null, center?: Time): void;
+  /** Animate to a zoom level (seconds across the screen). */
+  flyTo(spanSeconds: number): void;
+  /** Look at the present again: the Sun returns to the centre. */
+  goNow(): void;
   zoomBy(factor: number): void;
   panBy(fraction: number): void;
   rollBy(radians: number): void;
@@ -19,8 +22,7 @@ type CanvasView = Omit<ViewOptions, 'roll'>;
 interface Props {
   theme: Theme;
   view: CanvasView;
-  /** Follow the present moment: the centre advances in real time. */
-  live: boolean;
+  /** Called with true when the view is centred on the present, false when looking ahead or back. */
   onLiveChange: (live: boolean) => void;
   initialSpanSeconds: number;
   onCameraChange: (cam: Camera) => void;
@@ -45,19 +47,25 @@ function viewWidth(cam: Camera, round: boolean): number {
   return round ? 2 * (layout(cam, true).clipR ?? cam.width / 2) : cam.width;
 }
 
-export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSeconds, onCameraChange, handleRef }: Props) {
+export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, handleRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera>({ center: nowTime(), secondsPerPixel: 1, width: 0, height: 0 });
   const rollRef = useRef(DEFAULT_ROLL);
   const themeRef = useRef(theme);
   const viewRef = useRef(view);
-  const liveRef = useRef(live);
+  /**
+   * The Sun is always the present moment. The view looks `offset` ahead of
+   * (or behind) it and keeps flowing with real time, so the grid always passes
+   * the Sun: a line labelled 02:55:00 crosses it when the clock reads 02:55:00.
+   */
+  const ZERO = makeTime(0);
+  const offsetRef = useRef<Time>(ZERO);
+  const nowRef = useRef<Time>(nowTime());
   const flightRef = useRef<Flight | null>(null);
   const onChangeRef = useRef(onCameraChange);
   const onLiveRef = useRef(onLiveChange);
   themeRef.current = theme;
   viewRef.current = view;
-  liveRef.current = live;
   onChangeRef.current = onCameraChange;
   onLiveRef.current = onLiveChange;
 
@@ -65,24 +73,25 @@ export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSec
     camRef.current = cam;
     onChangeRef.current(cam);
   };
-  const stopLive = (): void => {
-    if (liveRef.current) {
-      liveRef.current = false;
-      onLiveRef.current(false);
-    }
+  /** Apply a camera move made by the user, keeping its offset from the present. */
+  const moveTo = (cam: Camera): void => {
+    const center = clampTime(cam.center, MIN_TIME, MAX_TIME);
+    const wasLive = isZeroInterval(offsetRef.current);
+    offsetRef.current = timeDiff(center, nowRef.current);
+    setCam({ ...cam, center });
+    const live = isZeroInterval(offsetRef.current);
+    if (live !== wasLive) onLiveRef.current(live);
   };
-  /** Zoom about screen x, or about the present while following it. */
+  /** Zoom about screen x, or about the Sun while it is centred. */
   const zoom = (x: number, factor: number): void => {
     const cam = camRef.current;
-    setCam(zoomAt(cam, liveRef.current ? cam.width / 2 : x, factor));
+    moveTo(zoomAt(cam, isZeroInterval(offsetRef.current) ? cam.width / 2 : x, factor));
   };
 
   useImperativeHandle(handleRef, () => ({
-    flyTo(spanSeconds, center) {
-      if (center) setCam({ ...camRef.current, center });
+    flyTo(spanSeconds) {
       const cam = camRef.current;
-      const target =
-        spanSeconds === null ? cam.secondsPerPixel : clampZoom(spanSeconds / Math.max(viewWidth(cam, viewRef.current.round), 1));
+      const target = clampZoom(spanSeconds / Math.max(viewWidth(cam, viewRef.current.round), 1));
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       flightRef.current = {
         fromLog: Math.log(cam.secondsPerPixel),
@@ -91,15 +100,20 @@ export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSec
         duration: reduced ? 0 : 700,
       };
     },
+    goNow() {
+      const wasLive = isZeroInterval(offsetRef.current);
+      offsetRef.current = ZERO;
+      setCam({ ...camRef.current, center: nowRef.current });
+      if (!wasLive) onLiveRef.current(true);
+    },
     zoomBy(factor) {
       flightRef.current = null;
       zoom(camRef.current.width / 2, factor);
     },
     panBy(fraction) {
       flightRef.current = null;
-      stopLive();
       const cam = camRef.current;
-      setCam(pan(cam, -fraction * cam.width));
+      moveTo(pan(cam, -fraction * cam.width));
     },
     rollBy(radians) {
       rollRef.current += radians;
@@ -166,8 +180,7 @@ export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSec
           gesture.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
         }
         if (gesture.axis === 'x') {
-          stopLive();
-          setCam(pan(camRef.current, p.x - prev.x));
+          moveTo(pan(camRef.current, p.x - prev.x));
         } else {
           rollRef.current += (p.y - prev.y) * ROLL_PER_PX;
         }
@@ -192,8 +205,7 @@ export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSec
       if (e.shiftKey) {
         rollRef.current += e.deltaY * scale * ROLL_PER_PX * 0.5;
       } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        stopLive();
-        setCam(pan(camRef.current, -e.deltaX * scale));
+        moveTo(pan(camRef.current, -e.deltaX * scale));
       } else {
         zoom(x, Math.exp(e.deltaY * scale * 0.0015));
       }
@@ -214,9 +226,9 @@ export function GalacticCanvas({ theme, view, live, onLiveChange, initialSpanSec
         setCam({ ...camRef.current, secondsPerPixel: Math.exp(f.fromLog + (f.toLog - f.fromLog) * e) });
         if (k >= 1) flightRef.current = null;
       }
-      // Live: the present stays under the centre, so the grid and axis flow past
-      // at exactly one second per second.
-      if (liveRef.current) setCam({ ...camRef.current, center: now });
+      nowRef.current = now;
+      // The view flows with real time at its chosen offset from the present.
+      setCam({ ...camRef.current, center: clampTime(timeAdd(now, offsetRef.current), MIN_TIME, MAX_TIME) });
       const cam = camRef.current;
       if (cam.width > 0) {
         drawFrame(ctx, { cam, theme: themeRef.current, now, view: { ...viewRef.current, roll: rollRef.current } });

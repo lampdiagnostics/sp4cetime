@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-30
+
+The Sun is now.
+
+- The Sun and every body always burn at the present moment; the time and space grids flow past them in real time. A grid line labelled 02:55:00 crosses the Sun when the clock reads 02:55:00 GMT.
+- Dragging sideways looks ahead or back by an exact offset that keeps flowing with time; a cursor with hollow markers shows each body at the viewed moment. "Back to now" returns.
+- The separate dashed "Now" line is gone. The top-left panel shows the present date and GMT clock, plus "Viewing …" when looking away.
+
 ## 0.3.0 — 2026-10-30
 
 Stable spirals, burning fuses, two grids.

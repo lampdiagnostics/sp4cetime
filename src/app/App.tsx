@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { THEMES } from '../../content/themes';
 import type { Camera } from '../core/camera';
 import { KM_PER_AU, KM_PER_LIGHT_YEAR, type ScaleMode } from '../core/geometry';
-import { bodyState, TIER_LABELS } from '../core/models';
+import { accuracyTier, bodyState, TIER_LABELS } from '../core/models';
 import { pitchExaggerated, travelKm } from '../core/render';
 import type { Theme } from '../core/theme';
 import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, fromUnixMs, type Time, toCivil } from '../core/time';
@@ -84,7 +84,7 @@ export function App() {
   );
 
   const goNow = (): void => {
-    canvas.current?.flyTo(null, fromUnixMs(Date.now()));
+    canvas.current?.goNow();
     setLive(true);
   };
 
@@ -109,10 +109,12 @@ export function App() {
     }
   };
 
-  const state = cam ? bodyState(cam.center) : null;
+  // The Sun is always the present; the HUD's headline is the present moment.
   const now = fromUnixMs(Date.now());
+  const state = bodyState(now);
+  const viewTier = cam ? accuracyTier(cam.center) : state.tier;
   const travel = cam ? travelKm(now, cam.center) : 0;
-  const clock = cam ? gmtClock(cam.center) : null;
+  const clock = gmtClock(now);
   const widened = cam ? settings.spirals && pitchExaggerated(settings.planets, cam.secondsPerPixel) : false;
 
   return (
@@ -122,13 +124,12 @@ export function App() {
         tabIndex={0}
         role="application"
         aria-roledescription="time canvas"
-        aria-label="Galactic calendar. Drag sideways or use the left and right arrow keys to move through time; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom; press N to return to now."
+        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom; press N to return to now."
         onKeyDown={onKeyDown}
       >
         <GalacticCanvas
           theme={theme}
           view={view}
-          live={live}
           onLiveChange={setLive}
           initialSpanSeconds={DEFAULT_PRESET.spanSeconds}
           onCameraChange={onCameraChange}
@@ -142,35 +143,29 @@ export function App() {
           sp4cetime <span>Galactic Calendar</span>
         </div>
         <output className="center-date" aria-live="off">
-          {cam ? formatTime(cam.center, Math.max(cam.secondsPerPixel, 3600)) : ''}
+          {formatTime(now, 3600)}
         </output>
         {clock && <div className="clock">{clock}</div>}
-        {cam && state && (
-          <div className="facts">
-            <span className={`tier tier-${state.tier}`} title="How precisely positions are known here">
-              {TIER_LABELS[state.tier]}
-            </span>
-            {state.tier === 'schematic' ? (
-              <span className="moon" title="The Moon's phase cannot be known this far from today">
-                Moon phase unknowable here
-              </span>
-            ) : (
-              <span className="moon" title="Moon phase at the centre time">
-                <MoonIcon phase={state.moonPhase} size={16} />
-                {moonPhaseName(state.moonPhase)}
-              </span>
-            )}
-            <span title="How far the Sun has travelled along its galactic orbit from where it is now">
-              {live ? 'Now' : `${formatTravel(travel)} from now`}
-            </span>
+        {cam && !live && (
+          <div className="viewing" title="The moment under the cursor, and how far the Sun travels between now and then">
+            Viewing {formatTime(cam.center, Math.max(cam.secondsPerPixel, 60))} · {formatTravel(travel)}
           </div>
         )}
+        <div className="facts">
+          <span className={`tier tier-${viewTier}`} title="How precisely positions are known in the part of time you are viewing">
+            {TIER_LABELS[viewTier]}
+          </span>
+          <span className="moon" title="Moon phase now">
+            <MoonIcon phase={state.moonPhase} size={16} />
+            {moonPhaseName(state.moonPhase)}
+          </span>
+        </div>
       </header>
 
       {/* Top right: now, look, window */}
       <nav className="corner tr" aria-label="Display">
         <button type="button" className={live ? 'primary live' : 'primary'} onClick={goNow} aria-pressed={live}>
-          {live ? '● Live' : 'Now'}
+          {live ? '● Now' : 'Back to now'}
         </button>
         <label className="select">
           <span className="visually-hidden">Theme</span>
