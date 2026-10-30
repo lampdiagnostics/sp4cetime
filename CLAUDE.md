@@ -8,7 +8,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Calendar** (Canvas 2D, `src/core` + `src/app`): the round-window timeline, with the real sky behind it.
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and a whole-galaxy view.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Next to build: the Library (stories). See DECISIONS.md §1.
+- Owner: one person, part-time (Lamp Diagnostics). Next goal (v2): release to GitHub, then a public beta (steps in README.md, "Goal for v2"). After that: the Library (stories), DECISIONS.md §1.
 
 ## Commands
 
@@ -84,6 +84,10 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 **Library / stories (the next phase)**
 
 > In sp4cetime (read CLAUDE.md and DECISIONS.md, especially §1 "Library"), start the Library: the `.sp4ce.json` schema for events, stops and stories (schema-versioned, validated like themes), adding an event by tapping the Sun line, event pins and spans on the calendar, and saving to IndexedDB with file export/import. Pure schema and maths in `src/core` with tests; UI in `src/app`.
+
+**v2: GitHub and public beta**
+
+> In sp4cetime (read CLAUDE.md, then the "Goal for v2" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
 
 **Release**
 

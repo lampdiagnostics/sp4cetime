@@ -16,7 +16,7 @@ Status: v1.0, 30 October 2026.
 | First earners | "Galactic birthday" card (free, shareable; poster/video one-time ~$5), video export of stories (rendered in the browser), the galactic clock (live mode at minute zoom as a full-screen clock). |
 | Payments | A merchant of record (Lemon Squeezy or Paddle) issuing licence keys, checked once and stored on the device. No server needed for Pro. |
 | Library (next to build) | A story = events (title, time or range, uncertainty, kind moment/span/era, note, link/image, source, tags, colour) + stops (camera views: events shown, zoom, roll, planets, scale, caption, hold time). Flights between stops are computed, not stored. One `.sp4ce.json` format, schema-versioned, for downloads, share links and curated entries. Seed stories: life of the Sun, Earth's deep history, the human story, space exploration, your galactic birthday. |
-| Roadmap | [docs/PLAN.md](docs/PLAN.md): six two-month phases to a 1.0 public launch by 29 Oct 2027 (this code's "v1.0" is the instrument, not that launch). Next phase: Timelines/Library. |
+| Roadmap | [docs/PLAN.md](docs/PLAN.md): six two-month phases to a 1.0 public launch by 29 Oct 2027 (this code's "v1.0" is the instrument, not that launch). **v2 goal: release to GitHub (private first), then a public beta on sp4cetime.org via Cloudflare** — step by step in README.md. After that: Timelines/Library. |
 
 ## 2. Architecture
 

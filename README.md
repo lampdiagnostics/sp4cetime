@@ -19,6 +19,45 @@ The direction, in order (detail in [docs/PLAN.md](docs/PLAN.md) and [DECISIONS.m
 
 What exists today (v1.0) is the instrument: the calendar, Fly mode, the sky and the galaxy. Stories, sharing and Pro are not built yet.
 
+## Goal for v2: release to GitHub, then a public beta
+
+v1.0 lives only on the owner's Mac (git, tagged `v1.0`, no remote yet). v2 puts it on GitHub and live on sp4cetime.org as a public beta. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
+
+### Part 1: release to GitHub
+
+1. **Sign in.** The owner signs in to GitHub and Cloudflare in the Claude app's built-in browser.
+2. **Create the repository.** On github.com: New repository, name `sp4cetime`, **Private** (the business plan is in `docs/PLAN.md` and `DECISIONS.md`; there is no licence yet). Don't add a README, .gitignore or licence; the folder has them.
+3. **Push the code and the `v1.0` tag.** Either:
+   - **Connect GitHub to Claude** (claude.ai → Settings → Connectors → GitHub, with access to `sp4cetime`), then the assistant pushes, now and for every later version; or
+   - **Once, in Terminal on the Mac:**
+     ```sh
+     brew install gh            # if needed
+     gh auth login              # GitHub.com, HTTPS, log in with the browser
+     cd ~/sp4cetime
+     git remote add origin https://github.com/YOUR-USERNAME/sp4cetime.git
+     git push -u origin main --follow-tags
+     ```
+     (Or in one step: `gh repo create sp4cetime --private --source=. --push && git push --tags`.)
+4. **Check CI.** On GitHub → Actions, the workflow in `.github/workflows/ci.yml` (typecheck, tests, build, bundle budgets) should pass on `main`.
+
+What goes up: everything git tracks (about 90 files, 2.6 MB). `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
+
+### Part 2: public beta on sp4cetime.org
+
+1. **Cloudflare project.** Cloudflare → Workers & Pages → Create → connect the `sp4cetime` GitHub repository (the owner approves GitHub's permission screen). Build command `npm run build`, output directory `dist`, Node 22. Every push to `main` then deploys; every pull request gets a preview URL.
+2. **Domain.** Add `sp4cetime.org` as the project's custom domain (move the domain's DNS to Cloudflare if it isn't there). Redirect `sp4cetime.com`, `.io` and `.ai` to `.org`.
+3. **Check the live site** on a laptop, a phone and a tablet, in Safari, Chrome and Firefox: calendar, Fly mode (WebGL), sky, galaxy, the three themes, round and full window, keyboard controls, reduced motion.
+4. **Beta basics before announcing:**
+   - A short About page or panel: what it is, the accuracy tiers, the @Geosophyy credit and the data credits.
+   - A privacy note: no accounts, no tracking beyond privacy-friendly page counts, settings stay in the browser.
+   - A way to send feedback (an email address or a form).
+   - Optional: Plausible for page counts and Sentry for error reports (both noted in the plan).
+5. **Label it "Beta"** in the corner and in the page title.
+6. **Tag the release** `v2.0` and write its CHANGELOG entry.
+7. **Announce** to a small group first (teachers, science communicators, friends), collect feedback, then post more widely.
+
+Decide at this point whether the repository becomes public (add a `LICENSE`, e.g. MIT; the data in `public/` keeps its own licences). After the beta: the Library (stories) is the next phase; see [DECISIONS.md](DECISIONS.md) §1.
+
 ## Run it
 
 Requires Node 22 or newer.
