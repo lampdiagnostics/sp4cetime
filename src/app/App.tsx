@@ -13,6 +13,8 @@ import { PLANETS } from '../core/planets';
 import { DEFAULT_PRESET, ZOOM_PRESETS } from './presets';
 import { loadSettings, saveSettings, type Settings } from './settings';
 
+import { FlyBoundary } from './FlyBoundary';
+
 /** Fly mode loads on demand, with Three.js, so the calendar stays light. */
 const FlyView = lazy(() => import('../fly/FlyView'));
 
@@ -128,9 +130,11 @@ export function App() {
 
   if (mode === 'fly') {
     return (
-      <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
-        <FlyView onExit={() => setMode('calendar')} />
-      </Suspense>
+      <FlyBoundary onExit={() => setMode('calendar')}>
+        <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
+          <FlyView onExit={() => setMode('calendar')} />
+        </Suspense>
+      </FlyBoundary>
     );
   }
 

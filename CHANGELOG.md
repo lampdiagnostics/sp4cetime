@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 — 2026-10-30
+
+- Fix: Fly mode could hang on "Loading the solar system" in the dev server. Three.js is now pre-bundled when the server starts.
+- If Fly mode ever fails to load, it now says why and offers Reload or a way back to the calendar.
+
 ## 0.10.0 — 2026-10-30
 
 Fly mode.

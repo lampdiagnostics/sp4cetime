@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Pre-bundle Three.js when the dev server starts. Otherwise it is first seen
+  // when Fly mode opens, and re-bundling mid-session can stall that load.
+  optimizeDeps: {
+    include: ['three'],
+  },
   build: {
     target: 'es2022',
     sourcemap: true,
