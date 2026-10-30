@@ -25,6 +25,7 @@ import {
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
+import { createSky, loadSky, type SkyLabel } from './sky';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
 import type { Theme } from '../core/theme';
 
@@ -152,6 +153,21 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
     const aspect = (): number => canvas.clientWidth / Math.max(1, canvas.clientHeight);
     poseRef.current = vantage('overview', solarSystemAt(simNow()), aspect()).pose;
     const paths = createOverlays(scene.scene, theme);
+    let sky: ReturnType<typeof createSky> | null = null;
+    let disposed = false;
+    loadSky(import.meta.env.BASE_URL)
+      .then(({ data, milkyWay }) => {
+        if (!disposed) sky = createSky(scene.scene, data, milkyWay, scene.renderer.getPixelRatio());
+      })
+      .catch((e: unknown) => console.warn('Sky not loaded:', e));
+    const skyLabels: HTMLDivElement[] = [];
+    for (let i = 0; i < 140; i++) {
+      const el = document.createElement('div');
+      el.className = 'fly-sky-label';
+      el.style.display = 'none';
+      labelHost.appendChild(el);
+      skyLabels.push(el);
+    }
 
     goRef.current = (d) => {
       const bodies = solarSystemAt(simNow());
@@ -373,6 +389,31 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         el.textContent = `${b.info.name} · ${formatSize(apparentDiameter(b.info.radiusKm, d))}`;
       }
 
+      // Sky labels: directions on the sky sphere.
+      const sl: readonly SkyLabel[] = sky ? sky.update(overlaysRef.current) : [];
+      for (let i = 0; i < skyLabels.length; i++) {
+        const el = skyLabels[i]!;
+        const g = sl[i];
+        if (!g) {
+          el.style.display = 'none';
+          continue;
+        }
+        const rel = new THREE.Vector3(g.dir[0] * 1e12, g.dir[1] * 1e12, g.dir[2] * 1e12);
+        if (rel.clone().applyQuaternion(quat.clone().invert()).z > 0) {
+          el.style.display = 'none';
+          continue;
+        }
+        v3.copy(rel).project(cam);
+        if (Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1) {
+          el.style.display = 'none';
+          continue;
+        }
+        el.style.display = 'block';
+        if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
+        el.style.transform = `translate(${((v3.x + 1) / 2) * W + (g.kind === 'star' ? 6 : 0)}px, ${((1 - v3.y) / 2) * H - (g.kind === 'star' ? 6 : 0)}px)`;
+        if (el.textContent !== g.text) el.textContent = g.text;
+      }
+
       // Grid labels.
       const inv = quat.clone().invert();
       for (let i = 0; i < gridLabels.length; i++) {
@@ -464,6 +505,9 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
       window.removeEventListener('keyup', onKeyUp);
       labels.forEach((el) => el.remove());
       gridLabels.forEach((el) => el.remove());
+      skyLabels.forEach((el) => el.remove());
+      disposed = true;
+      sky?.dispose();
       paths.dispose();
       scene.dispose();
     };
@@ -545,6 +589,8 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
               ['orbits', 'Orbits'],
               ['timeGrid', 'Time grid'],
               ['spaceGrid', 'Space grid'],
+              ['constellations', 'Constellations'],
+              ['zodiac', 'Zodiac'],
             ] as const).map(([k, label]) => (
               <button key={k} type="button" aria-pressed={overlays[k]} onClick={() => onOverlays({ [k]: !overlays[k] })}>
                 {label}
@@ -553,14 +599,16 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
           </div>
         )}
         {hud && (
-          <label className="fly-hold">
+          <label
+            className="fly-hold"
+            title={`On: you turn with ${hud.anchorName} as it spins, staying above the same latitude and longitude (at Earth's equator, 42,164 km out, that is geostationary). Off: you hold still against the stars while ${hud.anchorName} turns beneath you.`}
+          >
             <input
               type="checkbox"
               checked={hud.frame === 'body'}
               onChange={(e) => frameRef.current(e.target.checked ? 'body' : 'inertial')}
             />
-            Turn with {hud.anchorName}
-            {hud.anchorName === 'Earth' && hud.frame === 'body' ? ' (geostationary)' : ''}
+            Stay over one spot on {hud.anchorName}
           </label>
         )}
       </nav>

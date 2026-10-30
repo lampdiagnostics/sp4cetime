@@ -144,6 +144,8 @@ export function App() {
               spaceGrid: settings.distanceGrid,
               planets: settings.planets,
               moon: settings.moon,
+              constellations: settings.constellations,
+              zodiac: settings.zodiac,
             }}
             onOverlays={(c) =>
               update({
@@ -151,6 +153,8 @@ export function App() {
                 ...(c.orbits !== undefined && { rings: c.orbits }),
                 ...(c.timeGrid !== undefined && { timeGrid: c.timeGrid }),
                 ...(c.spaceGrid !== undefined && { distanceGrid: c.spaceGrid }),
+                ...(c.constellations !== undefined && { constellations: c.constellations }),
+                ...(c.zodiac !== undefined && { zodiac: c.zodiac }),
               })
             }
           />

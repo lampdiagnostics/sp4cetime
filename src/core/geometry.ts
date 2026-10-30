@@ -46,7 +46,7 @@ export function matMul(a: Mat3, b: Mat3): Mat3 {
 }
 
 /** Ecliptic → equatorial (rotation by the obliquity about the equinox direction). */
-const ECL_TO_EQ: Mat3 = (() => {
+export const ECL_TO_EQ: Mat3 = (() => {
   const e = OBLIQUITY_J2000_DEG * DEG;
   const c = Math.cos(e), s = Math.sin(e);
   return [

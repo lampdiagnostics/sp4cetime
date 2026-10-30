@@ -19,6 +19,8 @@ export interface OverlayOptions {
   readonly spaceGrid: boolean;
   readonly planets: readonly PlanetId[];
   readonly moon: boolean;
+  readonly constellations: boolean;
+  readonly zodiac: boolean;
 }
 
 export interface OverlayLabel {

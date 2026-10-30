@@ -60,3 +60,7 @@ Orbit orientation is always real. Orbit size has three modes, named on screen: â
 ## Credit
 
 Inspired by the galactic-motion visualization shared by [@Geosophyy](https://x.com/Geosophyy/status/2115404526002041035).
+
+## Credits
+
+Star, constellation and Milky Way data in Fly mode: [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD-3-Clause; licence in `public/sky/`), from the Hipparcos catalogue and IAU constellation figures.

@@ -149,29 +149,6 @@ function glowTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
-function stars(): THREE.Points {
-  const N = 5000;
-  const pos = new Float32Array(N * 3);
-  const col = new Float32Array(N * 3);
-  let seed = 230;
-  const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < N; i++) {
-    const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u);
-    const d = 1e12;
-    pos[i * 3] = r * Math.cos(a) * d;
-    pos[i * 3 + 1] = r * Math.sin(a) * d;
-    pos[i * 3 + 2] = u * d;
-    const b = 0.25 + 0.75 * rnd() ** 3;
-    col[i * 3] = b * (0.85 + 0.15 * rnd());
-    col[i * 3 + 1] = b * 0.9;
-    col[i * 3 + 2] = b;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, depthWrite: false }));
-}
-
 export function createScene(canvas: HTMLCanvasElement): FlyScene {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -181,7 +158,7 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   // Units are kilometres. A logarithmic depth buffer keeps 10 m and 10 billion km both sharp.
   const camera = new THREE.PerspectiveCamera(60, 1, 0.01, 1e13);
 
-  scene.add(stars());
+  // The sky (stars, Milky Way, constellations) is added by sky.ts once loaded.
   // The Sun is the only real light. A faint ambient term stands in for earthshine and scatter.
   const sunLight = new THREE.PointLight(0xffffff, Math.PI, 0, 0);
   scene.add(sunLight);

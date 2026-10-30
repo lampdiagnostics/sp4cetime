@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0 — 2026-10-30
+
+The real sky.
+
+- Fly mode's background is now the real sky as seen from the solar system, on a sphere at infinity all around you, like a planetarium dome that covers every direction: the ~5,000 stars visible to the eye (Hipparcos, to magnitude 6) at their true brightness and colour, the Milky Way, and the brightest stars named.
+- **Constellations**: all 88 figures and names. **Zodiac**: the ecliptic, the zodiac band 8° either side, the twelve 30° signs from the March equinox, and the twelve zodiac constellations highlighted in gold. The signs and the constellations no longer line up (precession has shifted them by almost a whole sign), and both are shown. Toggle each with the new buttons.
+- "Turn with …" is now "Stay over one spot on …", with an explanation on hover.
+- Sky data: d3-celestial (BSD-3-Clause), built by `scripts/build_sky.py` into `public/sky/` and loaded only in Fly mode.
+
 ## 0.12.0 — 2026-10-30
 
 Spheres and arcs.

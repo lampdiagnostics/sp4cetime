@@ -12,6 +12,9 @@ export interface Settings {
   readonly spirals: boolean;
   readonly timeGrid: boolean;
   readonly distanceGrid: boolean;
+  /** Fly mode's sky: constellation figures and names, and the zodiac. */
+  readonly constellations: boolean;
+  readonly zodiac: boolean;
   readonly scale: ScaleMode;
   readonly focus: 'sun' | PlanetId;
 }
@@ -26,6 +29,8 @@ export const DEFAULT_SETTINGS: Settings = {
   spirals: true,
   timeGrid: true,
   distanceGrid: true,
+  constellations: true,
+  zodiac: true,
   scale: 'fit',
   focus: 'sun',
 };
@@ -50,6 +55,8 @@ export function loadSettings(): Settings {
       spirals: typeof data.spirals === 'boolean' ? data.spirals : DEFAULT_SETTINGS.spirals,
       timeGrid: typeof data.timeGrid === 'boolean' ? data.timeGrid : DEFAULT_SETTINGS.timeGrid,
       distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
+      constellations: typeof data.constellations === 'boolean' ? data.constellations : DEFAULT_SETTINGS.constellations,
+      zodiac: typeof data.zodiac === 'boolean' ? data.zodiac : DEFAULT_SETTINGS.zodiac,
       scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
       focus: PLANET_IDS.includes(data.focus as PlanetId) ? (data.focus as PlanetId) : 'sun',
     };
