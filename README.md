@@ -25,6 +25,8 @@ npm run dev        # http://localhost:5173
 
 Controls: drag empty space to rotate the solar system (up/down rolls, sideways turns); grab the Sun to move it anywhere, or slide along its line to move through time (also ←/→, or horizontal scroll); Shift+←/→ and ↑/↓ rotate; scroll, pinch or +/− zoom time; Option/Alt + scroll or [ and ] zoom into space; **N** returns to now. The Sun is always the present moment.
 
+**Fly mode** (✦ Fly, top right): you are in the solar system, at true scale and in real sunlight. Click a name to face it; drag to look; Z / X change the lens (up to ×60, a telescope view); W A S D move, R / F up and down, Q / E roll, Shift faster, scroll or pinch to move forward. The buttons jump to geostationary orbit, the Moon, the planets and the Sun; the time buttons pause or speed up time.
+
 ## Layout
 
 ```

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { THEMES } from '../../content/themes';
 import type { Camera } from '../core/camera';
 import { KM_PER_AU, KM_PER_LIGHT_YEAR, type ScaleMode } from '../core/geometry';
@@ -12,6 +12,9 @@ import { PlanetPicker } from './PlanetPicker';
 import { PLANETS } from '../core/planets';
 import { DEFAULT_PRESET, ZOOM_PRESETS } from './presets';
 import { loadSettings, saveSettings, type Settings } from './settings';
+
+/** Fly mode loads on demand, with Three.js, so the calendar stays light. */
+const FlyView = lazy(() => import('../fly/FlyView'));
 
 const CREDIT_URL = 'https://x.com/Geosophyy/status/2115404526002041035';
 
@@ -39,6 +42,7 @@ function gmtClock(t: Time): string | null {
 }
 
 export function App() {
+  const [mode, setMode] = useState<'calendar' | 'fly'>('calendar');
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
   useEffect(() => saveSettings(settings), [settings]);
@@ -122,6 +126,14 @@ export function App() {
   const clock = gmtClock(now);
   const banded = cam ? settings.spirals && densePaths(settings.planets, cam.secondsPerPixel) : false;
 
+  if (mode === 'fly') {
+    return (
+      <Suspense fallback={<p className="fly-error">Loading the solar system…</p>}>
+        <FlyView onExit={() => setMode('calendar')} />
+      </Suspense>
+    );
+  }
+
   return (
     <div className={`app ${settings.round ? 'is-round' : 'is-full'}`} style={{ background: theme.background }}>
       <div
@@ -183,6 +195,9 @@ export function App() {
             ))}
           </select>
         </label>
+        <button type="button" onClick={() => setMode('fly')} title="Fly through the solar system in 3D">
+          ✦ Fly
+        </button>
         <button type="button" onClick={() => update({ round: !settings.round })} aria-pressed={settings.round}>
           {settings.round ? '◯ Round' : '▭ Full'}
         </button>

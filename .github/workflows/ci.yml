@@ -18,8 +18,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: Bundle size budget (150 KB of gzipped JS)
+      - name: Bundle size budget (calendar 150 KB, Fly mode 200 KB, gzipped JS)
         run: |
-          size=$(cat dist/assets/*.js | gzip -9 | wc -c)
-          echo "JS bundle (gzip): $size bytes"
-          test "$size" -lt 153600
+          main=$(ls dist/assets/index-*.js | xargs cat | gzip -9 | wc -c)
+          fly=$(ls dist/assets/FlyView-*.js | xargs cat | gzip -9 | wc -c)
+          echo "Calendar JS (gzip): $main bytes; Fly mode JS (gzip): $fly bytes"
+          test "$main" -lt 153600
+          test "$fly" -lt 204800

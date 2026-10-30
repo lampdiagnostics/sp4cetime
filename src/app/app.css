@@ -446,3 +446,78 @@ select option {
     font-size: 19px;
   }
 }
+
+/* --- Fly mode ---------------------------------------------------------------- */
+
+.fly {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.fly-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.fly-canvas:active {
+  cursor: grabbing;
+}
+
+.fly .corner {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e9eefc;
+}
+
+.fly-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fly-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 11px;
+  color: rgba(225, 232, 250, 0.85);
+  white-space: nowrap;
+  text-shadow: 0 0 4px #000;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.fly-label:hover {
+  color: #fff;
+}
+
+.fly-time {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.fly-hold {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.fly-error {
+  position: absolute;
+  top: 45%;
+  width: 100%;
+  text-align: center;
+  color: #e9eefc;
+}
+
+.fly .presets {
+  max-width: 360px;
+  justify-content: flex-start;
+}

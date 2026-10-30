@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0 — 2026-10-30
+
+Fly mode.
+
+- New **✦ Fly** button: float in the solar system in 3D, with true sizes, distances and sunlight. It opens at geostationary orbit, turning with Earth, with Earth and the Moon in view.
+- The Moon shows its real phase and every planet is lit by the Sun from where it really is; night sides are dark.
+- Drag to look, W A S D to move, R / F up and down, Q / E roll, Shift for speed, scroll or pinch to move forward. Speed scales with your height, so approaching anything feels the same.
+- Click any name to turn and face it. The lens buttons (Wide, ×3, ×12, ×60, or Z / X) magnify like a telescope: from geostationary orbit at ×60 the Moon fills the view, showing its real phase.
+- Jump to Low Earth orbit, Earth & Moon, the Moon (Earthrise), Mars, Jupiter, Saturn (with its rings) or the Sun.
+- Time runs live, or paused, or at 1 minute, 1 hour or 1 day per second. "Turn with" keeps you over the same spot (geostationary at Earth).
+- Three.js loads only when you open Fly mode; the calendar is as light as before.
 ## 0.9.0 — 2026-10-30
 
 Even lines.
