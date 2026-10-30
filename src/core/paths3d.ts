@@ -8,7 +8,8 @@
  * model and shifted so they pass exactly through each body's true position now,
  * with samples packed tightly around the present.
  */
-import { SUN_GALACTIC_SPEED_KM_S } from './constants';
+import { SGR_A_L_DEG, SUN_GALACTIC_SPEED_KM_S, SUN_GALACTOCENTRIC_KM } from './constants';
+import { formatDMS } from './spheres';
 import {
   DEFAULT_ROLL,
   eccentricAnomaly,
@@ -134,9 +135,27 @@ export function timeMarks(now: Time, centreS: number, spacingKm: number, count =
 /** Distance travelled by the Sun since J2000, km. */
 export const travelledKm = (now: Time): number => V * diffSeconds(now, J2000);
 
+/** The Sun's arc position on its galactic circle at J2000, seen from Sgr A* (galactic longitude), radians. */
+export function galacticArcAt2000(): number {
+  return (SGR_A_L_DEG - 180) * DEG;
+}
+
+/** Decimals of a second needed to tell marks of this step apart. */
+export function arcDecimals(step: DistanceStep): number {
+  return step.unit === 'arcsec' ? Math.max(0, Math.ceil(-Math.log10(step.n) - 1e-9)) : 0;
+}
+
 /**
- * Marks fixed in space along the Sun's path, every `step` of distance from where the
- * Sun was at J2000 (the calendar's space grid). Labelled with that distance.
+ * The Sun's arc position on its circle around Sgr A* (galactic longitude seen from
+ * the galactic centre), radians. The Sun moves toward smaller longitudes.
+ */
+export function galacticArc(now: Time): number {
+  return galacticArcAt2000() - travelledKm(now) / SUN_GALACTOCENTRIC_KM;
+}
+
+/**
+ * Marks fixed in space along the Sun's path, every `step` of arc of the Sun's circle
+ * around the galactic centre (the calendar's space grid), labelled with that arc position.
  */
 export function spaceMarks(now: Time, centreS: number, spacingKm: number, count = 12): { step: DistanceStep; marks: AxisMark[] } {
   const d = travelledKm(now);
@@ -148,8 +167,7 @@ export function spaceMarks(now: Time, centreS: number, spacingKm: number, count 
   const kc = Math.round((centreS + r) / step.km);
   const marks: AxisMark[] = [];
   for (let k = kc - count; k <= kc + count; k++) {
-    const n = (k0 + k) * step.n;
-    marks.push({ s: k * step.km - r, label: `${n.toLocaleString('en-US')} ${step.unit}` });
+    marks.push({ s: k * step.km - r, label: formatDMS(galacticArcAt2000() - (k0 + k) * step.rad, arcDecimals(step)) });
   }
   return { step, marks };
 }

@@ -19,24 +19,29 @@ export interface BodyInfo {
   readonly name: string;
   /** Mean radius, km. */
   readonly radiusKm: number;
+  /**
+   * How far the real body departs from a perfect sphere: flattening (equatorial −
+   * polar radius) / equatorial radius. The model uses perfect spheres; this is the variation.
+   */
+  readonly flattening: number;
   /** Equatorial radius of a ring system, km: [inner, outer]. */
   readonly rings?: readonly [number, number];
 }
 
-/** Mean radii (IAU WG on Cartographic Coordinates, 2015). */
+/** Mean radii and flattening (IAU WG on Cartographic Coordinates and Rotational Elements, 2015). */
 export const BODIES: readonly BodyInfo[] = [
-  { id: 'sun', name: 'Sun', radiusKm: 695_700 },
-  { id: 'mercury', name: 'Mercury', radiusKm: 2_439.4 },
-  { id: 'venus', name: 'Venus', radiusKm: 6_051.8 },
-  { id: 'earth', name: 'Earth', radiusKm: 6_371.0 },
-  { id: 'moon', name: 'Moon', radiusKm: 1_737.4 },
-  { id: 'mars', name: 'Mars', radiusKm: 3_389.5 },
-  { id: 'jupiter', name: 'Jupiter', radiusKm: 69_911 },
+  { id: 'sun', name: 'Sun', radiusKm: 695_700, flattening: 0.000_009 },
+  { id: 'mercury', name: 'Mercury', radiusKm: 2_439.4, flattening: 0.000_9 },
+  { id: 'venus', name: 'Venus', radiusKm: 6_051.8, flattening: 0 },
+  { id: 'earth', name: 'Earth', radiusKm: 6_371.0, flattening: 0.003_353 },
+  { id: 'moon', name: 'Moon', radiusKm: 1_737.4, flattening: 0.001_2 },
+  { id: 'mars', name: 'Mars', radiusKm: 3_389.5, flattening: 0.005_89 },
+  { id: 'jupiter', name: 'Jupiter', radiusKm: 69_911, flattening: 0.064_87 },
   // Saturn's main rings: inner C ring to outer A ring.
-  { id: 'saturn', name: 'Saturn', radiusKm: 58_232, rings: [74_658, 136_775] },
-  { id: 'uranus', name: 'Uranus', radiusKm: 25_362 },
-  { id: 'neptune', name: 'Neptune', radiusKm: 24_622 },
-  { id: 'pluto', name: 'Pluto', radiusKm: 1_188.3 },
+  { id: 'saturn', name: 'Saturn', radiusKm: 58_232, flattening: 0.097_96, rings: [74_658, 136_775] },
+  { id: 'uranus', name: 'Uranus', radiusKm: 25_362, flattening: 0.022_93 },
+  { id: 'neptune', name: 'Neptune', radiusKm: 24_622, flattening: 0.017_08 },
+  { id: 'pluto', name: 'Pluto', radiusKm: 1_188.3, flattening: 0 },
 ];
 
 export function bodyInfo(id: BodyId): BodyInfo {

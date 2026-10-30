@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SUN_GALACTIC_SPEED_KM_S as V } from './constants';
 import { KM_PER_AU, type Vec3 } from './geometry';
-import { helix, keplerKm, orbitLoop, pathSpan, spaceMarks, timeMarks, TRAVEL, travelledKm } from './paths3d';
+import { formatDMS } from './spheres';
+import { galacticArc, helix, keplerKm, orbitLoop, pathSpan, spaceMarks, timeMarks, TRAVEL } from './paths3d';
 import { addSeconds, fromCivil } from './time';
 
 const now = fromCivil(2026, 10, 30, 12 * 3600);
@@ -58,11 +59,12 @@ describe('3D grid marks', () => {
     expect(same.s).toBeCloseTo(m.s - V * 3600, 0);
   });
 
-  it('space mark labels are distances from where the Sun was in 2000', () => {
+  it('space mark labels are arc positions on the Sun\'s galactic circle, seen from Sgr A*', () => {
     const { step, marks } = spaceMarks(now, 0, 1e8);
-    for (const m of marks) {
-      const n = Number(m.label.split(' ')[0]!.replaceAll(',', ''));
-      expect(Math.abs(n * (step.km / step.n) - (travelledKm(now) + m.s))).toBeLessThan(1);
-    }
+    expect(step.unit).toBe('arcsec');
+    // The mark nearest the Sun carries (almost) the Sun's own arc position.
+    const nearest = marks.reduce((a, b) => (Math.abs(b.s) < Math.abs(a.s) ? b : a));
+    expect(nearest.label.startsWith(formatDMS(galacticArc(now), 0).slice(0, 8))).toBe(true);
+    expect(nearest.label).toMatch(/^179°56′/);
   });
 });

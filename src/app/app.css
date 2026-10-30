@@ -536,3 +536,33 @@ select option {
   flex-wrap: wrap;
   gap: 4px;
 }
+
+.fly-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  pointer-events: none;
+  font-size: 12px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #e9eefc;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.fly-where {
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+}
+
+.fly-where select {
+  font: inherit;
+}
+
+.fly-where .dms {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}

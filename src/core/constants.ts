@@ -32,3 +32,16 @@ export const SYNODIC_MONTH_SECONDS = 29.530_588_853 * 86_400;
 /** Zoom limits: about 1 minute across a phone screen to the Sun's whole life on one. */
 export const MIN_SECONDS_PER_PIXEL = 0.05;
 export const MAX_SECONDS_PER_PIXEL = 1e15;
+
+/**
+ * Distance from the Sun to Sagittarius A*, the black hole at the galaxy's centre:
+ * 8.178 kpc (GRAVITY Collaboration 2019; published values 8.0–8.3 kpc).
+ */
+export const SUN_GALACTOCENTRIC_KPC = 8.178;
+export const KM_PER_PARSEC = 3.085_677_581_491_367e13;
+export const SUN_GALACTOCENTRIC_KM = SUN_GALACTOCENTRIC_KPC * 1000 * KM_PER_PARSEC;
+/** Direction of Sgr A* from the Sun, galactic coordinates (Reid & Brunthaler 2004), degrees. */
+export const SGR_A_L_DEG = 359.944_2;
+export const SGR_A_B_DEG = -0.046_2;
+/** The galaxy sphere's radius: the disc is ~100,000 light years across (the stellar disc thins out beyond). */
+export const GALAXY_RADIUS_LY = 50_000;

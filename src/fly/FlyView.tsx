@@ -25,6 +25,7 @@ import {
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
+import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
 import type { Theme } from '../core/theme';
 
 interface Props {
@@ -50,11 +51,17 @@ const LENSES: ReadonlyArray<{ label: string; fov: number }> = [
   { label: '×60', fov: 1 },
 ];
 
+type Measure = 'near' | 'sun' | 'galaxy';
+
 interface Hud {
   time: Time;
   nearName: string;
-  altitude: number;
-  speed: number;
+  /** The camera's arc position on the chosen sphere. */
+  sphereName: string;
+  arc: ArcPosition;
+  decimals: number;
+  flattening: number;
+  speedRadii: number;
   moonLit: number;
   moonPhase: number;
   frame: Frame;
@@ -64,10 +71,17 @@ interface Hud {
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const NAME = (id: BodyId): string => BODIES.find((b) => b.id === id)?.name ?? id;
 
-function formatKm(km: number): string {
-  if (km < 1e6) return `${Math.round(km).toLocaleString('en-US')} km`;
-  if (km < 1.5e8 * 0.5) return `${(km / 1e6).toFixed(2)} million km`;
-  return `${(km / 149_597_870.7).toFixed(2)} AU`;
+/** One of x, y, z in radii of the sphere, rounded to what matters. */
+function radii(a: ArcPosition, i: 0 | 1 | 2): string {
+  const v = a.r === 0 ? 0 : (a.xyz[i] / a.r) * a.radii;
+  if (Math.abs(v) < 5e-5 * Math.max(1, a.radii)) return '0';
+  return Math.abs(v) >= 1e4 ? Math.round(v).toLocaleString('en-US') : v.toPrecision(4);
+}
+
+/** Apparent size, compact: "17°16′", "31′05″", "2.1″". */
+function formatSize(rad: number): string {
+  const sec = (rad * 180 * 3600) / Math.PI;
+  return formatDMS(rad, sec < 10 ? 2 : sec < 600 ? 1 : 0, true);
 }
 
 function clock(t: Time): string {
@@ -83,6 +97,10 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
   const [hud, setHud] = useState<Hud | null>(null);
   const [rate, setRate] = useState(1);
   const [fov, setFov] = useState(60);
+  const [measure, setMeasure] = useState<Measure>('near');
+  const measureRef = useRef<Measure>('near');
+  measureRef.current = measure;
+  const tipRef = useRef<HTMLDivElement>(null);
   const fovRef = useRef(60);
   const chooseLens = (f: number): void => {
     fovRef.current = f;
@@ -131,14 +149,15 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
 
     // Start at geostationary orbit, with Earth and the Moon in view.
     // Start like the calendar: the Sun in the centre, its paths flowing past.
-    poseRef.current = vantage('overview', solarSystemAt(simNow())).pose;
+    const aspect = (): number => canvas.clientWidth / Math.max(1, canvas.clientHeight);
+    poseRef.current = vantage('overview', solarSystemAt(simNow()), aspect()).pose;
     const paths = createOverlays(scene.scene, theme);
 
     goRef.current = (d) => {
       const bodies = solarSystemAt(simNow());
-      const cur = poseRef.current ? worldOf(poseRef.current, bodies) : vantage(d, bodies);
+      const cur = poseRef.current ? worldOf(poseRef.current, bodies) : vantage(d, bodies, aspect());
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      flightRef.current = { fromPos: cur.pos, fromQuat: cur.quat, to: vantage(d, bodies).pose, start: performance.now(), ms: reduced ? 0 : 2200 };
+      flightRef.current = { fromPos: cur.pos, fromQuat: cur.quat, to: vantage(d, bodies, aspect()).pose, start: performance.now(), ms: reduced ? 0 : 2200 };
     };
     // Turn smoothly to face a body, staying where you are.
     const aim = (id: BodyId): void => {
@@ -193,9 +212,13 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         if (a && b) pinch = Math.hypot(a.x - b.x, a.y - b.y);
       }
     };
+    let hover: { x: number; y: number } | null = null;
     const onMove = (e: PointerEvent): void => {
+      const r = canvas.getBoundingClientRect();
+      hover = { x: e.clientX - r.left, y: e.clientY - r.top };
       const prev = pointers.get(e.pointerId);
       if (!prev) return;
+      hover = null;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
         look.x += e.clientX - prev.x;
@@ -207,6 +230,9 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         if (pinch > 0) dolly += (d - pinch) * 0.01;
         pinch = d;
       }
+    };
+    const onLeave = (): void => {
+      hover = null;
     };
     const onUp = (e: PointerEvent): void => {
       pointers.delete(e.pointerId);
@@ -243,6 +269,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
     canvas.addEventListener('pointercancel', onUp);
+    canvas.addEventListener('pointerleave', onLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -343,7 +370,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         placed.push([lx, ly]);
         el.style.display = 'block';
         el.style.transform = `translate(${lx}px, ${ly}px)`;
-        el.textContent = `${b.info.name} · ${formatKm(d - b.info.radiusKm)}`;
+        el.textContent = `${b.info.name} · ${formatSize(apparentDiameter(b.info.radiusKm, d))}`;
       }
 
       // Grid labels.
@@ -368,6 +395,32 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         if (el.textContent !== g.text) el.textContent = g.text;
       }
 
+      // Under the pointer: the arc position on whichever sphere it touches.
+      const tip = tipRef.current;
+      if (tip) {
+        let text = '';
+        if (hover) {
+          const dir = new THREE.Vector3((hover.x / W) * 2 - 1, 1 - (hover.y / H) * 2, 0.5).unproject(cam).normalize();
+          const dv: Vec3 = [dir.x, dir.y, dir.z];
+          let best: { t: number; b: (typeof bodies)[number] } | null = null;
+          for (const b of bodies) {
+            const t = raySphere([0, 0, 0], dv, [b.pos[0] - pos[0], b.pos[1] - pos[1], b.pos[2] - pos[2]], b.info.radiusKm);
+            if (t !== null && (!best || t < best.t)) best = { t, b };
+          }
+          if (best) {
+            const hit: Vec3 = [pos[0] + dv[0] * best.t, pos[1] + dv[1] * best.t, pos[2] + dv[2] * best.t];
+            const a = arcPosition(hit, bodySphere(best.b));
+            const where = best.b.info.id === 'sun' ? 'ecliptic' : '';
+            text = `${best.b.info.name} · ${formatLat(a.lat, 0)} · ${formatLon(a.lon, 0)}${where ? ` (${where})` : ''}`;
+          }
+        }
+        tip.style.display = text ? 'block' : 'none';
+        if (text && hover) {
+          tip.textContent = text;
+          tip.style.transform = `translate(${hover.x + 14}px, ${hover.y + 14}px)`;
+        }
+      }
+
       if (ts - hudAt > 160) {
         hudAt = ts;
         const near = nearest(pos, bodies);
@@ -376,8 +429,18 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         setHud({
           time: now,
           nearName: NAME(near.id),
-          altitude: near.altitude,
-          speed: cruiseSpeed(near.altitude),
+          ...(() => {
+            const m = measureRef.current;
+            const sphere = sphereOf(m === 'near' ? near.id : m, bodies, now);
+            const nearR = find(bodies, near.id).info.radiusKm;
+            return {
+              sphereName: sphere.name,
+              arc: arcPosition(pos, sphere),
+              decimals: m === 'galaxy' ? 6 : m === 'sun' ? 2 : 1,
+              flattening: m === 'galaxy' ? 0 : find(bodies, sphere.id as BodyId).info.flattening,
+              speedRadii: cruiseSpeed(near.altitude) / nearR,
+            };
+          })(),
           moonLit: litFraction(moon.pos, earth.pos),
           moonPhase: moonPhase(now),
           frame: p?.frame ?? 'inertial',
@@ -395,6 +458,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
+      canvas.removeEventListener('pointerleave', onLeave);
       canvas.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -411,6 +475,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
     <div className="fly">
       <canvas ref={canvasRef} className="fly-canvas" aria-label="Flying in the solar system. Drag to look around; W A S D to move, R and F up and down, Q and E to roll, Shift to go faster; scroll to move forward; Z and X change the lens." />
       <div ref={labelsRef} className="fly-labels" aria-hidden="true" />
+      <div ref={tipRef} className="fly-tip" aria-hidden="true" />
       {error && <p className="fly-error">{error}</p>}
 
       <header className="corner tl fly-hud">
@@ -420,11 +485,34 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
         {hud && (
           <>
             <div className="fly-time">{clock(hud.time)}</div>
-            <div className="facts">
-              <span>
-                {formatKm(hud.altitude)} above {hud.nearName}
-              </span>
-              <span>cruise {formatKm(hud.speed)}/s</span>
+            <div className="fly-where" aria-live="off">
+              <label>
+                Position on{' '}
+                <select value={measure} onChange={(e) => setMeasure(e.target.value as Measure)} aria-label="Sphere to measure from">
+                  <option value="near">{hud.nearName} (nearest)</option>
+                  <option value="sun">the Sun</option>
+                  <option value="galaxy">the galaxy (Sgr A*)</option>
+                </select>
+              </label>
+              <div className="dms">
+                {formatLat(hud.arc.lat, hud.decimals)} · {formatLon(hud.arc.lon, hud.decimals)}
+              </div>
+              <div className="facts">
+                <span title={`Distance from the centre of ${hud.sphereName}, in its radii`}>
+                  {hud.arc.radii < 1000 ? hud.arc.radii.toFixed(4) : Math.round(hud.arc.radii).toLocaleString('en-US')} radii out
+                </span>
+                <span title="x, y, z in radii of the sphere: x toward longitude 0, z toward north">
+                  x {radii(hud.arc, 0)} · y {radii(hud.arc, 1)} · z {radii(hud.arc, 2)}
+                </span>
+              </div>
+              <div className="facts">
+                <span>cruise {hud.speedRadii.toPrecision(3)} {hud.nearName} radii/s</span>
+                {hud.flattening > 0 && (
+                  <span title="The model is a perfect sphere; this is how the real body differs">
+                    real shape flattened 1/{Math.round(1 / hud.flattening)}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="facts">
               <span className="moon" title="The Moon as seen from Earth now">

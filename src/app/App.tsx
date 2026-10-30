@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { THEMES } from '../../content/themes';
 import type { Camera } from '../core/camera';
-import { KM_PER_AU, KM_PER_LIGHT_YEAR, type ScaleMode } from '../core/geometry';
+import { type ScaleMode } from '../core/geometry';
+import { SUN_GALACTOCENTRIC_KM } from '../core/constants';
+import { formatDMS } from '../core/spheres';
 import { accuracyTier, bodyState, TIER_LABELS } from '../core/models';
 import { densePaths, travelKm } from '../core/render';
 import type { Theme } from '../core/theme';
@@ -26,14 +28,14 @@ const SCALE_NOTES: Record<ScaleMode, string> = {
   true: 'True scale: orbit sizes against 230 km/s of travel',
 };
 
+/** Distance along the Sun's galactic path as an arc of its circle around Sgr A*: "+0.0123″". */
 function formatTravel(km: number): string {
   const a = Math.abs(km);
-  const sign = km < 0 ? '−' : '+';
   if (a < 1) return 'here';
-  const fmt = (v: number): string => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toPrecision(3));
-  if (a < 1e8) return `${sign}${fmt(a)} km`;
-  if (a < KM_PER_LIGHT_YEAR / 2) return `${sign}${fmt(a / KM_PER_AU)} AU`;
-  return `${sign}${fmt(a / KM_PER_LIGHT_YEAR)} ly`;
+  const rad = a / SUN_GALACTOCENTRIC_KM;
+  const arcsec = (rad * 180 * 3600) / Math.PI;
+  const decimals = Math.max(0, Math.min(12, Math.ceil(-Math.log10(arcsec)) + 2));
+  return `${km < 0 ? '−' : '+'}${formatDMS(rad, decimals, true)} of galactic arc`;
 }
 
 /** "07:39:12 GMT" for moments within the calendar range, else null. */

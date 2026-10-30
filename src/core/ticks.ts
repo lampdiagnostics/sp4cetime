@@ -6,8 +6,7 @@
  * calendar applies. The distance grid (below) is a second, independent overlay.
  */
 import { type Camera, timeToX, visibleRange } from './camera';
-import { SUN_GALACTIC_SPEED_KM_S } from './constants';
-import { KM_PER_AU, KM_PER_LIGHT_YEAR } from './geometry';
+import { SUN_GALACTIC_SPEED_KM_S, SUN_GALACTOCENTRIC_KM } from './constants';
 import {
   addSeconds,
   compare,
@@ -188,22 +187,30 @@ export function timeTicks(start: Time, end: Time, step: TickStep, labels: boolea
 // Distance ticks
 // ---------------------------------------------------------------------------
 
+/**
+ * Space-grid steps are arcs of the Sun's circle around the galactic centre
+ * (docs/adr/0010-spheres.md): seconds, minutes and degrees of arc, with the
+ * length in km that each spans at the Sun's distance from Sgr A*.
+ */
 export interface DistanceStep {
-  readonly unit: 'km' | 'AU' | 'ly';
+  readonly unit: 'arcsec' | 'arcmin' | 'deg';
   readonly n: number;
+  /** The arc, radians. */
+  readonly rad: number;
+  /** Its length along the Sun's path, km. */
   readonly km: number;
 }
 
 function buildDistanceSteps(): DistanceStep[] {
   const steps: DistanceStep[] = [];
-  const add = (unit: DistanceStep['unit'], size: number, from: number, to: number): void => {
-    for (let exp = from; exp <= to; exp++) {
-      for (const m of [1, 2, 5]) steps.push({ unit, n: m * 10 ** exp, km: m * 10 ** exp * size });
-    }
+  const add = (unit: DistanceStep['unit'], n: number, perUnitRad: number): void => {
+    const rad = n * perUnitRad;
+    steps.push({ unit, n, rad, km: rad * SUN_GALACTOCENTRIC_KM });
   };
-  add('km', 1, 0, 7); // 1 km … 50 million km
-  add('AU', KM_PER_AU, 0, 4); // 1 AU … 50,000 AU
-  add('ly', KM_PER_LIGHT_YEAR, 0, 7); // 1 ly … 50 million ly
+  const ARCSEC = Math.PI / 180 / 3600;
+  for (let exp = -9; exp <= 1; exp++) for (const m of [1, 2, 5]) add('arcsec', Number((m * 10 ** exp).toPrecision(1)), ARCSEC);
+  for (const n of [1, 2, 5, 10, 15, 30]) add('arcmin', n, ARCSEC * 60);
+  for (const n of [1, 2, 5, 10, 15, 30, 45, 90, 180, 360, 720, 1800, 3600, 7200, 18_000, 36_000]) add('deg', n, Math.PI / 180);
   return steps;
 }
 
@@ -243,7 +250,8 @@ export function distanceGrid(cam: Camera, minSpacingPx = 96): DistanceGrid {
   for (let j = mi - 1; j >= 0; j--) {
     const st = DISTANCE_STEPS[j] as DistanceStep;
     if (st.km / kmPerPx < MINOR_MIN_PX || st.km < finest) break;
-    if (st.unit === major.unit && major.n % st.n === 0 && major.n / st.n <= 10) {
+    const ratio = major.rad / st.rad;
+    if (Math.abs(ratio - Math.round(ratio)) < 1e-6 && ratio <= 10.5) {
       minorStep = st;
       break;
     }
@@ -263,9 +271,16 @@ export function distanceGrid(cam: Camera, minSpacingPx = 96): DistanceGrid {
   return { major: lines(major), minor: minorStep ? lines(minorStep) : [], step: major };
 }
 
-/** "1 ly", "20,000 km", "5 AU". */
+/** Seconds of arc with their decimals grouped: "0.000 001". */
+export function formatArcseconds(n: number, decimals = Math.max(0, Math.ceil(-Math.log10(n) - 1e-9))): string {
+  const [whole, frac] = n.toFixed(decimals).split('.');
+  return frac ? `${whole}.${frac.replace(/(\d{3})(?=\d)/g, '$1\u2009')}` : (whole as string);
+}
+
+/** "0.001″", "5′", "2°" of the Sun's galactic circle. */
 export function formatDistanceStep(step: DistanceStep): string {
-  return `${step.n.toLocaleString('en-US')} ${step.unit}`;
+  if (step.unit === 'arcsec') return `${formatArcseconds(step.n)}″`;
+  return step.unit === 'arcmin' ? `${step.n}′` : `${step.n.toLocaleString('en-US')}°`;
 }
 
 // ---------------------------------------------------------------------------

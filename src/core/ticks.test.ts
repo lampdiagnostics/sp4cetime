@@ -99,17 +99,24 @@ describe('Distance grid', () => {
     }
   });
 
-  it('uses light years when zoomed out', () => {
-    const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1e4, width: 1200, height: 800 };
-    expect(distanceGrid(c).step.unit).toBe('ly');
+  it('uses degrees of the galactic circle when zoomed out', () => {
+    const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1e5, width: 1200, height: 800 };
+    expect(distanceGrid(c).step.unit).toBe('deg');
     expect(distanceGrid(c).major.length).toBeGreaterThan(2);
   });
 
-  it('spaces 1 light year ≈ 1,303 years of travel', () => {
-    const c: Camera = { center: now, secondsPerPixel: 3.15576e7, width: 30_000, height: 800 };
-    const g = distanceGrid(c, 1100);
-    expect(formatDistanceStep(g.step)).toBe('1 ly');
-    expect((g.major[1] ?? 0) - (g.major[0] ?? 0)).toBeCloseTo(1303.3, 0);
+  it('spaces 1° of the Sun\'s galactic circle ≈ 607,000 years of travel', () => {
+    const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1000, width: 30_000, height: 800 };
+    const g = distanceGrid(c, 600);
+    expect(formatDistanceStep(g.step)).toBe('1°');
+    const years = (8.178 * 3.085_677_581_491_367e16 * (Math.PI / 180)) / 230 / 3.15576e7;
+    expect(years).toBeCloseTo(606_700, -3);
+    expect((g.major[1] ?? 0) - (g.major[0] ?? 0)).toBeCloseTo(years / 1000, 3);
+  });
+
+  it('labels arcseconds with grouped decimals', () => {
+    expect(formatDistanceStep({ unit: 'arcsec', n: 0.000_002, rad: 0, km: 0 })).toBe('0.000\u20090002″'.replace('0.000\u20090002', '0.000\u2009002'));
+    expect(formatDistanceStep({ unit: 'arcmin', n: 5, rad: 0, km: 0 })).toBe('5′');
   });
 
   it('never draws lines finer than double precision allows in deep time', () => {

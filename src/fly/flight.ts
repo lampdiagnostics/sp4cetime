@@ -92,7 +92,6 @@ const addv = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 const scale = (a: Vec3, k: number): Vec3 => [a[0] * k, a[1] * k, a[2] * k];
 const unit = (a: Vec3): Vec3 => scale(a, 1 / Math.hypot(...a));
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const ECL_NORTH: Vec3 = [0, 0, 1];
 
 /** Rotate unit vector a toward b by `angle` radians in their common plane. */
 function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
@@ -115,87 +114,108 @@ export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'sun', label: 'Sun' },
 ];
 
+/**
+ * The default view of a sphere: standing in front of it with its north up, and
+ * the Sun in view. The body sits left of centre and the Sun to the right, as far
+ * apart as the window allows, so the body is as fully lit as it can be with the
+ * Sun still on screen.
+ *
+ * `centre`/`radius` describe what must fit (a body, or Earth and the Moon together);
+ * `dist` is the camera's distance from `centre`. The camera stays in the plane of
+ * the body's equator (unless raised by `elevation`), so at 42,164 km from Earth
+ * it is truly geostationary.
+ */
+export function frontView(
+  centre: Vec3,
+  radius: number,
+  north: Vec3,
+  dist: number,
+  sun: Vec3,
+  aspect: number,
+  /** Raise the camera this far above the equator, radians (to see rings). */
+  elevation = 0,
+): { pos: Vec3; quat: THREE.Quaternion } {
+  const DEG = Math.PI / 180;
+  const h = Math.atan(Math.tan(30 * DEG) * Math.max(0.6, aspect)); // half the horizontal field of view
+  const rho = Math.asin(Math.min(1, radius / dist)); // the body's angular radius
+  const centreAt = Math.max(0.55 * h, rho + 4 * DEG); // body centre, left of the view's centre
+  const sunAt = 0.8 * h; // the Sun, right of centre
+  const phi = Math.min(Math.PI - 0.05, centreAt + sunAt); // angle between body and Sun, from the camera
+
+  const n = unit(north);
+  const s = unit(sub(sun, centre));
+  const sn = s[0] * n[0] + s[1] * n[1] + s[2] * n[2];
+  let e1 = sub(s, scale(n, sn));
+  if (Math.hypot(...e1) < 1e-6) e1 = Math.abs(n[0]) < 0.9 ? cross(n, [1, 0, 0]) : cross(n, [0, 1, 0]);
+  e1 = unit(e1);
+  const e2 = cross(n, e1);
+  // Direction from the camera to the body, in the equatorial plane, at angle phi from the Sun.
+  const cosd = Math.sqrt(Math.max(1e-9, 1 - sn * sn));
+  const phiEq = Math.acos(Math.max(-1, Math.min(1, Math.cos(phi) / cosd)));
+  for (const side of [1, -1]) {
+    const flat = addv(scale(e1, Math.cos(phiEq)), scale(e2, side * Math.sin(phiEq)));
+    const toBody = unit(addv(scale(flat, Math.cos(elevation)), scale(n, Math.sin(elevation))));
+    const pos = sub(centre, scale(toBody, dist));
+    const toSun = unit(sub(sun, pos));
+    const look = rotateToward(toBody, toSun, centreAt);
+    const quat = lookAt(pos, addv(pos, look), n);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(quat);
+    if (side === -1 || right.x * toSun[0] + right.y * toSun[1] + right.z * toSun[2] > 0) return { pos, quat };
+  }
+  throw new Error('unreachable');
+}
+
 /** A vantage point for each destination, as a world position and orientation. */
-export function vantage(dest: Destination, bodies: readonly BodyState[]): { pose: Pose; pos: Vec3; quat: THREE.Quaternion } {
-  const earth = find(bodies, 'earth');
-  const moon = find(bodies, 'moon');
-  const toSun = (b: BodyState): Vec3 => unit(scale(b.pos, -1));
-  let anchor: BodyId;
-  let frame: Frame = 'inertial';
-  let pos: Vec3;
-  let target: Vec3;
-  let up: Vec3 = ECL_NORTH;
+export function vantage(
+  dest: Destination,
+  bodies: readonly BodyState[],
+  aspect = 1.6,
+): { pose: Pose; pos: Vec3; quat: THREE.Quaternion } {
+  const sun = find(bodies, 'sun').pos;
+  const view = (anchor: BodyId, frame: Frame, v: { pos: Vec3; quat: THREE.Quaternion }) => ({
+    pose: poseFrom(v.pos, v.quat, anchor, frame, bodies),
+    ...v,
+  });
+  const front = (id: BodyId, dist: number, frame: Frame = 'inertial', radius?: number, elevation = 0) => {
+    const b = find(bodies, id);
+    return view(id, frame, frontView(b.pos, radius ?? b.info.radiusKm, b.axes[2], dist, sun, aspect, elevation));
+  };
 
   switch (dest) {
     case 'overview': {
       // The calendar's view: the Sun in the centre, the future to the right,
-      // seen from 3.2 AU off the Sun's line of travel.
-      anchor = 'sun';
-      const sun = find(bodies, 'sun').pos;
-      pos = addv(sun, scale(CALENDAR_AXES[2], 3.2 * 149_597_870.7));
-      target = sun;
-      up = CALENDAR_AXES[1];
-      break;
+      // seen from 3.2 AU off the Sun's line of travel, ecliptic north up.
+      const pos = addv(sun, scale(CALENDAR_AXES[2], 3.2 * 149_597_870.7));
+      return view('sun', 'inertial', { pos, quat: lookAt(pos, sun, CALENDAR_AXES[1]) });
     }
-    case 'geo': {
-      // In Earth's equatorial plane, 42,164 km out, placed so the Moon is in view
-      // beside Earth. Held geostationary: it turns with Earth.
-      anchor = 'earth';
-      frame = 'body';
-      const north = earth.axes[2];
-      const m = unit(sub(moon.pos, earth.pos));
-      const mEq = unit(sub(m, scale(north, m[0] * north[0] + m[1] * north[1] + m[2] * north[2])));
-      const away = rotateToward(scale(mEq, -1), cross(north, mEq), (30 * Math.PI) / 180);
-      pos = addv(earth.pos, scale(away, GEO_RADIUS_KM));
-      const dE = unit(sub(earth.pos, pos)), dM = unit(sub(moon.pos, pos));
-      target = addv(pos, unit(addv(dE, scale(dM, 0.75))));
-      up = north;
-      break;
-    }
-    case 'leo': {
-      // 420 km up on the day side, looking along the horizon.
-      anchor = 'earth';
-      const R = bodyInfo('earth').radiusKm;
-      const radial = rotateToward(toSun(earth), earth.axes[2], (25 * Math.PI) / 180);
-      pos = addv(earth.pos, scale(radial, R + 420));
-      const tangent = unit(cross(earth.axes[2], radial));
-      target = addv(pos, unit(addv(tangent, scale(radial, -0.45))));
-      up = radial;
-      break;
-    }
+    case 'geo':
+      // In Earth's equatorial plane, 42,164 km out, turning with Earth.
+      return front('earth', GEO_RADIUS_KM, 'body');
+    case 'leo':
+      // 420 km up, over the equator, the horizon and the Sun in view.
+      return front('earth', bodyInfo('earth').radiusKm + 420);
     case 'earthMoon': {
-      // Off to the side of the Earth–Moon line, a little above it.
-      anchor = 'earth';
-      const em = sub(moon.pos, earth.pos);
-      const side = unit(cross(em, ECL_NORTH));
-      const mid = addv(earth.pos, scale(em, 0.5));
-      pos = addv(addv(mid, scale(side, 520_000)), scale(ECL_NORTH, 180_000));
-      target = mid;
-      break;
+      // Earth and the Moon together, from three times their separation.
+      const earth = find(bodies, 'earth'), moon = find(bodies, 'moon');
+      const mid = scale(addv(earth.pos, moon.pos), 0.5);
+      const half = Math.hypot(...sub(moon.pos, earth.pos)) / 2;
+      return view('earth', 'inertial', frontView(mid, half + earth.info.radiusKm, earth.axes[2], 3.2 * half, sun, aspect));
     }
-    case 'moon': {
-      // Just beyond the Moon, looking back past it toward Earth (an Earthrise).
-      anchor = 'moon';
-      const R = bodyInfo('moon').radiusKm;
-      const out = rotateToward(unit(sub(moon.pos, earth.pos)), ECL_NORTH, (14 * Math.PI) / 180);
-      pos = addv(moon.pos, scale(out, R * 4.2));
-      const dMoon = unit(sub(moon.pos, pos)), dEarth = unit(sub(earth.pos, pos));
-      target = addv(pos, unit(addv(dMoon, scale(dEarth, 0.6))));
-      break;
+    case 'moon':
+      return front('moon', bodyInfo('moon').radiusKm * 4.2);
+    case 'sun': {
+      // Facing the Sun from Earth's side, its north pole up.
+      const b = find(bodies, 'sun');
+      const earth = find(bodies, 'earth');
+      const pos = addv(b.pos, scale(unit(sub(earth.pos, b.pos)), b.info.radiusKm * 6));
+      return view('sun', 'inertial', { pos, quat: lookAt(pos, b.pos, b.axes[2]) });
     }
-    default: {
-      // Planets and the Sun: a few radii out, partly lit, a little above the ecliptic.
-      anchor = dest as BodyId;
-      const b = find(bodies, anchor);
-      const R = b.info.radiusKm;
-      const distR = dest === 'saturn' ? 6.5 : dest === 'sun' ? 6 : 4;
-      const dir = dest === 'sun' ? unit(sub(earth.pos, b.pos)) : rotateToward(toSun(b), ECL_NORTH, (22 * Math.PI) / 180);
-      const sideways = dest === 'sun' ? dir : rotateToward(dir, unit(cross(dir, ECL_NORTH)), (40 * Math.PI) / 180);
-      pos = addv(b.pos, scale(sideways, R * distR));
-      target = b.pos;
-      break;
+    case 'saturn': {
+      const R = bodyInfo('saturn').radiusKm;
+      // Raised 18° above the ring plane, so the rings show.
+      return front('saturn', R * 7, 'inertial', bodyInfo('saturn').rings?.[1] ?? R, (18 * Math.PI) / 180);
     }
+    default:
+      return front(dest, bodyInfo(dest).radiusKm * 4);
   }
-  const quat = lookAt(pos, target, up);
-  return { pose: poseFrom(pos, quat, anchor, frame, bodies), pos, quat };
 }

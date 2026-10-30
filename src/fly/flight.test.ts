@@ -8,20 +8,36 @@ const t = fromCivil(2026, 10, 30, 12 * 3600);
 const bodies = solarSystemAt(t);
 const dist = (a: readonly number[], b: readonly number[]): number => Math.hypot(...a.map((x, i) => x - (b[i] as number)));
 
-/** Is `p` within the camera's view cone (half-angle in degrees)? */
-function inView(camPos: readonly number[], quat: THREE.Quaternion, p: readonly number[], halfDeg: number): boolean {
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
-  const d = new THREE.Vector3(p[0]! - camPos[0]!, p[1]! - camPos[1]!, p[2]! - camPos[2]!).normalize();
-  return (Math.acos(Math.min(1, fwd.dot(d))) * 180) / Math.PI < halfDeg;
-}
-
 describe('Vantage points', () => {
-  it('geostationary orbit is 42,164 km from Earth, with Earth and the Moon both in view', () => {
+  /** Is `p` on screen (60° tall, aspect 1.6)? */
+  const onScreen = (camPos: readonly number[], quat: THREE.Quaternion, p: readonly number[]): boolean => {
+    const d = new THREE.Vector3(p[0]! - camPos[0]!, p[1]! - camPos[1]!, p[2]! - camPos[2]!).applyQuaternion(quat.clone().invert());
+    if (d.z >= 0) return false;
+    const t = Math.tan((30 * Math.PI) / 180);
+    return Math.abs(d.y / -d.z) < t && Math.abs(d.x / -d.z) < t * 1.6;
+  };
+
+  it('geostationary orbit is 42,164 km from Earth, in its equatorial plane, with Earth and the Sun in view', () => {
     const { pos, quat } = vantage('geo', bodies);
     const earth = find(bodies, 'earth');
     expect(dist(pos, earth.pos)).toBeCloseTo(GEO_RADIUS_KM, 0);
-    expect(inView(pos, quat, earth.pos, 30)).toBe(true);
-    expect(inView(pos, quat, find(bodies, 'moon').pos, 30)).toBe(true);
+    const rel = pos.map((x, i) => x - earth.pos[i]!);
+    expect(Math.abs(rel[0]! * earth.axes[2][0] + rel[1]! * earth.axes[2][1] + rel[2]! * earth.axes[2][2])).toBeLessThan(1);
+    expect(onScreen(pos, quat, earth.pos)).toBe(true);
+    expect(onScreen(pos, quat, find(bodies, 'sun').pos)).toBe(true);
+  });
+
+  it('every view has the Sun on screen, the body in front, and the body\'s north up', () => {
+    for (const d of DESTINATIONS) {
+      const { pos, quat } = vantage(d.id, bodies);
+      expect(onScreen(pos, quat, find(bodies, 'sun').pos), d.label).toBe(true);
+      if (d.id === 'overview' || d.id === 'sun' || d.id === 'leo') continue;
+      const b = find(bodies, d.id === 'geo' || d.id === 'earthMoon' ? 'earth' : d.id);
+      expect(onScreen(pos, quat, b.pos), d.label).toBe(true);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
+      const n = b.axes[2];
+      expect(up.x * n[0] + up.y * n[1] + up.z * n[2], d.label).toBeGreaterThan(0.5);
+    }
   });
 
   it('geostationary orbit turns with Earth: an hour later it is still over the same place', () => {

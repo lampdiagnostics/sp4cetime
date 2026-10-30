@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 — 2026-10-30
+
+Spheres and arcs.
+
+- Every place is now measured as an arc position on a sphere, in degrees, minutes and seconds: the galaxy (centred on Sgr A*, the central black hole), the Sun, and each planet and the Moon (turning with them, so longitude and latitude are geographic). Choose the sphere in Fly mode's "Position on" menu; it also shows your distance in that sphere's radii and x, y, z.
+- Point at any body in Fly mode to read the latitude and longitude under the pointer.
+- Body labels show the angle each body fills from where you are, instead of a distance.
+- The space grid is marked in arcs of the Sun's circle around the galactic centre (seconds, minutes, degrees), labelled with the Sun's galactic longitude seen from Sgr A*. The calendar's distance read-out uses the same arcs.
+- Every Fly destination now opens in front of the body, its north up, with the Sun in view. Geostationary orbit sits exactly in Earth's equatorial plane; Saturn's view is raised so the rings show.
+- Real shapes are noted as variation from the perfect sphere (Earth flattened 1/298, Saturn 1/10).
+
 ## 0.11.0 — 2026-10-30
 
 The calendar, in 3D.
