@@ -206,25 +206,21 @@ function verticals(ctx: CanvasRenderingContext2D, xs: readonly number[], H: numb
 // --- Paths ------------------------------------------------------------------------
 
 /** A polyline split into the halves in front of and behind the line of travel. */
+/**
+ * A path as one continuous polyline, so it can be stroked once at a single,
+ * even width and opacity. (Which side of the line of travel a point is on is
+ * accepted for future use but no longer changes how the line is drawn.)
+ */
 class DepthPath {
-  readonly back = new Path2D();
-  readonly front = new Path2D();
-  private prev: boolean | null = null;
-  private px = 0;
-  private py = 0;
-  add(x: number, y: number, isFront: boolean): void {
-    if (this.prev === null) (isFront ? this.front : this.back).moveTo(x, y);
-    else if (isFront !== this.prev) {
-      const p = isFront ? this.front : this.back;
-      p.moveTo(this.px, this.py);
-      p.lineTo(x, y);
-    } else (isFront ? this.front : this.back).lineTo(x, y);
-    this.prev = isFront;
-    this.px = x;
-    this.py = y;
+  readonly all = new Path2D();
+  private open = false;
+  add(x: number, y: number, _isFront: boolean): void {
+    if (this.open) this.all.lineTo(x, y);
+    else this.all.moveTo(x, y);
+    this.open = true;
   }
   break(): void {
-    this.prev = null;
+    this.open = false;
   }
 }
 
@@ -622,34 +618,39 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
     }
   }
 
-  // Back halves, orbit circles, the Sun line, front halves.
-  ctx.lineWidth = theme.trailWidth;
-  for (const c of coils) {
-    ctx.globalAlpha = theme.trailBackAlpha * c.alpha;
-    ctx.strokeStyle = theme.planets[c.id];
-    ctx.stroke(c.path.back);
-  }
-  if (moonPath) {
-    ctx.globalAlpha = theme.trailBackAlpha * moonAlpha;
-    ctx.strokeStyle = theme.moonTrail;
-    ctx.lineWidth = 1;
-    ctx.stroke(moonPath.back);
-  }
-  ctx.globalAlpha = 1;
-
+  // Paths and orbit circles: each stroked once, at one even width and opacity,
+  // with the width snapped to whole device pixels so it renders cleanly.
+  const dpr = ctx.getTransform().a || 1;
+  const crisp = (w: number): number => Math.max(1, Math.round(w * dpr)) / dpr;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPath(t, ax, ay, maxExtent)) : [];
-  ctx.lineWidth = 1;
+  ctx.lineWidth = crisp(1);
   for (const r of rings) {
     if (!r) continue;
     ctx.strokeStyle = theme.planets[r.id];
-    ctx.globalAlpha = theme.ringAlpha * 0.45;
-    ctx.stroke(r.path.back);
+    ctx.globalAlpha = theme.ringAlpha;
+    ctx.stroke(r.path.all);
   }
-  ctx.globalAlpha = 1;
+  ctx.lineWidth = crisp(theme.trailWidth);
+  for (const c of coils) {
+    ctx.globalAlpha = 0.8 * c.alpha;
+    ctx.strokeStyle = theme.planets[c.id];
+    ctx.stroke(c.path.all);
+  }
+  if (moonPath) {
+    ctx.globalAlpha = 0.8 * moonAlpha;
+    ctx.strokeStyle = theme.moonTrail;
+    ctx.lineWidth = crisp(1);
+    ctx.stroke(moonPath.all);
+  }
+  ctx.restore();
 
+  // The Sun's line, then its fuse.
   if (sunStartX < sunEndX) {
     ctx.strokeStyle = theme.sunLine;
-    ctx.lineWidth = theme.sunLineWidth;
+    ctx.lineWidth = crisp(theme.sunLineWidth);
     ctx.globalAlpha = 0.75;
     ctx.beginPath();
     ctx.moveTo(sunStartX, ay);
@@ -662,27 +663,6 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
       strokeFuse(ctx, pts, theme.sun, theme.sunLineWidth * 1.6, additive);
     }
   }
-
-  ctx.lineWidth = 1;
-  for (const r of rings) {
-    if (!r) continue;
-    ctx.strokeStyle = theme.planets[r.id];
-    ctx.globalAlpha = theme.ringAlpha;
-    ctx.stroke(r.path.front);
-  }
-  ctx.lineWidth = theme.trailWidth;
-  for (const c of coils) {
-    ctx.globalAlpha = 0.85 * c.alpha;
-    ctx.strokeStyle = theme.planets[c.id];
-    ctx.stroke(c.path.front);
-  }
-  if (moonPath) {
-    ctx.globalAlpha = moonAlpha;
-    ctx.strokeStyle = theme.moonTrail;
-    ctx.lineWidth = 1;
-    ctx.stroke(moonPath.front);
-  }
-  ctx.globalAlpha = 1;
 
   // Fuses: each body's recent path glowing behind it, then the burning tips.
   const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };

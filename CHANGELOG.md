@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 — 2026-10-30
+
+Even lines.
+
+- Spirals, the Moon's path and orbit circles are drawn as single, even lines: the same thickness and brightness all the way round, from any view, snapped to whole screen pixels so they render cleanly on Retina displays.
+
 ## 0.8.0 — 2026-10-30
 
 One view change at a time.

@@ -26,6 +26,10 @@ Widened coils changed shape while zooming, and adaptive refinement changed its s
 - **One view change at a time.** A wheel or trackpad gesture picks its action from its first event (pinch or vertical = zoom, horizontal = time, Option = space zoom, Shift = turn or roll) and keeps it until the wheel has been still for 220 ms. A rotation drag locks to turning or rolling after 6 px. Wheel input is ignored while a drag is in progress.
 - **Zoom holds the Sun.** Every zoom (wheel, pinch, keys, presets) is anchored at the Sun's position on screen, so zooming can never carry it away.
 
+## Update (v0.9)
+
+- **Even lines.** Each spiral, the Moon's path and each orbit circle is one continuous polyline stroked once, at a single width and opacity, with round joins and the width snapped to whole device pixels. The near and far halves are no longer drawn at different opacities, which read as a ribbon of varying thickness, and segments are no longer drawn twice where the halves met. Depth is now carried by the 3D shape alone. The theme's `trailBackAlpha` is unused and kept only for compatibility.
+
 ## Consequences
 
 - Consecutive frames with no input differ only in the breathing glow of the burning tips (measured).
