@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-30
+
+Space zoom.
+
+- Zoom into space separately from time: Option/Alt + scroll, the [ and ] keys, or the Space − / + buttons (up to 5,000×). "Fit" returns.
+- Centre the view on any planet: everything in space shifts so that body sits where the Sun was; the time grid does not move.
+- Paths are sampled adaptively: anchored coarse points, refined to ~2.5 px on screen and skipped off screen, so they stay smooth however far you zoom.
+- The Moon moves to its real distance from Earth once zoomed in far enough.
+
 ## 0.4.0 — 2026-10-30
 
 The Sun is now.

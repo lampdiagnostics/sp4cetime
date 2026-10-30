@@ -13,6 +13,7 @@ export interface Settings {
   readonly timeGrid: boolean;
   readonly distanceGrid: boolean;
   readonly scale: ScaleMode;
+  readonly focus: 'sun' | PlanetId;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeGrid: true,
   distanceGrid: true,
   scale: 'fit',
+  focus: 'sun',
 };
 
 const KEY = 'sp4cetime.settings.v1';
@@ -49,6 +51,7 @@ export function loadSettings(): Settings {
       timeGrid: typeof data.timeGrid === 'boolean' ? data.timeGrid : DEFAULT_SETTINGS.timeGrid,
       distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
       scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
+      focus: PLANET_IDS.includes(data.focus as PlanetId) ? (data.focus as PlanetId) : 'sun',
     };
   } catch {
     return DEFAULT_SETTINGS;

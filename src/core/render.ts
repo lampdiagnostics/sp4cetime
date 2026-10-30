@@ -16,6 +16,7 @@ import {
   makeTrack,
   MOON_DISTANCE_KM,
   moonOffset,
+  KM_PER_AU,
   type Sample,
   type ScaleMode,
   type Track,
@@ -40,6 +41,10 @@ export interface ViewOptions {
   readonly spirals: boolean;
   readonly timeGrid: boolean;
   readonly distanceGrid: boolean;
+  /** Magnification of space (orbit sizes), independent of the time zoom. 1 = fit. */
+  readonly spaceZoom: number;
+  /** The body the view is centred on. */
+  readonly focus: 'sun' | PlanetId;
 }
 
 export interface FrameInput {
@@ -186,49 +191,100 @@ class DepthPath {
   }
 }
 
-const MAX_SAMPLES = 12_000;
+const MAX_SAMPLES = 40_000;
+/** Margin around the screen within which points are kept, px. */
+const KEEP = 60;
+
+/** A point on a curve: screen position and which side of the line of travel it is on. */
+interface Pt {
+  x: number;
+  y: number;
+  front: boolean;
+}
+
+const COARSE_PX = 8; // base-x spacing of the anchored coarse samples
+const MAX_COARSE = 6000; // per curve per frame
+const SUB_PX = 2.5; // on-screen spacing of refined samples
+const MAX_SUB = 400; // per coarse segment
 
 /**
- * A planet's coil between base positions xFrom..xTo. Sample k sits at mean anomaly
- * 2πk/N, so the same orbit points are used every frame and the shape never shimmers.
+ * Sample a curve parametrised by phase u (radians) into a DepthPath. Coarse samples
+ * sit at fixed multiples of du, so the curve never shimmers; each coarse segment is
+ * refined to ~2.5 px on screen, and skipped entirely when it is off screen. Cost is
+ * bounded by what is visible, however far space is zoomed.
  */
-function drawCoilPath(track: Track, pitchPx: number, L: Layout, xFrom: number, xTo: number): DepthPath {
+function sampleCurve(
+  uFrom: number,
+  uTo: number,
+  du: number,
+  at: (u: number, out: Pt) => Pt,
+  W: number,
+  H: number,
+): DepthPath {
   const path = new DepthPath();
-  if (xTo <= xFrom) return path;
-  const N = Math.max(64, Math.ceil(pitchPx / 2));
-  const dM = TWO_PI / N;
-  const toM = (x: number): number => track.M0 + (TWO_PI * (x - L.cx)) / pitchPx;
-  const kFrom = Math.ceil(toM(xFrom) / dM);
-  const kTo = Math.min(Math.floor(toM(xTo) / dM), kFrom + MAX_SAMPLES);
-  const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
-  // One orbit's worth of points, looked up by k mod N, when that table is small.
-  const table = N <= 4096 ? new Float64Array(N * 3) : null;
-  if (table) {
-    for (let i = 0; i < N; i++) {
-      track.atMean(i * dM, s);
-      table[i * 3] = s.sx;
-      table[i * 3 + 1] = s.sy;
-      table[i * 3 + 2] = s.depth;
-    }
-  }
-  for (let k = kFrom; k <= kTo; k++) {
-    const M = k * dM;
-    const xBase = L.cx + ((M - track.M0) * pitchPx) / TWO_PI;
-    let sx: number, sy: number, depth: number;
-    if (table) {
-      const i = (((k % N) + N) % N) * 3;
-      sx = table[i] as number;
-      sy = table[i + 1] as number;
-      depth = table[i + 2] as number;
+  if (!(uTo > uFrom)) return path;
+  const kFrom = Math.ceil(uFrom / du);
+  const kTo = Math.min(Math.floor(uTo / du), kFrom + MAX_COARSE);
+  const a: Pt = { x: 0, y: 0, front: true };
+  const b: Pt = { x: 0, y: 0, front: true };
+  const c: Pt = { x: 0, y: 0, front: true };
+  at(kFrom * du, a);
+  let open = false;
+  for (let k = kFrom; k < kTo; k++) {
+    at((k + 1) * du, b);
+    const chord = Math.hypot(b.x - a.x, b.y - a.y);
+    const pad = KEEP + chord * 0.5;
+    const offscreen =
+      Math.max(a.x, b.x) < -pad || Math.min(a.x, b.x) > W + pad || Math.max(a.y, b.y) < -pad || Math.min(a.y, b.y) > H + pad;
+    if (offscreen) {
+      if (open) path.break();
+      open = false;
     } else {
-      track.atMean(M, s);
-      sx = s.sx;
-      sy = s.sy;
-      depth = s.depth;
+      if (!open) path.add(a.x, a.y, a.front);
+      open = true;
+      const m = Math.min(MAX_SUB, Math.max(1, Math.ceil(chord / SUB_PX)));
+      for (let j = 1; j < m; j++) {
+        at((k + j / m) * du, c);
+        path.add(c.x, c.y, c.front);
+      }
+      path.add(b.x, b.y, b.front);
     }
-    path.add(xBase + sx, L.cy - sy, depth >= 0);
+    a.x = b.x;
+    a.y = b.y;
+    a.front = b.front;
   }
   return path;
+}
+
+/** Range of base x worth sampling for a curve whose points sit up to `ext` px from their base. */
+function baseRange(xFrom: number, xTo: number, ext: number, W: number): [number, number] {
+  const reach = Math.min(ext, 50 * W);
+  return [Math.max(xFrom, -reach), Math.min(xTo, W + reach)];
+}
+
+/** A planet's coil between base positions xFrom..xTo, anchored to fixed mean anomalies. */
+function drawCoilPath(track: Track, pitchPx: number, L: Layout, xFrom: number, xTo: number, W: number, H: number): DepthPath {
+  const [x0, x1] = baseRange(xFrom, xTo, track.extent, W);
+  const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
+  const toU = (x: number): number => track.M0 + (TWO_PI * (x - L.cx)) / pitchPx;
+  // Coarse step: a fixed fraction of a turn (no wider than COARSE_PX of base x),
+  // widened by a whole factor only if the range would need too many samples.
+  const du0 = TWO_PI / Math.max(64, Math.ceil(pitchPx / COARSE_PX));
+  const du = du0 * Math.max(1, Math.ceil((toU(x1) - toU(x0)) / du0 / MAX_COARSE));
+  return sampleCurve(
+    toU(x0),
+    toU(x1),
+    du,
+    (u, out) => {
+      track.atMean(u, s);
+      out.x = L.cx + ((u - track.M0) * pitchPx) / TWO_PI + s.sx;
+      out.y = L.cy - s.sy;
+      out.front = s.depth >= 0;
+      return out;
+    },
+    W,
+    H,
+  );
 }
 
 interface MoonCoil {
@@ -239,29 +295,56 @@ interface MoonCoil {
 
 /** The Moon's coil around Earth's, anchored to fixed Moon phases. */
 function drawMoonPath(earth: Track, earthPitch: number, moon: MoonCoil, f: FrameInput, L: Layout, xFrom: number, xTo: number): DepthPath {
-  const path = new DepthPath();
-  if (xTo <= xFrom) return path;
+  const W = f.cam.width, H = f.cam.height;
+  const [x0, x1] = baseRange(xFrom, xTo, earth.extent + moon.radiusPx, W);
   const vm = viewMatrix(f.view.roll);
-  const N = Math.max(32, Math.ceil(moon.pitchPx / 2));
-  const dP = TWO_PI / N;
-  const toP = (x: number): number => moon.phase0 + (TWO_PI * (x - L.cx)) / moon.pitchPx;
-  const kFrom = Math.ceil(toP(xFrom) / dP);
-  const kTo = Math.min(Math.floor(toP(xTo) / dP), kFrom + MAX_SAMPLES);
   const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
   const m: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
-  for (let k = kFrom; k <= kTo; k++) {
-    const phase = k * dP;
-    const xBase = L.cx + ((phase - moon.phase0) * moon.pitchPx) / TWO_PI;
-    earth.atMean(earth.M0 + (TWO_PI * (xBase - L.cx)) / earthPitch, s);
-    const ex = xBase + s.sx;
-    const ey = L.cy - s.sy;
-    moonOffset(s.lon + Math.PI + phase, moon.radiusPx, vm, m);
-    path.add(ex + m.sx, ey - m.sy, s.depth + m.depth * 0.02 >= 0);
-  }
-  return path;
+  const toU = (x: number): number => moon.phase0 + (TWO_PI * (x - L.cx)) / moon.pitchPx;
+  const perTurn = Math.max(32, Math.ceil(moon.pitchPx / COARSE_PX));
+  const du = TWO_PI / perTurn;
+  return sampleCurve(
+    toU(x0),
+    toU(x1),
+    du * Math.max(1, Math.ceil((toU(x1) - toU(x0)) / du / MAX_COARSE)),
+    (u, out) => {
+      const xBase = L.cx + ((u - moon.phase0) * moon.pitchPx) / TWO_PI;
+      earth.atMean(earth.M0 + (TWO_PI * (xBase - L.cx)) / earthPitch, s);
+      moonOffset(s.lon + Math.PI + u, moon.radiusPx, vm, m);
+      out.x = xBase + s.sx + m.sx;
+      out.y = L.cy - s.sy - m.sy;
+      out.front = s.depth + m.depth * 0.02 >= 0;
+      return out;
+    },
+    W,
+    H,
+  );
 }
 
 // --- Fuses: each body's glowing recent trail ---------------------------------------
+
+/**
+ * Points of a trail from oldest to newest along base x in [x1 − len, x1]. Uses more
+ * points when the trail is long on screen (zoomed into space), so it stays smooth.
+ */
+function trailPoints(x1: number, len: number, at: (xBase: number, out: Pt) => Pt): Float64Array {
+  const p: Pt = { x: 0, y: 0, front: true };
+  const make = (n: number): Float64Array => {
+    const pts = new Float64Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      at(x1 - len + (len * i) / (n - 1), p);
+      pts[i * 2] = p.x;
+      pts[i * 2 + 1] = p.y;
+    }
+    return pts;
+  };
+  const coarse = make(TRAIL_STEPS);
+  let length = 0;
+  for (let i = 1; i < TRAIL_STEPS; i++) {
+    length += Math.hypot((coarse[i * 2] as number) - (coarse[i * 2 - 2] as number), (coarse[i * 2 + 1] as number) - (coarse[i * 2 - 1] as number));
+  }
+  return length > TRAIL_STEPS * 3 ? make(Math.min(1500, Math.ceil(length / 3))) : coarse;
+}
 
 /** Trail length along the base line, px: about a third of a turn, capped. */
 const trailLength = (pitchPx: number): number => Math.min(0.33 * pitchPx, 170);
@@ -336,6 +419,7 @@ function spark(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c
 export interface Scene {
   readonly tracks: readonly Track[];
   readonly moonPx: number | null;
+  readonly focus: Track | null;
 }
 
 /** Bodies' tracks, evaluated at the anchor time (the present when it is in view). */
@@ -343,17 +427,24 @@ export function buildScene(f: FrameInput, L: Layout, anchor: Time): Scene {
   const { cam, view } = f;
   const chosen = view.planets.map(planetById);
   const fitAU = Math.max(0.5, ...chosen.map((p) => p.el.a * (1 + p.el.e)));
-  const scale = makeScale(view.scale, L.fitR, fitAU, cam.secondsPerPixel, SUN_GALACTIC_SPEED_KM_S);
+  const z = Math.max(1, view.spaceZoom);
+  const scale = makeScale(view.scale, L.fitR * z, fitAU, cam.secondsPerPixel / z, SUN_GALACTIC_SPEED_KM_S);
   const vm = viewMatrix(view.roll);
   const tracks = chosen.map((p) => makeTrack(p, anchor, vm, scale));
+  // The focus body, even when it is not one of the chosen bodies.
+  let focus: Track | null = null;
+  if (view.focus !== 'sun') {
+    focus = tracks.find((t) => t.planet.id === view.focus) ?? makeTrack(planetById(view.focus), anchor, vm, scale);
+  }
   let moonPx: number | null = null;
   if (view.moon && view.planets.includes('earth')) {
     moonPx =
       view.scale === 'true'
-        ? MOON_DISTANCE_KM / (SUN_GALACTIC_SPEED_KM_S * cam.secondsPerPixel)
-        : Math.min(36, Math.max(7, scale.factor(1) * 0.26));
+        ? (z * MOON_DISTANCE_KM) / (SUN_GALACTIC_SPEED_KM_S * cam.secondsPerPixel)
+        : // A readable stand-in distance, or the real one (384,400 km) once zoomed in far enough.
+          Math.max(Math.min(36, Math.max(7, (scale.factor(1) / z) * 0.26)), scale.factor(1) * (MOON_DISTANCE_KM / KM_PER_AU));
   }
-  return { tracks, moonPx };
+  return { tracks, moonPx, focus };
 }
 
 export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
@@ -369,6 +460,16 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   const A: Layout = { ...L, cx: nowInView ? xNow : L.cx };
   const scene = buildScene(f, L, anchorTime);
   const viewingAway = Math.abs(xNow - L.cx) > 1.5;
+  // Body space: everything that lives in space (Sun line, coils, rings, fuses) is
+  // shifted so the focus body sits where the Sun would. The time grid does not move.
+  let ox = 0, oy = 0;
+  if (scene.focus) {
+    const fs: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
+    scene.focus.at(0, fs);
+    ox = -fs.sx;
+    oy = fs.sy;
+  }
+  const B: Layout = { ...A, cx: A.cx + ox, cy: L.cy + oy };
   const additive = theme.ui === 'dark';
   const pulse = Math.sin((f.now.sec % 1.6) / 1.6 * TWO_PI);
 
@@ -387,7 +488,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   ctx.strokeStyle = theme.grid;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let y = L.cy % theme.gridSpacingPx; y <= H; y += theme.gridSpacingPx) {
+  const gs = theme.gridSpacingPx;
+  for (let y = (((L.cy + oy) % gs) + gs) % gs; y <= H; y += gs) {
     ctx.moveTo(0, Math.round(y) + 0.5);
     ctx.lineTo(W, Math.round(y) + 0.5);
   }
@@ -406,13 +508,14 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     verticals(ctx, space.major, H, theme.distanceGrid, [6, 4]);
   }
 
-  const sunStartX = Math.max(0, timeToX(cam, MIN_TIME));
-  const sunEndX = Math.min(W, timeToX(cam, MAX_TIME));
-  const bodiesFromX = Math.max(sunStartX, timeToX(cam, PLANETS_FORM));
-  const nowBorn = nowInView && bodiesFromX <= A.cx && A.cx <= sunEndX;
+  // Ends of the Sun's life and the planets' formation, in body space.
+  const sunStartX = Math.max(0, timeToX(cam, MIN_TIME) + ox);
+  const sunEndX = Math.min(W, timeToX(cam, MAX_TIME) + ox);
+  const bodiesFromX = Math.max(sunStartX, timeToX(cam, PLANETS_FORM) + ox);
+  const nowBorn = nowInView && timeToX(cam, PLANETS_FORM) <= A.cx && A.cx <= timeToX(cam, MAX_TIME);
 
   // Coils and fuse trails.
-  const maxExtent = 4 * Math.max(W, H);
+  const maxExtent = 60 * Math.max(W, H);
   const pitches = new Map<PlanetId, number>();
   const coils: Array<{ id: PlanetId; path: DepthPath }> = [];
   let moonCoil: MoonCoil | null = null;
@@ -423,7 +526,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     if (!view.spirals || track.extent < 0.5 || track.extent > maxExtent || bodiesFromX >= sunEndX) continue;
     const from = Math.max(bodiesFromX, -track.extent);
     const to = Math.min(sunEndX, W + track.extent);
-    coils.push({ id: track.planet.id, path: drawCoilPath(track, pitch, A, from, to) });
+    coils.push({ id: track.planet.id, path: drawCoilPath(track, pitch, B, from, to, W, H) });
   }
   const earth = scene.tracks.find((t) => t.planet.id === 'earth');
   if (earth && scene.moonPx !== null && scene.moonPx < maxExtent) {
@@ -433,7 +536,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
       radiusPx: scene.moonPx,
     };
     if (view.spirals && bodiesFromX < sunEndX) {
-      moonPath = drawMoonPath(earth, pitches.get('earth') as number, moonCoil, f, A, Math.max(bodiesFromX, -earth.extent), Math.min(sunEndX, W + earth.extent));
+      moonPath = drawMoonPath(earth, pitches.get('earth') as number, moonCoil, f, B, Math.max(bodiesFromX, -earth.extent), Math.min(sunEndX, W + earth.extent));
     }
   }
 
@@ -451,7 +554,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
   }
   ctx.globalAlpha = 1;
 
-  const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPaths(t, A, maxExtent)) : [];
+  const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPaths(t, B, maxExtent)) : [];
   ctx.lineWidth = 1;
   for (const r of rings) {
     if (!r) continue;
@@ -467,16 +570,16 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     ctx.lineWidth = theme.sunLineWidth;
     ctx.globalAlpha = 0.75;
     ctx.beginPath();
-    ctx.moveTo(sunStartX, L.cy);
-    ctx.lineTo(sunEndX, L.cy);
+    ctx.moveTo(sunStartX, B.cy);
+    ctx.lineTo(sunEndX, B.cy);
     ctx.stroke();
     ctx.globalAlpha = 1;
-    if (nowInView && sunStartX <= A.cx && A.cx <= sunEndX) {
-      const len = Math.min(A.cx - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
+    if (nowInView && sunStartX <= B.cx && B.cx <= sunEndX) {
+      const len = Math.min(B.cx - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
       const pts = new Float64Array(TRAIL_STEPS * 2);
       for (let i = 0; i < TRAIL_STEPS; i++) {
-        pts[i * 2] = A.cx - len + (len * i) / (TRAIL_STEPS - 1);
-        pts[i * 2 + 1] = L.cy;
+        pts[i * 2] = B.cx - len + (len * i) / (TRAIL_STEPS - 1);
+        pts[i * 2 + 1] = B.cy;
       }
       strokeFuse(ctx, pts, theme.sun, theme.sunLineWidth * 1.6, additive);
     }
@@ -511,38 +614,37 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     for (const track of scene.tracks) {
       if (track.extent > maxExtent) continue;
       const pitch = pitches.get(track.planet.id) as number;
-      const len = Math.min(trailLength(pitch), A.cx - bodiesFromX);
-      const pts = new Float64Array(TRAIL_STEPS * 2);
-      for (let i = 0; i < TRAIL_STEPS; i++) {
-        const xBase = A.cx - len + (len * i) / (TRAIL_STEPS - 1);
-        track.atMean(track.M0 + (TWO_PI * (xBase - A.cx)) / pitch, s);
-        pts[i * 2] = xBase + s.sx;
-        pts[i * 2 + 1] = L.cy - s.sy;
-      }
+      const len = Math.min(trailLength(pitch), B.cx - bodiesFromX);
+      const pts = trailPoints(B.cx, len, (xBase, out) => {
+        track.atMean(track.M0 + (TWO_PI * (xBase - B.cx)) / pitch, s);
+        out.x = xBase + s.sx;
+        out.y = B.cy - s.sy;
+        return out;
+      });
       const color = theme.planets[track.planet.id];
       strokeFuse(ctx, pts, color, theme.trailWidth * 1.4, additive);
       track.at(0, s);
-      tips.push({ x: A.cx + s.sx, y: L.cy - s.sy, r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name, front: s.depth >= 0 });
+      tips.push({ x: B.cx + s.sx, y: B.cy - s.sy, r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name, front: s.depth >= 0 });
 
       if (track === earth && moonCoil) {
-        const mlen = Math.min(trailLength(moonCoil.pitchPx), A.cx - bodiesFromX);
-        const mp = new Float64Array(TRAIL_STEPS * 2);
-        for (let i = 0; i < TRAIL_STEPS; i++) {
-          const xBase = A.cx - mlen + (mlen * i) / (TRAIL_STEPS - 1);
-          earth.atMean(earth.M0 + (TWO_PI * (xBase - A.cx)) / pitch, s);
-          const phase = moonCoil.phase0 + (TWO_PI * (xBase - A.cx)) / moonCoil.pitchPx;
-          moonOffset(s.lon + Math.PI + phase, moonCoil.radiusPx, vm, m);
-          mp[i * 2] = xBase + s.sx + m.sx;
-          mp[i * 2 + 1] = L.cy - s.sy - m.sy;
-        }
+        const mlen = Math.min(trailLength(moonCoil.pitchPx), B.cx - bodiesFromX);
+        const mc = moonCoil;
+        const mp = trailPoints(B.cx, mlen, (xBase, out) => {
+          earth.atMean(earth.M0 + (TWO_PI * (xBase - B.cx)) / pitch, s);
+          const phase = mc.phase0 + (TWO_PI * (xBase - B.cx)) / mc.pitchPx;
+          moonOffset(s.lon + Math.PI + phase, mc.radiusPx, vm, m);
+          out.x = xBase + s.sx + m.sx;
+          out.y = B.cy - s.sy - m.sy;
+          return out;
+        });
         strokeFuse(ctx, mp, theme.moon, 1.2, additive);
-        const n = TRAIL_STEPS - 1;
+        const n = mp.length / 2 - 1;
         tips.push({ x: mp[n * 2] as number, y: mp[n * 2 + 1] as number, r: 2, color: theme.moon, name: '', front: true });
       }
     }
   }
 
-  if (nowInView && sunStartX <= A.cx && A.cx <= sunEndX) spark(ctx, A.cx, L.cy, 5.5, theme.sun, pulse, additive);
+  if (nowInView && sunStartX <= B.cx && B.cx <= sunEndX) spark(ctx, B.cx, B.cy, 5.5, theme.sun, pulse, additive);
 
   // Looking ahead or back: a cursor at the viewed moment, with hollow markers
   // where each body is on its coil then.
@@ -554,21 +656,22 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     ctx.moveTo(Math.round(L.cx) + 0.5, top);
     ctx.lineTo(Math.round(L.cx) + 0.5, bottom);
     ctx.stroke();
-    if (bodiesFromX <= L.cx && L.cx <= sunEndX) {
+    const xv = L.cx + ox; // the viewed moment, in body space
+    if (bodiesFromX <= xv && xv <= sunEndX) {
       for (const track of scene.tracks) {
         if (track.extent > maxExtent) continue;
         const pitch = pitches.get(track.planet.id) as number;
-        track.atMean(track.M0 + (TWO_PI * (L.cx - A.cx)) / pitch, s);
+        track.atMean(track.M0 + (TWO_PI * (xv - B.cx)) / pitch, s);
         ctx.strokeStyle = theme.planets[track.planet.id];
         ctx.beginPath();
-        ctx.arc(L.cx + s.sx, L.cy - s.sy, 4, 0, TWO_PI);
+        ctx.arc(xv + s.sx, B.cy - s.sy, 4, 0, TWO_PI);
         ctx.stroke();
       }
     }
-    if (sunStartX <= L.cx && L.cx <= sunEndX) {
+    if (sunStartX <= xv && xv <= sunEndX) {
       ctx.strokeStyle = theme.sun;
       ctx.beginPath();
-      ctx.arc(L.cx, L.cy, 5, 0, TWO_PI);
+      ctx.arc(xv, B.cy, 5, 0, TWO_PI);
       ctx.stroke();
     }
   }
@@ -603,10 +706,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     const room = side === 'before' ? x - 10 - leftEdge : rightEdge - x - 10;
     if (room >= width) {
       ctx.textAlign = side === 'before' ? 'right' : 'left';
-      ctx.fillText(text, side === 'before' ? x - 10 : x + 10, L.cy);
+      ctx.fillText(text, side === 'before' ? x - 10 : x + 10, B.cy);
     } else {
       ctx.textAlign = side === 'before' ? 'left' : 'right';
-      ctx.fillText(text, side === 'before' ? Math.max(x, leftEdge + 24) : Math.min(x, rightEdge - 24), L.cy - 16);
+      ctx.fillText(text, side === 'before' ? Math.max(x, leftEdge + 24) : Math.min(x, rightEdge - 24), B.cy - 16);
     }
   };
   if (sunStartX > 0) endLabel('Sun forms', sunStartX, 'before');
@@ -621,9 +724,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): void {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (const t of ticks.major) {
-      const x = Math.round(t.x) + 0.5;
-      ctx.moveTo(x, L.cy - 6);
-      ctx.lineTo(x, L.cy + 6);
+      // Time marks on the Sun's path.
+      const x = Math.round(t.x + ox) + 0.5;
+      ctx.moveTo(x, B.cy - 6);
+      ctx.lineTo(x, B.cy + 6);
     }
     ctx.stroke();
     ctx.fillStyle = theme.tickText;

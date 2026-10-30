@@ -15,9 +15,15 @@ export interface CanvasHandle {
   panBy(fraction: number): void;
   rollBy(radians: number): void;
   resetRoll(): void;
+  /** Magnify space (orbit sizes) by a factor, independent of the time zoom. */
+  spaceZoomBy(factor: number): void;
+  resetSpaceZoom(): void;
 }
 
-type CanvasView = Omit<ViewOptions, 'roll'>;
+/** Space zoom range: from fitting the chosen orbits to well inside the Moon's orbit. */
+export const MAX_SPACE_ZOOM = 5000;
+
+type CanvasView = Omit<ViewOptions, 'roll' | 'spaceZoom'>;
 
 interface Props {
   theme: Theme;
@@ -26,6 +32,7 @@ interface Props {
   onLiveChange: (live: boolean) => void;
   initialSpanSeconds: number;
   onCameraChange: (cam: Camera) => void;
+  onSpaceZoomChange: (zoom: number) => void;
   handleRef: Ref<CanvasHandle>;
 }
 
@@ -47,10 +54,17 @@ function viewWidth(cam: Camera, round: boolean): number {
   return round ? 2 * (layout(cam, true).clipR ?? cam.width / 2) : cam.width;
 }
 
-export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, handleRef }: Props) {
+export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, onSpaceZoomChange, handleRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera>({ center: nowTime(), secondsPerPixel: 1, width: 0, height: 0 });
   const rollRef = useRef(DEFAULT_ROLL);
+  const spaceZoomRef = useRef(1);
+  const onSpaceRef = useRef(onSpaceZoomChange);
+  onSpaceRef.current = onSpaceZoomChange;
+  const setSpaceZoom = (z: number): void => {
+    spaceZoomRef.current = Math.min(MAX_SPACE_ZOOM, Math.max(1, z));
+    onSpaceRef.current(spaceZoomRef.current);
+  };
   const themeRef = useRef(theme);
   const viewRef = useRef(view);
   /**
@@ -120,6 +134,12 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     },
     resetRoll() {
       rollRef.current = DEFAULT_ROLL;
+    },
+    spaceZoomBy(factor) {
+      setSpaceZoom(spaceZoomRef.current * factor);
+    },
+    resetSpaceZoom() {
+      setSpaceZoom(1);
     },
   }));
 
@@ -202,7 +222,10 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       flightRef.current = null;
       const scale = e.deltaMode === 1 ? 16 : 1;
       const { x } = local(e);
-      if (e.shiftKey) {
+      if (e.altKey) {
+        // Option/Alt + scroll: zoom into space rather than time.
+        setSpaceZoom(spaceZoomRef.current * Math.exp(-e.deltaY * scale * 0.002));
+      } else if (e.shiftKey) {
         rollRef.current += e.deltaY * scale * ROLL_PER_PX * 0.5;
       } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         moveTo(pan(camRef.current, -e.deltaX * scale));
@@ -231,7 +254,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       setCam({ ...camRef.current, center: clampTime(timeAdd(now, offsetRef.current), MIN_TIME, MAX_TIME) });
       const cam = camRef.current;
       if (cam.width > 0) {
-        drawFrame(ctx, { cam, theme: themeRef.current, now, view: { ...viewRef.current, roll: rollRef.current } });
+        drawFrame(ctx, { cam, theme: themeRef.current, now, view: { ...viewRef.current, roll: rollRef.current, spaceZoom: spaceZoomRef.current } });
       }
       raf = requestAnimationFrame(frame);
     };

@@ -9,6 +9,7 @@ import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, fromUnixMs, type Time,
 import { type CanvasHandle, GalacticCanvas } from './GalacticCanvas';
 import { MoonIcon, moonPhaseName } from './MoonIcon';
 import { PlanetPicker } from './PlanetPicker';
+import { PLANETS } from '../core/planets';
 import { DEFAULT_PRESET, ZOOM_PRESETS } from './presets';
 import { loadSettings, saveSettings, type Settings } from './settings';
 
@@ -53,6 +54,7 @@ export function App() {
   // The centre is the present moment by default.
   const [live, setLive] = useState(true);
   const [cam, setCam] = useState<Camera | null>(null);
+  const [spaceZoom, setSpaceZoom] = useState(1);
   const canvas = useRef<CanvasHandle>(null);
 
   // The canvas reports every camera change; the HUD re-renders at most ~10 times a second.
@@ -79,6 +81,7 @@ export function App() {
       spirals: settings.spirals,
       timeGrid: settings.timeGrid,
       distanceGrid: settings.distanceGrid,
+      focus: settings.focus,
     }),
     [settings],
   );
@@ -99,6 +102,8 @@ export function App() {
       '+': () => c.zoomBy(0.7),
       '=': () => c.zoomBy(0.7),
       '-': () => c.zoomBy(1 / 0.7),
+      ']': () => c.spaceZoomBy(1.5),
+      '[': () => c.spaceZoomBy(1 / 1.5),
       t: goNow,
       n: goNow,
     };
@@ -124,7 +129,7 @@ export function App() {
         tabIndex={0}
         role="application"
         aria-roledescription="time canvas"
-        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom; press N to return to now."
+        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom time; Option-scroll or the bracket keys zoom into space; press N to return to now."
         onKeyDown={onKeyDown}
       >
         <GalacticCanvas
@@ -133,6 +138,7 @@ export function App() {
           onLiveChange={setLive}
           initialSpanSeconds={DEFAULT_PRESET.spanSeconds}
           onCameraChange={onCameraChange}
+          onSpaceZoomChange={setSpaceZoom}
           handleRef={canvas}
         />
       </div>
@@ -208,6 +214,17 @@ export function App() {
             <option value="true">True scale</option>
           </select>
         </label>
+        <label className="select">
+          <span className="visually-hidden">Centre the view on</span>
+          <select value={settings.focus} onChange={(e) => update({ focus: e.target.value as Settings['focus'] })}>
+            <option value="sun">Centre: Sun</option>
+            {PLANETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                Centre: {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <p className="note">
           {SCALE_NOTES[settings.scale]}
           {widened && <><br />Coils widened to stay readable at this zoom</>}
@@ -222,6 +239,21 @@ export function App() {
               {p.label}
             </button>
           ))}
+        </div>
+        <div className="row" role="group" aria-label="Space zoom">
+          <span className="scale">Space</span>
+          <button type="button" onClick={() => canvas.current?.spaceZoomBy(1 / 2)} aria-label="Zoom out of space" disabled={spaceZoom <= 1}>
+            −
+          </button>
+          <span className="scale" title="Option/Alt + scroll, or [ and ]">{spaceZoom < 10 ? spaceZoom.toFixed(1) : Math.round(spaceZoom)}×</span>
+          <button type="button" onClick={() => canvas.current?.spaceZoomBy(2)} aria-label="Zoom into space">
+            +
+          </button>
+          {spaceZoom > 1 && (
+            <button type="button" className="ghost" onClick={() => canvas.current?.resetSpaceZoom()}>
+              Fit
+            </button>
+          )}
         </div>
         <div className="row">
           {cam && <span className="scale">1 px ≈ {formatDuration(cam.secondsPerPixel)}</span>}
