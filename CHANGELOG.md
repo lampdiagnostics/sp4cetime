@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0 — 2026-10-30
+
+The instrument is complete: the calendar, Fly mode, the real sky and the galaxy. This release adds no new features; it makes the project self-explaining so work can continue in a fresh conversation, with any AI model or person.
+
+- **README.md**: what sp4cetime is, where it is going (truthful instrument → Library of stories → sharing → Pro → year-two options), how to run and use it, layout, accuracy, deploy, credits.
+- **DECISIONS.md** (new): every decision with its reason and record: product and business, architecture, science and geometry, the owner's interaction preferences, process, known limits.
+- **CLAUDE.md**: model-agnostic working context: code map, rules, conventions, how to work with the owner, ready-to-paste prompts for starting new conversations, and a definition of done. **AGENTS.md** points other tools to it.
+- Tagged `v1.0` in git.
+
 ## 0.16.0 — 2026-10-30
 
 - The calendar's sky now matches Fly mode exactly: the same perspective lens (60° top to bottom) looking the same way, instead of a whole-sky disc that bent the Milky Way into a ring. It still turns with the solar system.
