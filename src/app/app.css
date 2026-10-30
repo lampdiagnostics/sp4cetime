@@ -73,9 +73,6 @@ body {
   cursor: grab;
 }
 
-.galactic-canvas:active {
-  cursor: grabbing;
-}
 
 /* --- Corners ------------------------------------------------------------- */
 

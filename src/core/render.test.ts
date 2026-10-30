@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { orbitalPeriod, planetById } from './planets';
-import { coilWeight, densePaths, samplesPerTurn } from './render';
+import { coilWeight, densePaths, samplesPerTurn, segmentOff } from './render';
 
 describe('Coil or band', () => {
   it('is a pure coil when turns are well apart, and a pure band when they crowd', () => {
@@ -42,5 +42,17 @@ describe('Sampling', () => {
     const n = samplesPerTurn(600, 300, 64, 4096);
     expect(600 / n).toBeLessThanOrEqual(2);
     expect((2 * Math.PI * 300) / n).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('Edge-to-edge drawing', () => {
+  it('keeps a segment that crosses the whole screen even when both ends are off it', () => {
+    expect(segmentOff(-5000, 300, 9000, 320, 1440, 900)).toBe(false);
+    expect(segmentOff(400, -9000, 420, 9000, 1440, 900)).toBe(false);
+  });
+
+  it('skips segments wholly off one side', () => {
+    expect(segmentOff(-500, 300, -200, 320, 1440, 900)).toBe(true);
+    expect(segmentOff(400, 2000, 900, 3000, 1440, 900)).toBe(true);
   });
 });

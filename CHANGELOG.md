@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 2026-10-30
+
+Edge to edge, and rotation both ways.
+
+- Spirals and paths now run from screen edge to edge at every zoom and never break up or disappear when zoomed in.
+- Removed the centre line and hollow "ghost" circles shown when looking ahead or back.
+- Drag empty space to rotate the solar system in both directions: up/down rolls about the line of travel, sideways turns it (with the time axis foreshortened to match). Grab the Sun to move it, or its line to slide through time.
+- When centred on a planet, the grids are centred on it.
+
 ## 0.6.0 — 2026-10-30
 
 Simple, stable paths.

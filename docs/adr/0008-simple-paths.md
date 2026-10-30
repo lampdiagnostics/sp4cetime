@@ -14,6 +14,13 @@ Widened coils changed shape while zooming, and adaptive refinement changed its s
 - **Orbits** (the circles around the Sun) have their own toggle beside **Spirals**.
 - **The Sun can be grabbed** and moved anywhere. Sideways it looks ahead or back in time (as dragging always has); up and down it moves its line. The time grid, space grid and guide lines stay centred on it. Reset view brings it back.
 
+## Update (v0.7)
+
+- **Edge to edge.** Path ranges are no longer clipped to the screen before adding each orbit's sideways reach, and a segment is dropped only when it lies wholly off one side of the screen, never when it crosses it. Sample counts per turn are no longer capped (large turns are evaluated directly, a few thousand points at most), so paths never thin out or vanish when zoomed in.
+- **No viewing cursor.** The centre line and hollow markers shown when looking ahead or back are gone.
+- **Rotation both ways.** Dragging empty space rotates: up/down rolls about the line of travel, sideways turns it (yaw, ±75°). A turn foreshortens the line of travel by cos(yaw), and the time axis with it, so the picture stays a true projection. Grabbing the Sun moves it anywhere; grabbing its line slides through time. Shift + arrow keys turn; arrow keys move through time.
+- **Centred on a planet**, the grids are centred on that planet's present, as they are on the Sun's otherwise.
+
 ## Consequences
 
 - Consecutive frames with no input differ only in the breathing glow of the burning tips (measured).

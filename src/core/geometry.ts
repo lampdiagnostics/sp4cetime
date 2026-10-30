@@ -86,10 +86,28 @@ export function rollMatrix(psi: number): Mat3 {
   ];
 }
 
-/** Ecliptic → view for a given roll about the line of travel. */
-export function viewMatrix(roll: number): Mat3 {
-  return matMul(rollMatrix(roll), ECL_TO_TRAVEL);
+/** Rotation about the screen's vertical axis (turning the line of travel toward or away from the viewer). */
+export function yawMatrix(yaw: number): Mat3 {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return [
+    [c, 0, s],
+    [0, 1, 0],
+    [-s, 0, c],
+  ];
 }
+
+/**
+ * Ecliptic → view: first a roll about the line of travel, then a yaw about the
+ * screen's vertical axis. A yaw also foreshortens the line of travel by cos(yaw);
+ * the renderer applies that to the time axis so the picture stays a true projection.
+ */
+export function viewMatrix(roll: number, yaw = 0): Mat3 {
+  const rolled = matMul(rollMatrix(roll), ECL_TO_TRAVEL);
+  return yaw === 0 ? rolled : matMul(yawMatrix(yaw), rolled);
+}
+
+/** Largest yaw allowed, radians: beyond this the time axis would be too foreshortened to read. */
+export const MAX_YAW = (75 * Math.PI) / 180;
 
 // ---------------------------------------------------------------------------
 // Orbits

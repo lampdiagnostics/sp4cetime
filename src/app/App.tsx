@@ -95,8 +95,8 @@ export function App() {
     const c = canvas.current;
     if (!c) return;
     const keys: Record<string, () => void> = {
-      ArrowLeft: () => c.panBy(-0.1),
-      ArrowRight: () => c.panBy(0.1),
+      ArrowLeft: () => (e.shiftKey ? c.yawBy(-0.1) : c.panBy(-0.1)),
+      ArrowRight: () => (e.shiftKey ? c.yawBy(0.1) : c.panBy(0.1)),
       ArrowUp: () => c.rollBy(-0.1),
       ArrowDown: () => c.rollBy(0.1),
       '+': () => c.zoomBy(0.7),
@@ -129,7 +129,7 @@ export function App() {
         tabIndex={0}
         role="application"
         aria-roledescription="time canvas"
-        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; grab the Sun to move it anywhere; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom time; Option-scroll or the bracket keys zoom into space; press N to return to now."
+        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag empty space to rotate the solar system in any direction, or use Shift with the arrow keys. Grab the Sun to move it anywhere, slide along its line, or use the left and right arrow keys to look ahead or back in time. Scroll, pinch or press plus and minus to zoom time; Option-scroll or the bracket keys zoom into space; press N to return to now."
         onKeyDown={onKeyDown}
       >
         <GalacticCanvas

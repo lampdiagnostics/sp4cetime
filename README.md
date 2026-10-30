@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5173
 | `npm run build` | Production build into `dist/` |
 | `npm run check` | All three of the above; run before every commit |
 
-Controls: drag sideways or ←/→ to move through time; drag up/down, ↑/↓ or Shift+scroll to turn the view around the line of travel; scroll, pinch or +/− to zoom time; Option/Alt + scroll or [ and ] to zoom into space; **N** returns to now. The Sun is always the present moment; grab it to move it anywhere.
+Controls: drag empty space to rotate the solar system (up/down rolls, sideways turns); grab the Sun to move it anywhere, or slide along its line to move through time (also ←/→, or horizontal scroll); Shift+←/→ and ↑/↓ rotate; scroll, pinch or +/− zoom time; Option/Alt + scroll or [ and ] zoom into space; **N** returns to now. The Sun is always the present moment.
 
 ## Layout
 

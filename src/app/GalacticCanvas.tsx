@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { type Camera, clampZoom, pan, zoomAt } from '../core/camera';
-import { DEFAULT_ROLL } from '../core/geometry';
+import { DEFAULT_ROLL, MAX_YAW } from '../core/geometry';
 import { drawFrame, layout, type ViewOptions } from '../core/render';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
@@ -14,6 +14,9 @@ export interface CanvasHandle {
   zoomBy(factor: number): void;
   panBy(fraction: number): void;
   rollBy(radians: number): void;
+  /** Turn the system about the screen's vertical axis. */
+  yawBy(radians: number): void;
+  /** Reset rotation and the Sun's position. */
   resetRoll(): void;
   /** Magnify space (orbit sizes) by a factor, independent of the time zoom. */
   spaceZoomBy(factor: number): void;
@@ -23,7 +26,7 @@ export interface CanvasHandle {
 /** Space zoom range: from fitting the chosen orbits to well inside the Moon's orbit. */
 export const MAX_SPACE_ZOOM = 500;
 
-type CanvasView = Omit<ViewOptions, 'roll' | 'spaceZoom' | 'panY'>;
+type CanvasView = Omit<ViewOptions, 'roll' | 'yaw' | 'spaceZoom' | 'panY'>;
 
 interface Props {
   theme: Theme;
@@ -45,8 +48,6 @@ interface Flight {
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const nowTime = (): Time => fromUnixMs(Date.now());
-/** Pixels of drag before a gesture locks to scrubbing (horizontal) or rolling (vertical). */
-const AXIS_LOCK_PX = 6;
 const ROLL_PER_PX = 0.008;
 
 /** Width the zoom presets fit to: the round window's diameter, or the whole screen. */
@@ -58,6 +59,10 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera>({ center: nowTime(), secondsPerPixel: 1, width: 0, height: 0 });
   const rollRef = useRef(DEFAULT_ROLL);
+  const yawRef = useRef(0);
+  const turnYaw = (d: number): void => {
+    yawRef.current = Math.max(-MAX_YAW, Math.min(MAX_YAW, yawRef.current + d));
+  };
   /** The Sun can be grabbed and moved; this is its line's vertical offset, px. */
   const panYRef = useRef(0);
   /** Where the Sun was drawn last frame (for grabbing it). */
@@ -136,8 +141,12 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     rollBy(radians) {
       rollRef.current += radians;
     },
+    yawBy(radians) {
+      turnYaw(radians);
+    },
     resetRoll() {
       rollRef.current = DEFAULT_ROLL;
+      yawRef.current = 0;
       panYRef.current = 0;
     },
     spaceZoomBy(factor) {
@@ -173,25 +182,36 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
-    // One pointer: horizontal drag scrubs time, vertical drag rolls the view
-    // about the line of travel (locked per gesture). Two pointers: pinch zoom.
+    // One pointer:
+    // - on the Sun: move it anywhere (sideways = through time, up/down = its line);
+    // - on the Sun's line: slide along it through time;
+    // - anywhere else: rotate the solar system (sideways = turn, up/down = roll).
+    // Two pointers: pinch zoom.
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
-    let gesture: { x0: number; y0: number; axis: 'x' | 'y' | 'sun' | null } | null = null;
-    /** Grab radius around the Sun, px. */
+    let gesture: { kind: 'sun' | 'line' | 'rotate' } | null = null;
+    /** Grab radius around the Sun, and half-height of the grabbable line, px. */
     const SUN_GRAB = 22;
+    const LINE_GRAB = 10;
     const local = (e: { clientX: number; clientY: number }): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
+    const hit = (p: { x: number; y: number }): 'sun' | 'line' | 'rotate' => {
+      const sun = sunRef.current;
+      if (Math.hypot(p.x - sun.x, p.y - sun.y) <= SUN_GRAB) return 'sun';
+      if (Math.abs(p.y - sun.y) <= LINE_GRAB) return 'line';
+      return 'rotate';
+    };
+    const CURSORS = { sun: 'move', line: 'ew-resize', rotate: 'grab' } as const;
     const onDown = (e: PointerEvent): void => {
       canvas.setPointerCapture(e.pointerId);
       const p = local(e);
       pointers.set(e.pointerId, p);
       flightRef.current = null;
-      const onSun = Math.hypot(p.x - sunRef.current.x, p.y - sunRef.current.y) <= SUN_GRAB;
-      gesture = pointers.size === 1 ? { x0: p.x, y0: p.y, axis: onSun ? 'sun' : null } : null;
-      canvas.style.cursor = onSun ? 'move' : '';
+      const kind = hit(p);
+      gesture = pointers.size === 1 ? { kind } : null;
+      canvas.style.cursor = kind === 'rotate' ? 'grabbing' : CURSORS[kind];
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         if (a && b) pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -203,21 +223,16 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       const p = local(e);
       pointers.set(e.pointerId, p);
       if (pointers.size === 1 && gesture) {
-        if (gesture.axis === null) {
-          const dx = p.x - gesture.x0, dy = p.y - gesture.y0;
-          if (Math.hypot(dx, dy) < AXIS_LOCK_PX) return;
-          gesture.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
-        }
-        if (gesture.axis === 'sun') {
-          // Moving the Sun: sideways looks ahead or back in time; up and down moves
-          // its line. The grid stays centred on it either way.
-          moveTo(pan(camRef.current, p.x - prev.x));
+        const dx = p.x - prev.x, dy = p.y - prev.y;
+        if (gesture.kind === 'sun') {
+          moveTo(pan(camRef.current, dx));
           const H = camRef.current.height;
-          panYRef.current = Math.max(-H / 2, Math.min(H / 2, panYRef.current + (p.y - prev.y)));
-        } else if (gesture.axis === 'x') {
-          moveTo(pan(camRef.current, p.x - prev.x));
+          panYRef.current = Math.max(-H / 2, Math.min(H / 2, panYRef.current + dy));
+        } else if (gesture.kind === 'line') {
+          moveTo(pan(camRef.current, dx));
         } else {
-          rollRef.current += (p.y - prev.y) * ROLL_PER_PX;
+          turnYaw(dx * ROLL_PER_PX);
+          rollRef.current += dy * ROLL_PER_PX;
         }
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -229,8 +244,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     };
     const onHover = (e: PointerEvent): void => {
       if (pointers.size > 0) return;
-      const p = local(e);
-      canvas.style.cursor = Math.hypot(p.x - sunRef.current.x, p.y - sunRef.current.y) <= SUN_GRAB ? 'move' : '';
+      canvas.style.cursor = CURSORS[hit(local(e))];
     };
     const onUp = (e: PointerEvent): void => {
       pointers.delete(e.pointerId);
@@ -248,6 +262,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
         setSpaceZoom(spaceZoomRef.current * Math.exp(-e.deltaY * scale * 0.002));
       } else if (e.shiftKey) {
         rollRef.current += e.deltaY * scale * ROLL_PER_PX * 0.5;
+        turnYaw(e.deltaX * scale * ROLL_PER_PX * 0.5);
       } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         moveTo(pan(camRef.current, -e.deltaX * scale));
       } else {
@@ -280,7 +295,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
           cam,
           theme: themeRef.current,
           now,
-          view: { ...viewRef.current, roll: rollRef.current, spaceZoom: spaceZoomRef.current, panY: panYRef.current },
+          view: { ...viewRef.current, roll: rollRef.current, yaw: yawRef.current, spaceZoom: spaceZoomRef.current, panY: panYRef.current },
         });
         sunRef.current = { x: r.sunX, y: r.sunY };
       }

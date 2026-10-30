@@ -92,6 +92,15 @@ describe('Orientation', () => {
     );
   });
 
+  it('yaw and roll together are still a rotation', () => {
+    fc.assert(
+      fc.property(fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: -1.3, max: 1.3, noNaN: true }), (roll, yaw) => {
+        const v: [number, number, number] = [0.4, -0.2, 0.9];
+        expect(Math.hypot(...mul(viewMatrix(roll, yaw), v))).toBeCloseTo(Math.hypot(...v), 9);
+      }),
+    );
+  });
+
   it('rolling never moves a point along the time axis', () => {
     const v: [number, number, number] = [0.2, 0.9, -0.4];
     const x0 = mul(viewMatrix(0), v)[0];
