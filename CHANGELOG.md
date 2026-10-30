@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 — 2026-10-30
+
+One view change at a time.
+
+- Each trackpad or wheel gesture does exactly one thing (zoom, move through time, space zoom, turn or roll), chosen when the gesture starts and held until it ends. Diagonal swipes no longer mix zooming with scrolling through time.
+- Rotation drags lock to turning or rolling.
+- Zooming always holds the Sun where it is on screen, including the zoom presets, so it can no longer leave the screen.
+
 ## 0.7.0 — 2026-10-30
 
 Edge to edge, and rotation both ways.

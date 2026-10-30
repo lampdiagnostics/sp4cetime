@@ -4,7 +4,7 @@ import { DEFAULT_ROLL, MAX_YAW } from '../core/geometry';
 import { drawFrame, layout, type ViewOptions } from '../core/render';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
-import { clampTime, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
+import { clampTime, diffSeconds, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
 
 export interface CanvasHandle {
   /** Animate to a zoom level (seconds across the screen). */
@@ -105,10 +105,17 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     const live = isZeroInterval(offsetRef.current);
     if (live !== wasLive) onLiveRef.current(live);
   };
-  /** Zoom about screen x, or about the Sun while it is centred. */
-  const zoom = (x: number, factor: number): void => {
+  /**
+   * Zooming always holds the Sun (the present) where it is on screen, so a zoom
+   * can never carry it away. Its x in camera coordinates is where "now" falls.
+   */
+  const sunAnchorX = (cam: Camera): number => {
+    const x = cam.width / 2 + diffSeconds(nowRef.current, cam.center) / cam.secondsPerPixel;
+    return Number.isFinite(x) ? x : cam.width / 2;
+  };
+  const zoom = (factor: number): void => {
     const cam = camRef.current;
-    moveTo(zoomAt(cam, isZeroInterval(offsetRef.current) ? cam.width / 2 : x, factor));
+    moveTo(zoomAt(cam, sunAnchorX(cam), factor));
   };
 
   useImperativeHandle(handleRef, () => ({
@@ -131,7 +138,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     },
     zoomBy(factor) {
       flightRef.current = null;
-      zoom(camRef.current.width / 2, factor);
+      zoom(factor);
     },
     panBy(fraction) {
       flightRef.current = null;
@@ -189,7 +196,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     // Two pointers: pinch zoom.
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
-    let gesture: { kind: 'sun' | 'line' | 'rotate' } | null = null;
+    let gesture: { kind: 'sun' | 'line' | 'rotate'; x0: number; y0: number; axis: 'x' | 'y' | null } | null = null;
+    /** Pixels of movement before a rotation locks to turning (sideways) or rolling (up/down). */
+    const AXIS_LOCK_PX = 6;
     /** Grab radius around the Sun, and half-height of the grabbable line, px. */
     const SUN_GRAB = 22;
     const LINE_GRAB = 10;
@@ -210,7 +219,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       pointers.set(e.pointerId, p);
       flightRef.current = null;
       const kind = hit(p);
-      gesture = pointers.size === 1 ? { kind } : null;
+      gesture = pointers.size === 1 ? { kind, x0: p.x, y0: p.y, axis: null } : null;
       canvas.style.cursor = kind === 'rotate' ? 'grabbing' : CURSORS[kind];
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -231,14 +240,20 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
         } else if (gesture.kind === 'line') {
           moveTo(pan(camRef.current, dx));
         } else {
-          turnYaw(dx * ROLL_PER_PX);
-          rollRef.current += dy * ROLL_PER_PX;
+          // One rotation at a time: the first few pixels decide turn or roll.
+          if (gesture.axis === null) {
+            const tx = p.x - gesture.x0, ty = p.y - gesture.y0;
+            if (Math.hypot(tx, ty) < AXIS_LOCK_PX) return;
+            gesture.axis = Math.abs(tx) >= Math.abs(ty) ? 'x' : 'y';
+          }
+          if (gesture.axis === 'x') turnYaw(dx * ROLL_PER_PX);
+          else rollRef.current += dy * ROLL_PER_PX;
         }
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinchDist > 0 && dist > 0) zoom((a.x + b.x) / 2, pinchDist / dist);
+        if (pinchDist > 0 && dist > 0) zoom(pinchDist / dist);
         pinchDist = dist;
       }
     };
@@ -252,21 +267,46 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       gesture = null;
       canvas.style.cursor = '';
     };
+    // Trackpad and mouse-wheel gestures do one thing at a time. The first event of a
+    // gesture picks the action; it stays locked until the wheel has been still for a
+    // moment, so a two-finger swipe that drifts diagonally never mixes zoom and time.
+    type WheelAction = 'zoom' | 'time' | 'space' | 'turn' | 'roll';
+    let wheelAction: WheelAction | null = null;
+    let wheelTimer = 0;
+    const WHEEL_IDLE_MS = 220;
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
+      if (pointers.size > 0) return;
       flightRef.current = null;
       const scale = e.deltaMode === 1 ? 16 : 1;
-      const { x } = local(e);
-      if (e.altKey) {
-        // Option/Alt + scroll: zoom into space rather than time.
-        setSpaceZoom(spaceZoomRef.current * Math.exp(-e.deltaY * scale * 0.002));
-      } else if (e.shiftKey) {
-        rollRef.current += e.deltaY * scale * ROLL_PER_PX * 0.5;
-        turnYaw(e.deltaX * scale * ROLL_PER_PX * 0.5);
-      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        moveTo(pan(camRef.current, -e.deltaX * scale));
-      } else {
-        zoom(x, Math.exp(e.deltaY * scale * 0.0015));
+      const dx = e.deltaX * scale, dy = e.deltaY * scale;
+      if (wheelAction === null) {
+        if (e.ctrlKey) wheelAction = 'zoom'; // trackpad pinch
+        else if (e.altKey) wheelAction = 'space';
+        else if (e.shiftKey) wheelAction = Math.abs(dx) > Math.abs(dy) ? 'turn' : 'roll';
+        else wheelAction = Math.abs(dx) > Math.abs(dy) ? 'time' : 'zoom';
+      }
+      window.clearTimeout(wheelTimer);
+      wheelTimer = window.setTimeout(() => {
+        wheelAction = null;
+      }, WHEEL_IDLE_MS);
+      switch (wheelAction) {
+        case 'zoom':
+          // Pinch deltas are small; scroll deltas are large.
+          zoom(Math.exp(dy * (e.ctrlKey ? 0.01 : 0.0015)));
+          break;
+        case 'space':
+          setSpaceZoom(spaceZoomRef.current * Math.exp(-dy * 0.002));
+          break;
+        case 'time':
+          moveTo(pan(camRef.current, -dx));
+          break;
+        case 'turn':
+          turnYaw((dx || dy) * ROLL_PER_PX * 0.5);
+          break;
+        case 'roll':
+          rollRef.current += dy * ROLL_PER_PX * 0.5;
+          break;
       }
     };
     canvas.addEventListener('pointerdown', onDown);
@@ -283,7 +323,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       if (f) {
         const k = f.duration === 0 ? 1 : Math.min(1, (ts - f.start) / f.duration);
         const e = ease(k);
-        setCam({ ...camRef.current, secondsPerPixel: Math.exp(f.fromLog + (f.toLog - f.fromLog) * e) });
+        const cam = camRef.current;
+        const target = Math.exp(f.fromLog + (f.toLog - f.fromLog) * e);
+        moveTo(zoomAt(cam, sunAnchorX(cam), target / cam.secondsPerPixel));
         if (k >= 1) flightRef.current = null;
       }
       nowRef.current = now;

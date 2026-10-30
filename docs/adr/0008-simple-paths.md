@@ -21,6 +21,11 @@ Widened coils changed shape while zooming, and adaptive refinement changed its s
 - **Rotation both ways.** Dragging empty space rotates: up/down rolls about the line of travel, sideways turns it (yaw, ±75°). A turn foreshortens the line of travel by cos(yaw), and the time axis with it, so the picture stays a true projection. Grabbing the Sun moves it anywhere; grabbing its line slides through time. Shift + arrow keys turn; arrow keys move through time.
 - **Centred on a planet**, the grids are centred on that planet's present, as they are on the Sun's otherwise.
 
+## Update (v0.8)
+
+- **One view change at a time.** A wheel or trackpad gesture picks its action from its first event (pinch or vertical = zoom, horizontal = time, Option = space zoom, Shift = turn or roll) and keeps it until the wheel has been still for 220 ms. A rotation drag locks to turning or rolling after 6 px. Wheel input is ignored while a drag is in progress.
+- **Zoom holds the Sun.** Every zoom (wheel, pinch, keys, presets) is anchored at the Sun's position on screen, so zooming can never carry it away.
+
 ## Consequences
 
 - Consecutive frames with no input differ only in the breathing glow of the burning tips (measured).
