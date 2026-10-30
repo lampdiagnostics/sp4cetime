@@ -66,8 +66,7 @@ export function PlanetPicker({ theme, settings, onChange }: Props) {
             <input type="checkbox" checked={settings.moon} onChange={(e) => onChange({ moon: e.target.checked })} /> Moon
           </label>
           <label>
-            <input type="checkbox" checked={settings.rings} onChange={(e) => onChange({ rings: e.target.checked })} /> Orbit
-            rings
+            <input type="checkbox" checked={settings.rings} onChange={(e) => onChange({ rings: e.target.checked })} /> Orbit circles
           </label>
           <label>
             <input type="checkbox" checked={settings.labels} onChange={(e) => onChange({ labels: e.target.checked })} /> Names

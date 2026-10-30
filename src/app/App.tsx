@@ -3,7 +3,7 @@ import { THEMES } from '../../content/themes';
 import type { Camera } from '../core/camera';
 import { KM_PER_AU, KM_PER_LIGHT_YEAR, type ScaleMode } from '../core/geometry';
 import { accuracyTier, bodyState, TIER_LABELS } from '../core/models';
-import { pitchExaggerated, travelKm } from '../core/render';
+import { densePaths, travelKm } from '../core/render';
 import type { Theme } from '../core/theme';
 import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, fromUnixMs, type Time, toCivil } from '../core/time';
 import { type CanvasHandle, GalacticCanvas } from './GalacticCanvas';
@@ -120,7 +120,7 @@ export function App() {
   const viewTier = cam ? accuracyTier(cam.center) : state.tier;
   const travel = cam ? travelKm(now, cam.center) : 0;
   const clock = gmtClock(now);
-  const widened = cam ? settings.spirals && pitchExaggerated(settings.planets, cam.secondsPerPixel) : false;
+  const banded = cam ? settings.spirals && densePaths(settings.planets, cam.secondsPerPixel) : false;
 
   return (
     <div className={`app ${settings.round ? 'is-round' : 'is-full'}`} style={{ background: theme.background }}>
@@ -129,7 +129,7 @@ export function App() {
         tabIndex={0}
         role="application"
         aria-roledescription="time canvas"
-        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom time; Option-scroll or the bracket keys zoom into space; press N to return to now."
+        aria-label="Galactic calendar. The Sun is the present moment and time flows past it. Drag sideways or use the left and right arrow keys to look ahead or back in time; grab the Sun to move it anywhere; drag up and down or use the up and down arrows to turn the view around the line of travel; scroll, pinch or press plus and minus to zoom time; Option-scroll or the bracket keys zoom into space; press N to return to now."
         onKeyDown={onKeyDown}
       >
         <GalacticCanvas
@@ -195,6 +195,9 @@ export function App() {
           <button type="button" aria-pressed={settings.spirals} onClick={() => update({ spirals: !settings.spirals })}>
             Spirals
           </button>
+          <button type="button" aria-pressed={settings.rings} onClick={() => update({ rings: !settings.rings })}>
+            Orbits
+          </button>
           <button type="button" aria-pressed={settings.timeGrid} onClick={() => update({ timeGrid: !settings.timeGrid })}>
             Time grid
           </button>
@@ -227,7 +230,7 @@ export function App() {
         </label>
         <p className="note">
           {SCALE_NOTES[settings.scale]}
-          {widened && <><br />Coils widened to stay readable at this zoom</>}
+          {banded && <><br />Shaded bands: paths too tightly wound to draw turn by turn here</>}
         </p>
       </nav>
 

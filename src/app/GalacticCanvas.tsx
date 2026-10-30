@@ -21,9 +21,9 @@ export interface CanvasHandle {
 }
 
 /** Space zoom range: from fitting the chosen orbits to well inside the Moon's orbit. */
-export const MAX_SPACE_ZOOM = 5000;
+export const MAX_SPACE_ZOOM = 500;
 
-type CanvasView = Omit<ViewOptions, 'roll' | 'spaceZoom'>;
+type CanvasView = Omit<ViewOptions, 'roll' | 'spaceZoom' | 'panY'>;
 
 interface Props {
   theme: Theme;
@@ -58,6 +58,10 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camRef = useRef<Camera>({ center: nowTime(), secondsPerPixel: 1, width: 0, height: 0 });
   const rollRef = useRef(DEFAULT_ROLL);
+  /** The Sun can be grabbed and moved; this is its line's vertical offset, px. */
+  const panYRef = useRef(0);
+  /** Where the Sun was drawn last frame (for grabbing it). */
+  const sunRef = useRef({ x: NaN, y: NaN });
   const spaceZoomRef = useRef(1);
   const onSpaceRef = useRef(onSpaceZoomChange);
   onSpaceRef.current = onSpaceZoomChange;
@@ -134,6 +138,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     },
     resetRoll() {
       rollRef.current = DEFAULT_ROLL;
+      panYRef.current = 0;
     },
     spaceZoomBy(factor) {
       setSpaceZoom(spaceZoomRef.current * factor);
@@ -172,7 +177,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     // about the line of travel (locked per gesture). Two pointers: pinch zoom.
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
-    let gesture: { x0: number; y0: number; axis: 'x' | 'y' | null } | null = null;
+    let gesture: { x0: number; y0: number; axis: 'x' | 'y' | 'sun' | null } | null = null;
+    /** Grab radius around the Sun, px. */
+    const SUN_GRAB = 22;
     const local = (e: { clientX: number; clientY: number }): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -182,7 +189,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       const p = local(e);
       pointers.set(e.pointerId, p);
       flightRef.current = null;
-      gesture = pointers.size === 1 ? { x0: p.x, y0: p.y, axis: null } : null;
+      const onSun = Math.hypot(p.x - sunRef.current.x, p.y - sunRef.current.y) <= SUN_GRAB;
+      gesture = pointers.size === 1 ? { x0: p.x, y0: p.y, axis: onSun ? 'sun' : null } : null;
+      canvas.style.cursor = onSun ? 'move' : '';
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         if (a && b) pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -199,7 +208,13 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
           if (Math.hypot(dx, dy) < AXIS_LOCK_PX) return;
           gesture.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
         }
-        if (gesture.axis === 'x') {
+        if (gesture.axis === 'sun') {
+          // Moving the Sun: sideways looks ahead or back in time; up and down moves
+          // its line. The grid stays centred on it either way.
+          moveTo(pan(camRef.current, p.x - prev.x));
+          const H = camRef.current.height;
+          panYRef.current = Math.max(-H / 2, Math.min(H / 2, panYRef.current + (p.y - prev.y)));
+        } else if (gesture.axis === 'x') {
           moveTo(pan(camRef.current, p.x - prev.x));
         } else {
           rollRef.current += (p.y - prev.y) * ROLL_PER_PX;
@@ -212,10 +227,16 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
         pinchDist = dist;
       }
     };
+    const onHover = (e: PointerEvent): void => {
+      if (pointers.size > 0) return;
+      const p = local(e);
+      canvas.style.cursor = Math.hypot(p.x - sunRef.current.x, p.y - sunRef.current.y) <= SUN_GRAB ? 'move' : '';
+    };
     const onUp = (e: PointerEvent): void => {
       pointers.delete(e.pointerId);
       pinchDist = 0;
       gesture = null;
+      canvas.style.cursor = '';
     };
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
@@ -235,6 +256,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     };
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointermove', onHover);
     canvas.addEventListener('pointerup', onUp);
     canvas.addEventListener('pointercancel', onUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -254,7 +276,13 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       setCam({ ...camRef.current, center: clampTime(timeAdd(now, offsetRef.current), MIN_TIME, MAX_TIME) });
       const cam = camRef.current;
       if (cam.width > 0) {
-        drawFrame(ctx, { cam, theme: themeRef.current, now, view: { ...viewRef.current, roll: rollRef.current, spaceZoom: spaceZoomRef.current } });
+        const r = drawFrame(ctx, {
+          cam,
+          theme: themeRef.current,
+          now,
+          view: { ...viewRef.current, roll: rollRef.current, spaceZoom: spaceZoomRef.current, panY: panYRef.current },
+        });
+        sunRef.current = { x: r.sunX, y: r.sunY };
       }
       raf = requestAnimationFrame(frame);
     };
@@ -265,6 +293,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       observer.disconnect();
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointermove', onHover);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
       canvas.removeEventListener('wheel', onWheel);

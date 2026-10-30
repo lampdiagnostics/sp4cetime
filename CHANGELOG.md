@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 — 2026-10-30
+
+Simple, stable paths.
+
+- Spirals always use their true spacing and fixed sample points, so they no longer shift or glitch while zooming.
+- Where turns crowd closer than a few pixels, the spiral fades into a shaded band: a soft tube that is brightest where the planet spends its time.
+- New Orbits button: the orbit circles are optional, like the spirals.
+- Grab the Sun to move it anywhere on the canvas; the grids stay centred on it. Reset view puts it back.
+
 ## 0.5.0 — 2026-10-30
 
 Space zoom.
