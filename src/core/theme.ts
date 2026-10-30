@@ -2,17 +2,17 @@
  * Themes are data (content/themes/*.json), validated here at load time.
  * A theme changes how things look, never where they are.
  */
+import { PLANET_IDS, type PlanetId } from './planets';
 
 export interface Theme {
   readonly id: string;
   readonly name: string;
-  /** Page background behind everything. */
+  /** Behind everything, and outside the round window. */
   readonly background: string;
-  /** Moving background grid. */
+  /** Minor and major vertical grid lines (on the axis ticks) and the horizontal lines. */
   readonly grid: string;
+  readonly gridMajor: string;
   readonly gridSpacingPx: number;
-  /** Grid drift speed in px/s (the "travelling forward" illusion). 0 = still. */
-  readonly gridSpeedPxPerSec: number;
   /** Galactic background stars. */
   readonly galaxy: string;
   readonly galaxyAlpha: number;
@@ -20,30 +20,34 @@ export interface Theme {
   readonly sunLine: string;
   readonly sunLineWidth: number;
   readonly sun: string;
-  /** Earth's helix, front and back halves. */
-  readonly earthTrail: string;
-  readonly earthTrailBack: string;
-  readonly earthTrailWidth: number;
-  readonly earth: string;
-  readonly moonTrail: string;
+  /** One colour per planet. */
+  readonly planets: Readonly<Record<PlanetId, string>>;
+  readonly trailWidth: number;
+  /** Opacity of the half of each helix behind the line of travel. */
+  readonly trailBackAlpha: number;
+  /** Opacity of the wireframe orbit rings around the Sun. */
+  readonly ringAlpha: number;
   readonly moon: string;
+  readonly moonTrail: string;
   readonly tickLine: string;
   readonly tickText: string;
   readonly cursor: string;
   readonly today: string;
-  /** Glow radius in px for lines and bodies (canvas shadowBlur). 0 = none. */
+  /** Rim of the round window. */
+  readonly bezel: string;
+  /** Glow radius in px for the Sun line and bodies (canvas shadowBlur). 0 = none. */
   readonly glow: number;
   readonly font: string;
-  /** UI chrome: "dark" or "light", for panel styling. */
+  /** UI chrome: "dark" or "light". */
   readonly ui: 'dark' | 'light';
 }
 
 const STRING_KEYS = [
-  'id', 'name', 'background', 'grid', 'galaxy', 'sunLine', 'sun', 'earthTrail', 'earthTrailBack',
-  'earth', 'moonTrail', 'moon', 'tickLine', 'tickText', 'cursor', 'today', 'font',
+  'id', 'name', 'background', 'grid', 'gridMajor', 'galaxy', 'sunLine', 'sun', 'moon', 'moonTrail',
+  'tickLine', 'tickText', 'cursor', 'today', 'bezel', 'font',
 ] as const;
 const NUMBER_KEYS = [
-  'gridSpacingPx', 'gridSpeedPxPerSec', 'galaxyAlpha', 'sunLineWidth', 'earthTrailWidth', 'glow',
+  'gridSpacingPx', 'galaxyAlpha', 'sunLineWidth', 'trailWidth', 'trailBackAlpha', 'ringAlpha', 'glow',
 ] as const;
 
 /** Validate untrusted theme data. Throws with a readable message on the first problem. */
@@ -59,6 +63,15 @@ export function parseTheme(data: unknown): Theme {
     if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
       throw new Error(`${where}: "${key}" must be a non-negative number`);
     }
+  }
+  for (const key of ['galaxyAlpha', 'trailBackAlpha', 'ringAlpha'] as const) {
+    if ((rec[key] as number) > 1) throw new Error(`${where}: "${key}" must be between 0 and 1`);
+  }
+  const planets = rec.planets;
+  if (typeof planets !== 'object' || planets === null) throw new Error(`${where}: "planets" must be an object`);
+  for (const id of PLANET_IDS) {
+    const c = (planets as Record<string, unknown>)[id];
+    if (typeof c !== 'string' || c === '') throw new Error(`${where}: "planets.${id}" must be a colour`);
   }
   if (rec.ui !== 'dark' && rec.ui !== 'light') throw new Error(`${where}: "ui" must be "dark" or "light"`);
   if ((rec.gridSpacingPx as number) < 8) throw new Error(`${where}: "gridSpacingPx" must be at least 8`);

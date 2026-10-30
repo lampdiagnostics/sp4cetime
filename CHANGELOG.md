@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 — 2026-10-30
+
+Spatial model, live time, round window.
+
+- All eight planets and Pluto from JPL Keplerian elements, checked against astronomy-engine (≤ 0.2°). Pick any set from the Planets menu; Moon, orbit rings and names are optional.
+- Orbits drawn in their true 3D orientation relative to the Sun's galactic motion (orbital axis ~30° from the direction of travel). Drag up/down (or ↑/↓, or Shift+scroll) to turn the view around the line of travel; the time axis never moves.
+- Wireframe orbit rings around the Sun at the centre time.
+- Orbit scale modes: √ fit, linear, and true scale against distance travelled.
+- Live mode: the present stays at the centre and the axis flows past at one second per second. Dragging sideways leaves live mode; Now returns to it.
+- Grid lines now sit exactly on the axis ticks, with nested minor lines; the old random grid drift is gone.
+- Ticks down to single seconds.
+- Distance axis: distance the Sun travels from where it is now, in km, AU and light years.
+- Round window with controls in the four corners (toggle to full screen). Zoom presets fit the window.
+- 41 tests.
+
 ## 0.1.0 — 2026-10-30
 
 First prototype (Phase 1 groundwork).

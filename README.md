@@ -2,7 +2,7 @@
 
 **Map any timeline on the path the solar system is already traveling.**
 
-A zoomable canvas that runs from the Sun's formation (~4.6 billion years ago) to the end of its main-sequence life (~5 billion years from now). The Sun's path through the galaxy is the straight central line; Earth and the Moon helix around it. Drag to move through time, scroll or pinch to zoom from minutes to billions of years.
+A zoomable canvas that runs from the Sun's formation (~4.6 billion years ago) to the end of its main-sequence life (~5 billion years from now). The Sun's path through the galaxy is the straight central line; the planets and the Moon corkscrew around it in their true orientation. Drag to move through time, scroll or pinch to zoom from seconds to billions of years. In live mode the present stays at the centre and time flows past.
 
 Live at [sp4cetime.org](https://sp4cetime.org) (once deployed).
 
@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5173
 | `npm run build` | Production build into `dist/` |
 | `npm run check` | All three of the above; run before every commit |
 
-Controls: drag or ←/→ to move through time; scroll, pinch or +/− to zoom; **T** jumps to today.
+Controls: drag sideways or ←/→ to move through time; drag up/down, ↑/↓ or Shift+scroll to turn the view around the line of travel; scroll, pinch or +/− to zoom; **N** returns to now (live).
 
 ## Layout
 
@@ -49,11 +49,11 @@ Then add `sp4cetime.org` as a custom domain on the project, and redirect the `.c
 
 Positions are shown in three honest tiers, labelled on screen:
 
-- **Ephemeris** (within ±3,000 years): real positions from [astronomy-engine](https://github.com/cosinekitty/astronomy).
+- **Ephemeris** (within ±3,000 years): planets from JPL's [Keplerian elements](https://ssd.jpl.nasa.gov/planets/approx_pos.html), the Moon's phase from [astronomy-engine](https://github.com/cosinekitty/astronomy).
 - **Modelled** (within ±10,000 years): mean orbital motion.
 - **Schematic** (beyond): the shape is right but the phase is illustrative. Earth's orbital phase is genuinely unknowable that far out.
 
-Orbit sizes are exaggerated for clarity; at true scale the helix is nearly a straight line.
+Orbit orientation is always real. Orbit size has three modes, named on screen: √ fit (default), linear, and true scale against the distance travelled. See [ADR-0006](docs/adr/0006-spatial-model.md).
 
 ## Credit
 
