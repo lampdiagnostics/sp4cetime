@@ -21,6 +21,7 @@ export interface OverlayOptions {
   readonly moon: boolean;
   readonly constellations: boolean;
   readonly zodiac: boolean;
+  readonly galactic: boolean;
 }
 
 export interface OverlayLabel {

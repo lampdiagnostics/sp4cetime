@@ -591,6 +591,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays }: Props) 
               ['spaceGrid', 'Space grid'],
               ['constellations', 'Constellations'],
               ['zodiac', 'Zodiac'],
+              ['galactic', 'Galaxy marks'],
             ] as const).map(([k, label]) => (
               <button key={k} type="button" aria-pressed={overlays[k]} onClick={() => onOverlays({ [k]: !overlays[k] })}>
                 {label}

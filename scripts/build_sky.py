@@ -6,7 +6,7 @@ Milky Way outline, all in equatorial J2000 coordinates.
     npm pack d3-celestial && tar xzf d3-celestial-*.tgz
     python3 scripts/build_sky.py package/data public/sky
 
-Writes sky.json (stars, names, figures) and milkyway.png (an equirectangular
+Writes sky.json (stars, names, figures) and scripts/data/milkyway-outline.png (an equirectangular
 brightness map: x = right ascension 0→360°, y = declination +90 → −90).
 Needs Pillow. The output is committed; this only needs re-running to change it.
 """
@@ -102,5 +102,5 @@ for f in load('mw.json')['features']:
             mask = ImageChops.logical_xor(mask, layer)
         total = ImageChops.add(total, mask.convert('L').point(lambda v, w=weights[f['id']]: w if v else 0))
 total = total.filter(ImageFilter.GaussianBlur(10)).resize((1024, 512), Image.LANCZOS)
-total.save(out / 'milkyway.png', optimize=True)
+total.save(Path('scripts/data/milkyway-outline.png'), optimize=True)
 print(len(stars) // 4, 'stars;', len(names), 'names;', len(constellations), 'constellations')

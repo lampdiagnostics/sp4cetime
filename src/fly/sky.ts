@@ -9,7 +9,7 @@
  * Data: d3-celestial (BSD-3-Clause), built by scripts/build_sky.py.
  */
 import * as THREE from 'three';
-import { ECL_TO_EQ, type Vec3 } from '../core/geometry';
+import { ECL_TO_EQ, ECL_TO_GAL, type Vec3 } from '../core/geometry';
 
 export interface SkyData {
   readonly stars: readonly number[]; // ra, dec, mag, b−v, …
@@ -27,16 +27,27 @@ export interface SkyData {
 export interface SkyOptions {
   readonly constellations: boolean;
   readonly zodiac: boolean;
+  readonly galactic: boolean;
 }
+
+/** Galactic longitudes marked on the sky, with their names. */
+export const GALACTIC_MARKS: ReadonlyArray<readonly [number, string]> = [
+  [0, 'Galactic Centre · Sgr A*'],
+  [90, 'l 90° · the Sun’s direction of travel'],
+  [180, 'Galactic Anticentre'],
+  [270, 'l 270° · behind the Sun'],
+];
 
 export interface SkyLabel {
   /** Direction, ecliptic frame (unit vector). */
   readonly dir: Vec3;
   readonly text: string;
-  readonly kind: 'star' | 'constellation' | 'zodiacFigure' | 'sign';
+  readonly kind: 'star' | 'constellation' | 'zodiacFigure' | 'sign' | 'galactic';
 }
 
-const SKY_KM = 1e12;
+// The sky is drawn first with depth testing off, so its size does not matter as long as it
+// is inside the camera's range; a small radius keeps the GPU's arithmetic precise.
+const SKY_KM = 1000;
 const DEG = Math.PI / 180;
 
 /** The twelve signs of the (tropical) zodiac, from the March equinox, 30° each. */
@@ -91,48 +102,22 @@ function starColour(bv: number): THREE.Color {
   return new THREE.Color(mix(r0, r1), mix(g0, g1), mix(b0, b1));
 }
 
-/** Brightness of the Milky Way (0–1) at a right ascension and declination, degrees. */
-export interface MilkyWayMap {
-  at(ra: number, dec: number): number;
-}
-
-async function loadMilkyWay(url: string): Promise<MilkyWayMap> {
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  const ctx = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
-  ctx.drawImage(img, 0, 0);
-  const px = ctx.getImageData(0, 0, c.width, c.height).data;
-  const W = c.width, H = c.height;
-  const get = (x: number, y: number): number => px[(((y + H) % H) * W + ((x + W) % W)) * 4]! / 255;
-  return {
-    at(ra, dec) {
-      // Bilinear, wrapping in right ascension.
-      const fx = (((ra % 360) + 360) % 360) / 360 * W - 0.5, fy = ((90 - dec) / 180) * H - 0.5;
-      const x0 = Math.floor(fx), y0 = Math.max(0, Math.min(H - 2, Math.floor(fy)));
-      const tx = fx - x0, ty = Math.max(0, Math.min(1, fy - y0));
-      const top = get(x0, y0) * (1 - tx) + get(x0 + 1, y0) * tx;
-      const bot = get(x0, y0 + 1) * (1 - tx) + get(x0 + 1, y0 + 1) * tx;
-      return top * (1 - ty) + bot * ty;
-    },
-  };
-}
-
-export async function loadSky(base: string): Promise<{ data: SkyData; milkyWay: MilkyWayMap }> {
+export async function loadSky(base: string): Promise<{ data: SkyData; milkyWay: THREE.Texture }> {
   const [data, milkyWay] = await Promise.all([
     fetch(`${base}sky/sky.json`).then((r) => {
       if (!r.ok) throw new Error(`sky.json: ${r.status}`);
       return r.json() as Promise<SkyData>;
     }),
-    loadMilkyWay(`${base}sky/milkyway.png`),
+    new THREE.TextureLoader().loadAsync(`${base}sky/milkyway.jpg`),
   ]);
+  // No mipmaps: the map wraps at l = ±180°, and mipmap selection would draw a seam there.
+  milkyWay.generateMipmaps = false;
+  milkyWay.minFilter = THREE.LinearFilter;
+  milkyWay.wrapS = THREE.RepeatWrapping;
   return { data, milkyWay };
 }
 
-export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayMap, pixelRatio: number) {
+export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Texture, pixelRatio: number) {
   const disposables: Array<{ dispose(): void }> = [];
   const eq = new THREE.Group(); // equatorial frame, turned into the ecliptic frame
   eq.matrixAutoUpdate = false;
@@ -144,35 +129,54 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayM
   eq.matrix.scale(new THREE.Vector3(SKY_KM, SKY_KM, SKY_KM));
   const ecl = new THREE.Group(); // ecliptic frame
   ecl.scale.setScalar(SKY_KM);
-  scene.add(eq, ecl);
+  const gal = new THREE.Group(); // galactic frame (x to the galactic centre, z to the north galactic pole)
+  gal.matrixAutoUpdate = false;
+  gal.matrix.makeBasis(
+    new THREE.Vector3(...ECL_TO_GAL[0]),
+    new THREE.Vector3(...ECL_TO_GAL[1]),
+    new THREE.Vector3(...ECL_TO_GAL[2]),
+  );
+  gal.matrix.scale(new THREE.Vector3(SKY_KM, SKY_KM, SKY_KM));
+  scene.add(eq, ecl, gal);
   const behind = (o: THREE.Object3D, order: number): void => {
     o.renderOrder = order;
     o.frustumCulled = false;
   };
 
-  // Milky Way: a finely divided sphere whose vertices take their brightness from the
-  // map (sampled here, so there is no texture seam), blended smoothly between them.
-  const mwGeo = new THREE.SphereGeometry(1, 360, 180);
-  const vp = mwGeo.getAttribute('position') as THREE.BufferAttribute;
-  const mwCol = new Float32Array(vp.count * 3);
-  for (let i = 0; i < vp.count; i++) {
-    const x = vp.getX(i), y = vp.getY(i), z = vp.getZ(i);
-    const b = milkyWay.at(Math.atan2(y, x) / DEG, Math.asin(Math.max(-1, Math.min(1, z))) / DEG) * 0.32;
-    mwCol.set([0.62 * b, 0.68 * b, 0.86 * b], i * 3);
-  }
-  mwGeo.setAttribute('color', new THREE.BufferAttribute(mwCol, 3));
-  const mwMat = new THREE.MeshBasicMaterial({
-    vertexColors: true,
+  // Milky Way: a photographic map in galactic coordinates, looked up by direction.
+  const mwMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: milkyWay } },
+    vertexShader: /* glsl */ `
+      varying vec3 vDir;
+      void main() {
+        vDir = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      varying vec3 vDir;
+      void main() {
+        vec3 d = normalize(vDir);
+        float l = atan(d.y, d.x);
+        float b = asin(clamp(d.z, -1.0, 1.0));
+        // Galactic centre in the middle of the map, longitude increasing to the left.
+        vec2 uv = vec2(fract(0.5 - l / 6.28318530718), 0.5 + b / 3.14159265359);
+        float v = texture2D(map, uv).r;
+        // Warmer toward the bright bulge, cooler in the faint arms.
+        vec3 tint = mix(vec3(0.55, 0.62, 0.85), vec3(0.95, 0.88, 0.78), smoothstep(0.35, 0.9, v));
+        gl_FragColor = vec4(tint * v * 0.5, 1.0);
+      }`,
     side: THREE.BackSide,
     depthTest: false,
     depthWrite: false,
     // Drawn first, in the opaque pass, so bodies always cover it.
     blending: THREE.AdditiveBlending,
   });
+  const mwGeo = new THREE.SphereGeometry(1, 96, 48);
   const mw = new THREE.Mesh(mwGeo, mwMat);
   behind(mw, -20);
-  eq.add(mw);
-  disposables.push(mwMat, mwGeo);
+  gal.add(mw);
+  disposables.push(mwMat, mwGeo, milkyWay);
 
   // Stars: size and brightness from magnitude, colour from B−V.
   const n = data.stars.length / 4;
@@ -182,9 +186,10 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayM
     const d = eqDir(ra, dec);
     pos.set(d, i * 3);
     const c = starColour(bv);
-    const light = Math.min(1, 0.42 + 1.2 * 10 ** (-0.25 * mag));
+    // Brighter stars are larger and brighter, with a wider gap between bright and faint.
+    const light = Math.min(1, 0.3 + 1.5 * 10 ** (-0.3 * mag));
     col.set([c.r * light, c.g * light, c.b * light], i * 3);
-    size[i] = 2.2 + 5.2 * 10 ** (-0.2 * (mag + 1.5));
+    size[i] = 2.0 + 12 * 10 ** (-0.3 * (mag + 1.5));
   }
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -206,7 +211,8 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayM
       varying vec3 vColor;
       void main() {
         float r = length(gl_PointCoord - 0.5) * 2.0;
-        float a = 1.0 - smoothstep(0.25, 1.0, r);
+        // A bright core and a soft halo.
+        float a = (1.0 - smoothstep(0.15, 0.55, r)) + 0.35 * (1.0 - smoothstep(0.3, 1.0, r));
         gl_FragColor = vec4(vColor * a, 1.0);
       }`,
     depthTest: false,
@@ -265,6 +271,33 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayM
   const ecliptic = lineSet(band, 0xf0c674, 0.55, ecl);
   const signs = lineSet(edges, 0xf0c674, 0.22, ecl);
 
+  // The galaxy: its equator (b = 0) and four marks around it: the centre (Sgr A*),
+  // the anticentre, and the two points halfway between, 90° either side, one of
+  // which (l = 90°, in Cygnus) is the way the Sun is travelling.
+  const galDir = (l: number, b: number): Vec3 => {
+    const a = l * DEG, c = b * DEG;
+    return [Math.cos(c) * Math.cos(a), Math.cos(c) * Math.sin(a), Math.sin(c)];
+  };
+  const galPts: number[] = [];
+  for (let l = 0; l < 360; l += 1.5) if (Math.floor(l / 3) % 2 === 0) galPts.push(...galDir(l, 0), ...galDir(l + 1.5, 0));
+  const ring = (l: number, r: number): void => {
+    for (let k = 0; k < 48; k++) {
+      const a0 = (k / 48) * 2 * Math.PI, a1 = ((k + 1) / 48) * 2 * Math.PI;
+      galPts.push(...galDir(l + r * Math.cos(a0), r * Math.sin(a0)), ...galDir(l + r * Math.cos(a1), r * Math.sin(a1)));
+    }
+  };
+  for (const l of [0, 90, 180, 270]) {
+    ring(l, 1.6);
+    ring(l, l === 0 ? 3.2 : 0.6);
+  }
+  const galLines = lineSet(galPts, 0xb9a7ff, 0.5, gal);
+  const toEclFromGal = (v: Vec3): Vec3 => [
+    ECL_TO_GAL[0][0] * v[0] + ECL_TO_GAL[1][0] * v[1] + ECL_TO_GAL[2][0] * v[2],
+    ECL_TO_GAL[0][1] * v[0] + ECL_TO_GAL[1][1] * v[1] + ECL_TO_GAL[2][1] * v[2],
+    ECL_TO_GAL[0][2] * v[0] + ECL_TO_GAL[1][2] * v[1] + ECL_TO_GAL[2][2] * v[2],
+  ];
+  const galLabels: SkyLabel[] = GALACTIC_MARKS.map(([l, text]) => ({ dir: toEclFromGal(galDir(l, 3.5)), text, kind: 'galactic' }));
+
   // Labels (directions in the ecliptic frame).
   const starLabels: SkyLabel[] = data.names.map((s) => ({ dir: toEcl(eqDir(s.ra, s.dec)), text: s.name, kind: 'star' }));
   const conLabels: SkyLabel[] = data.constellations.map((c) => ({
@@ -280,14 +313,16 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: MilkyWayM
       figures.visible = o.constellations;
       zodiacFigures.visible = o.constellations || o.zodiac;
       ecliptic.visible = signs.visible = o.zodiac;
+      galLines.visible = o.galactic;
       return [
         ...(o.constellations ? [...starLabels, ...conLabels.filter((l) => l.kind === 'constellation')] : []),
         ...(o.constellations || o.zodiac ? conLabels.filter((l) => l.kind === 'zodiacFigure') : []),
         ...(o.zodiac ? signLabels : []),
+        ...(o.galactic ? galLabels : []),
       ];
     },
     dispose(): void {
-      scene.remove(eq, ecl);
+      scene.remove(eq, ecl, gal);
       disposables.forEach((d) => d.dispose());
     },
   };

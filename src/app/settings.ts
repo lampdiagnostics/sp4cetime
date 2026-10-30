@@ -15,6 +15,8 @@ export interface Settings {
   /** Fly mode's sky: constellation figures and names, and the zodiac. */
   readonly constellations: boolean;
   readonly zodiac: boolean;
+  /** The galactic equator, centre, anticentre and the halfway points. */
+  readonly galactic: boolean;
   readonly scale: ScaleMode;
   readonly focus: 'sun' | PlanetId;
 }
@@ -31,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   distanceGrid: true,
   constellations: true,
   zodiac: true,
+  galactic: true,
   scale: 'fit',
   focus: 'sun',
 };
@@ -57,6 +60,7 @@ export function loadSettings(): Settings {
       distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
       constellations: typeof data.constellations === 'boolean' ? data.constellations : DEFAULT_SETTINGS.constellations,
       zodiac: typeof data.zodiac === 'boolean' ? data.zodiac : DEFAULT_SETTINGS.zodiac,
+      galactic: typeof data.galactic === 'boolean' ? data.galactic : DEFAULT_SETTINGS.galactic,
       scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
       focus: PLANET_IDS.includes(data.focus as PlanetId) ? (data.focus as PlanetId) : 'sun',
     };

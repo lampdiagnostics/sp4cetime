@@ -600,3 +600,8 @@ select option {
   font-size: 9.5px;
   letter-spacing: 0.12em;
 }
+
+.fly-sky-label[data-kind='galactic'] {
+  color: rgba(195, 180, 255, 0.85);
+  font-size: 11px;
+}

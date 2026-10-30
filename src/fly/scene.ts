@@ -23,6 +23,13 @@ export const BODY_COLORS: Record<BodyId, number> = {
   pluto: 0xcbb69c,
 };
 
+/**
+ * Real surface maps (equirectangular, longitude −180° at the left edge). Three's sphere,
+ * turned so its pole is +z, puts that edge on the body's −x axis, so longitude 0 falls
+ * on the prime meridian (+x) as the body's axes require.
+ */
+const SURFACES: Partial<Record<BodyId, string>> = { earth: 'earth.jpg', moon: 'moon.jpg' };
+
 export interface FlyScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly camera: THREE.PerspectiveCamera;
@@ -165,6 +172,7 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   scene.add(new THREE.AmbientLight(0xffffff, 0.035));
 
   const grid = graticule();
+  const loader = new THREE.TextureLoader();
   const meshes = new Map<BodyId, THREE.Mesh>();
   let earthAtmosphere: THREE.Mesh | null = null;
   for (const info of BODIES) {
@@ -175,12 +183,28 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
       info.id === 'sun'
         ? new THREE.MeshBasicMaterial({ color: BODY_COLORS.sun })
         : new THREE.MeshLambertMaterial({ color: BODY_COLORS[info.id] });
+    // Earth and the Moon get their real surfaces (low resolution, see public/textures/CREDITS.md).
+    const surface = SURFACES[info.id];
+    if (surface && mat instanceof THREE.MeshLambertMaterial) {
+      loader.loadAsync(`${import.meta.env.BASE_URL}textures/${surface}`).then(
+        (t) => {
+          t.colorSpace = THREE.SRGBColorSpace;
+          t.anisotropy = 4;
+          mat.map = t;
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+        },
+        () => {
+          /* keep the plain colour */
+        },
+      );
+    }
     const mesh = new THREE.Mesh(geo, mat);
     mesh.matrixAutoUpdate = false;
     if (info.id !== 'sun') {
       const lines = new THREE.LineSegments(
         grid,
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, depthWrite: false }),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: surface ? 0.07 : 0.16, depthWrite: false }),
       );
       lines.scale.setScalar(1.002);
       mesh.add(lines);

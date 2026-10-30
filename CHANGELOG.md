@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0 — 2026-10-30
+
+A truer sky, and real surfaces.
+
+- The Milky Way is now drawn from a photograph: star clouds, the bright bulge around the centre, and dark dust lanes such as the Great Rift, with the Magellanic Clouds.
+- **Galaxy marks**: the galactic equator, the Galactic Centre (Sgr A*, in Sagittarius), the Anticentre (in Taurus/Auriga), and the two halfway points, l 90° in Cygnus (the direction the Sun is travelling) and l 270° in Vela.
+- Stars are larger, and bright stars stand out much more from faint ones, with a soft halo.
+- Earth and the Moon show their real surfaces (low-resolution NASA-based maps), lit by the Sun, with day and night where they really are. Point at a place to read its latitude and longitude.
+- Image credits in `public/textures/CREDITS.md`.
+
 ## 0.13.0 — 2026-10-30
 
 The real sky.

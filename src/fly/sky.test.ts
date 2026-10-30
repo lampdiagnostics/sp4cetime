@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { eqDir, SIGNS, toEcl } from './sky';
+import { ECL_TO_GAL } from '../core/geometry';
+import { eqDir, GALACTIC_MARKS, SIGNS, toEcl } from './sky';
 
 describe('The sky sphere', () => {
   it('puts the March equinox at ecliptic longitude 0 (the start of Aries) and the ecliptic pole in Draco', () => {
@@ -19,5 +20,13 @@ describe('The sky sphere', () => {
   it('has twelve signs of 30°', () => {
     expect(SIGNS).toHaveLength(12);
     expect(SIGNS[0][1]).toBe('Aries');
+  });
+
+  it('marks the galactic centre where Sgr A* is (RA 17h 45.7m, Dec −29.0°) and the anticentre opposite', () => {
+    expect(GALACTIC_MARKS.map(([l]) => l)).toEqual([0, 90, 180, 270]);
+    const centre = ECL_TO_GAL[0]; // galactic x axis, in ecliptic coordinates
+    const sgrA = toEcl(eqDir(266.405, -28.936));
+    const angle = Math.acos(centre[0] * sgrA[0] + centre[1] * sgrA[1] + centre[2] * sgrA[2]);
+    expect((angle * 180) / Math.PI).toBeLessThan(0.1);
   });
 });

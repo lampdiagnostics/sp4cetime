@@ -15,7 +15,7 @@ A separate **Fly mode**, entered from the calendar, rendered in 3D.
 - **Positions and orientation:** astronomy-engine (VSOP87 / lunar theory) within ±3000 years, IAU rotation models for poles and spin; outside that, the Keplerian model and the mean Moon, as in the calendar's accuracy tiers.
 - **Floating origin and a logarithmic depth buffer.** Positions are computed in double precision relative to the camera, then handed to the GPU, so a few-metre precision holds next to Earth while Neptune is 4.5 billion km away.
 - **The camera rides with a body** (inertial, or turning with it — at Earth that is geostationary), so time can run fast without leaving you behind. The anchor switches to whichever body you fly close to.
-- **Honest looks:** plain colours with latitude/longitude graticules, no invented surface textures. Public-domain NASA maps can be added later as an opt-in.
+- **Honest looks:** plain colours with latitude/longitude graticules, no invented surface textures. (v0.14: Earth and the Moon now use real NASA-based maps; other bodies stay plain.)
 - Time in Fly mode runs live by default, with Pause and faster rates, and starts at the calendar's present moment.
 
 ## Consequences
@@ -30,3 +30,9 @@ Spirals, orbits, the Sun's line and both grids are drawn in Fly mode at true sca
 ## Update (v0.13): the real sky
 
 The background is the real sky on a sphere at infinity centred on the viewer (no parallax: at these distances stars do not visibly shift). Data from d3-celestial (BSD-3-Clause, Olaf Frohn): Hipparcos stars to magnitude 6 with B−V colours, the 88 IAU constellation figures, and the Milky Way outline, converted by `scripts/build_sky.py` into `public/sky/` (about 60 KB gzipped plus a 38 KB brightness map) and fetched only when Fly mode opens, outside the JS budget. Coordinates are equatorial J2000, turned into the ecliptic frame by the obliquity. The zodiac is drawn in the ecliptic frame: the tropical signs start at the J2000 equinox. The sky is drawn first in the opaque pass with depth testing off, so every body covers it. Constellation lines are straight chords on the sphere, which from its centre are exactly the great circles between the stars.
+
+## Update (v0.14): photographic Milky Way, galactic marks, surfaces
+
+- The Milky Way is a photographic all-sky map (Solar System Scope, CC BY 4.0) in galactic coordinates, with point stars filtered out and its faint range stretched, blended with the d3-celestial outline (`scripts/build_textures.py`). It is looked up per pixel from the view direction, so there is no seam. The sky sphere is drawn small (1,000 km) with depth testing off: its size is irrelevant to what you see and a small radius keeps GPU interpolation exact (a 10¹² km sphere showed faceting).
+- Galactic marks: the galactic equator and l = 0°, 90°, 180°, 270°.
+- Earth (NASA Blue Marble, public domain) and the Moon (Solar System Scope, CC BY 4.0) are textured at 2048 × 1024 and 1024 × 512. Texture longitude −180° falls on each body's −x axis, so longitude 0 is the prime meridian of its IAU rotation model; a hover over central Australia reads about 25° S, 135° E.

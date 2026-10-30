@@ -63,4 +63,4 @@ Inspired by the galactic-motion visualization shared by [@Geosophyy](https://x.c
 
 ## Credits
 
-Star, constellation and Milky Way data in Fly mode: [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD-3-Clause; licence in `public/sky/`), from the Hipparcos catalogue and IAU constellation figures.
+Star, constellation and Milky Way data in Fly mode: [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD-3-Clause; licence in `public/sky/`), from the Hipparcos catalogue and IAU constellation figures. Milky Way and Moon maps: [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0). Earth: NASA Blue Marble (public domain). See `public/textures/CREDITS.md`.
