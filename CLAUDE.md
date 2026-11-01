@@ -9,7 +9,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.2.0** (tag `v0.2.0`). Next goal (0.3.0): paths through time and space, Prezi-style presentations (README.md, "Next goal"). Then 0.4.0: GitHub and a public beta. Then events and stories, the rest of the Library (DECISIONS.md §1).
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**: paths through time and space, Prezi-style presentations (README.md, ADR-0017); last tag `v0.2.0`, tag `v0.3.0` once the owner has tried it. Next goal (0.4.0): GitHub and a public beta. Then events and stories, the rest of the Library (DECISIONS.md §1).
 
 ## Commands
 
@@ -32,7 +32,8 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | `src/core/spheres.ts` | Nested spheres, arc positions, DMS formatting, ray–sphere hits. |
 | `src/core/paths3d.ts`, `skymap.ts` | Fly-mode spirals and grid marks; the calendar sky's perspective lens. |
 | `src/core/constants.ts` | Physical constants, each with its published range. |
-| `src/app/` | React UI. `App.tsx`: the page (shared clock with speed and pause, theme, space-bar state, top-right box, eye and Capture). `Pane.tsx`: the window (calendar ↔ 3D, its settings, the top-left, bottom-left and bottom-right boxes, portalled into the page, ? How to text and credits, scale bar). `GalacticCanvas.tsx` (gestures, frame loop, label and pose clicks), `skyBackdrop.ts` (sky, figures, names), `settings.ts` (localStorage), `ElementsPicker`, `PlanetPicker`, `HelpButton` (centred pop-up), `CaptureMenu` + `capture.ts` (screen capture) + `gif.ts` (our GIF encoder). |
+| `src/core/path.ts` | Paths: points (everything on screen), `.sp4ce.json` validation, the van Wijk–Nuij time-flight curve. |
+| `src/app/` | React UI. `App.tsx`: the page (shared clock with speed and pause, theme, space-bar state, top-right box, eye and Capture). `Pane.tsx`: the window (calendar ↔ 3D, its settings, the top-left, bottom-left and bottom-right boxes, portalled into the page, ? How to text and credits, scale bar). `GalacticCanvas.tsx` (gestures, frame loop, label and pose clicks), `skyBackdrop.ts` (sky, figures, names), `settings.ts` (localStorage), `ElementsPicker`, `PlanetPicker`, `HelpButton` (centred pop-up), `CaptureMenu` + `capture.ts` (screen capture) + `gif.ts` (our GIF encoder). Paths: `flights.ts` (flying between points), `pathStore.ts` (IndexedDB, export, import), `PathDialog.tsx` (Return); Presentation mode, keys and the point box in `App.tsx`. |
 | `src/fly/` | The 3D view (Fly and the galaxy), no controls of its own: `FlyView.tsx` (loop, Minecraft-style input, journeys to bodies, labels with signs, HUD), `scene.ts` (renderer keeps its frame for capture), `flight.ts` (poses, destinations, warps, speed), `overlays.ts` (spirals sampled to the vanishing point, orbits, ruler grids, scale bar), `sky.ts`, `galaxy.ts` (stars, haze, bubbles, the Sun's path and whole-life orbit), `localGroup.ts` (Sgr A*, neighbour galaxies). |
 | `src/core/skyfigures.ts` | Constellation, zodiac and galaxy-mark definitions shared by both views. |
 | `content/themes/*.json` | Themes as data, validated by `parseTheme`. |
@@ -55,6 +56,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 13. **Three views, one set of controls** (ADR-0013). Calendar first; ✦ Fly and ◎ Galaxy buttons; clicking a name flies just above that body; in Fly, zooming out warps to the galaxy and zooming in on it warps back. New controls go in the boxes (`Pane.tsx`, or `App.tsx` if shared) and must mean something in every view.
 14. **One scale: true** (ADR-0016). No compressed scales; they change directions, so planets would sit in the wrong sign.
 15. **Capture records what is on screen** and never the capture controls: mark any control that must stay out with `data-no-capture`; keep the WebGL renderer's `preserveDrawingBuffer`.
+16. **A path's point is everything on screen** (ADR-0017). Anything new that changes what is seen (a setting, a camera, a look) must be added to `PathPoint` (and its validation) so points restore it, and flights must move to it without a cut.
 
 ## Conventions
 

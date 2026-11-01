@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { type Recording, recordGif, recordVideo, screenshot, type Shot, videoFormat } from './capture';
+import type { Path } from '../core/path';
 
 const GIF_SECONDS = 5;
 const GIF_WIDTH = 640;
@@ -14,13 +15,31 @@ const VIDEO_FPS = 30;
  * - V a video: from V until V again, or a click on the running time.
  * This button stays on screen, even with all text hidden, and is never in the picture.
  */
-export function CaptureMenu({ getShot, onPlay, in3D }: {
+export interface PresentControls {
+  readonly paths: readonly Path[];
+  readonly presenting: boolean;
+  present(id: string): void;
+  stop(): void;
+  exportPath(id: string): void;
+  importFile(f: File): void;
+  deletePath(id: string): void;
+  /** What went wrong with the last import, if anything. */
+  readonly message: string;
+}
+
+export function CaptureMenu({ getShot, onPlay, in3D, present }: {
   getShot: () => Shot | null;
   onPlay: (on: boolean) => void;
   in3D: boolean;
+  /** Paths: Presentation mode lives in the Capture button (presentations are made to be captured). */
+  present: PresentControls;
 }) {
   const [open, setOpen] = useState(false);
   const [watermark, setWatermark] = useState(true);
+  const [chosen, setChosen] = useState('');
+  const [sureDelete, setSureDelete] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pathId = present.paths.some((x) => x.id === chosen) ? chosen : (present.paths[0]?.id ?? '');
   const [busy, setBusy] = useState<null | { kind: 'gif'; progress: number } | { kind: 'video'; since: number }>(null);
   const [, tickClock] = useState(0);
   const rec = useRef<Recording | null>(null);
@@ -128,8 +147,8 @@ export function CaptureMenu({ getShot, onPlay, in3D }: {
           GIF {Math.round(busy.progress * 100)}%
         </button>
       ) : (
-        <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((x) => !x)} title="Screenshot (P), GIF (G) or video (V)">
-          ◉ Capture
+        <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((x) => !x)} title="Screenshot (P), GIF (G) or video (V); present a path">
+          ◉ Capture · ▷ Present
         </button>
       )}
       {open && !busy && (
@@ -150,6 +169,56 @@ export function CaptureMenu({ getShot, onPlay, in3D }: {
             Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (the space bar hides them); this button never is.
             {!format && ' This browser cannot record video.'}
           </p>
+          <hr />
+          <div className="present-section" aria-label="Present a path">
+            <span className="heading">Present a path</span>
+            {present.paths.length === 0 ? (
+              <p className="note">No paths yet. Go anywhere and press Return to start one; travel and press Return for each next point.</p>
+            ) : (
+              <>
+                <select value={pathId} onChange={(e) => (setChosen(e.target.value), setSureDelete(false))} aria-label="Saved paths">
+                  {present.paths.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name} · {x.points.length} point{x.points.length === 1 ? '' : 's'}
+                      {x.finished ? '' : ' (unfinished)'}
+                    </option>
+                  ))}
+                </select>
+                {present.presenting ? (
+                  <button type="button" className="primary" onClick={() => (setOpen(false), present.stop())}>
+                    ■ Stop presenting <kbd>Esc</kbd>
+                  </button>
+                ) : (
+                  <button type="button" className="primary" onClick={() => (setOpen(false), present.present(pathId))} title="Fly from point to point: Return or → next, ← back">
+                    ▷ Present
+                  </button>
+                )}
+                <div className="capture-row">
+                  <button type="button" onClick={() => present.exportPath(pathId)} title="Download it as a .sp4ce.json file">
+                    ⤓ Export
+                  </button>
+                  <button type="button" onClick={() => (sureDelete ? (present.deletePath(pathId), setSureDelete(false)) : setSureDelete(true))}>
+                    {sureDelete ? 'Really delete?' : 'Delete'}
+                  </button>
+                </div>
+              </>
+            )}
+            <button type="button" onClick={() => fileRef.current?.click()} title="Open a .sp4ce.json file">
+              ⤒ Import a path…
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) present.importFile(f);
+                e.target.value = '';
+              }}
+            />
+            {present.message && <p className="note">{present.message}</p>}
+          </div>
         </div>
       )}
     </div>

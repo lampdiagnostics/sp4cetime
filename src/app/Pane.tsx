@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import type { BodyId } from '../core/bodies';
 import type { Camera } from '../core/camera';
 import { viewMatrix, type Vec3 } from '../core/geometry';
-import { formatLat, formatLon } from '../core/spheres';
+import { formatDMS, formatLat, formatLon } from '../core/spheres';
+import type { CalendarView, FlyState, PointView } from '../core/path';
 import { densePaths, layout } from '../core/render';
 import type { Theme } from '../core/theme';
 import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, type Time, toCivil } from '../core/time';
@@ -15,7 +16,7 @@ import { HelpButton } from './HelpButton';
 import { DEFAULT_PRESET, ZOOM_PRESETS } from './presets';
 import type { Settings } from './settings';
 import { FlyBoundary } from './FlyBoundary';
-import type { FlyCommand, FlyHud, Measure } from '../fly/FlyView';
+import type { FlyApi, FlyCommand, FlyHud, Measure } from '../fly/FlyView';
 import type { Destination } from '../fly/flight';
 
 /** A request to the 3D view, before it is numbered. */
@@ -121,11 +122,33 @@ export interface PaneInfo {
   readonly clip: { readonly cx: number; readonly cy: number; readonly r: number } | null;
 }
 
+/** A window's view, for a path's point. */
+export interface PaneSnapshot {
+  readonly view: PointView;
+  readonly calendar: CalendarView;
+  readonly fly: FlyState | null;
+  readonly measure: Measure;
+  /** Plain words for the point's box: where, and which way it faces. */
+  readonly where: string;
+  readonly facing: string;
+}
+
 export interface PaneHandle {
   show(m: PaneMode): void;
   goNow(): void;
   root(): HTMLElement | null;
+  /** Everything about this window's view now. */
+  snapshot(): PaneSnapshot;
+  /** The calendar's camera, and the 3D view's (null until loaded). */
+  calendar(): CanvasHandle | null;
+  fly(): FlyApi | null;
+  /** Show the calendar, or 3D where the calendar's view is (no journey); resolves once 3D is ready. */
+  setView3D(on: boolean): Promise<boolean>;
+  setMeasure(m: Measure): void;
+  mode(): 'calendar' | 'fly';
 }
+
+const deg = (rad: number): string => formatDMS(rad, 0, true);
 
 interface Props {
   id: number;
@@ -196,6 +219,13 @@ export function Pane(p: Props) {
   const [cam, setCam] = useState<Camera | null>(null);
   const canvas = useRef<CanvasHandle>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const flyApi = useRef<FlyApi | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const hudRef = useRef(flyHud);
+  hudRef.current = flyHud;
+  const measureRef = useRef(measure);
+  measureRef.current = measure;
 
   // The canvas reports every camera change; the readouts re-render at most ~10 times a second.
   const pending = useRef<Camera | null>(null);
@@ -292,10 +322,57 @@ export function Pane(p: Props) {
     canvas.current?.goNow();
     setLive(true);
   };
+  const snapshot = (): PaneSnapshot => {
+    const c = canvas.current;
+    const calendar: CalendarView = c?.getView() ?? { offset: { day: 0, sec: 0 }, secondsPerPixel: 1, roll: 0, yaw: 0, spaceZoom: 1, panY: 0 };
+    const f = flyApi.current?.getState() ?? null;
+    const fly: FlyState | null = f && { anchor: f.anchor, frame: f.frame, rel: f.rel, quat: f.quat, fov: f.fov, up: f.up };
+    const in3d = modeRef.current === 'fly';
+    const view: PointView = in3d ? (f?.inGalaxy ? 'galaxy' : 'fly') : 'calendar';
+    const h = hudRef.current;
+    let where: string, facing: string;
+    if (in3d && f) {
+      where = h
+        ? `${formatLat(h.arc.lat, 0)} · ${formatLon(h.arc.lon, 0)} on ${h.sphereName}, ${h.arc.radii < 1000 ? h.arc.radii.toPrecision(3) : Math.round(h.arc.radii).toLocaleString('en-US')} radii out`
+        : '';
+      // Which way you look, on the sky: ecliptic longitude and latitude.
+      const [x, y, z] = f.look;
+      const lon = (Math.atan2(y, x) + 2 * Math.PI) % (2 * Math.PI);
+      const lat = Math.asin(Math.max(-1, Math.min(1, z)));
+      facing = `looking toward ecliptic longitude ${deg(lon)}, latitude ${formatLat(lat, 0)} · ${Math.round(f.fov)}° view`;
+    } else {
+      const across = calendar.secondsPerPixel * (c?.viewWidth() ?? 1);
+      where = `Galactic calendar · ${formatDuration(across)} across · centred on ${settings.focus === 'earth' ? 'Earth' : 'the Sun'}`;
+      // Whole degrees: roll about the Sun's path (0–360°), yaw sideways (±75°).
+      const d = (r: number): number => Math.round((r * 180) / Math.PI);
+      const roll = ((d(calendar.roll) % 360) + 360) % 360;
+      const yaw = d(calendar.yaw);
+      facing = `turned ${roll}° about the Sun's path${yaw ? `, ${Math.abs(yaw)}° ${yaw > 0 ? 'right' : 'left'}` : ''}`;
+    }
+    return { view, calendar, fly, measure: measureRef.current, where, facing };
+  };
+  const setView3D = async (on: boolean): Promise<boolean> => {
+    if (!on) {
+      setMode('calendar');
+      return true;
+    }
+    if (modeRef.current !== 'fly') enter3D();
+    // Wait for the 3D view to load and take the command (a few frames).
+    for (let i = 0; i < 600 && !flyApi.current; i++) await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => requestAnimationFrame(r));
+    return !!flyApi.current;
+  };
   useImperativeHandle(p.handleRef, () => ({
     show: (m) => showRef.current(m),
     goNow: localNow,
     root: () => rootRef.current,
+    snapshot,
+    calendar: () => canvas.current,
+    fly: () => flyApi.current,
+    setView3D,
+    setMeasure,
+    mode: () => modeRef.current,
   }));
   const goNow = (): void => {
     changeRate(1);
@@ -542,6 +619,13 @@ export function Pane(p: Props) {
           <ul>
             <li>Space bar: hide the boxes, then all labels, then bring them back.</li>
             <li>Speed (bottom right): choose how fast time runs and which way (Live is real time); choosing holds time still until ▶ Play; ❚❚ Pause stops it.</li>
+            <li>
+              Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,
+              the moment, how time runs, the look). Travel and press Return for each next point, with a caption if you like; tick “Stop after this
+              point” for END. ◉ Capture · ▷ Present plays a saved path: the view flies from point to point; Return or → next, ← back, Esc stops. Look
+              around at a point and the next press flies you back to it first. Paths stay in this browser; Export and Import share them as
+              .sp4ce.json files.
+            </li>
             <li>◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
           </ul>
           <h3>Inspirations and credits</h3>
@@ -620,6 +704,9 @@ export function Pane(p: Props) {
                 command={command}
                 onTimeZoom={(f) => canvas.current?.zoomBy(f)}
                 onHud={setFlyHud}
+                onApi={(a) => {
+                  flyApi.current = a;
+                }}
               />
             </Suspense>
           </FlyBoundary>

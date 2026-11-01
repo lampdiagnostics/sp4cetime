@@ -2,10 +2,37 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time } from '../core/time';
-import { CaptureMenu } from './CaptureMenu';
-import { type Shot, stageIn } from './capture';
+import { CaptureMenu, type PresentControls } from './CaptureMenu';
+import { drawShot, type Shot, stageIn, viewStages } from './capture';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
+import { newPathId, type Path, type PathPoint, type PointLook, pointLabel } from '../core/path';
+import { formatTime } from '../core/time';
+import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
+import { deletePath, exportPath, importPath, listPaths, savePath } from './pathStore';
+import { type DialogResult, PathDialog } from './PathDialog';
+
+const VIEW_NAME = { calendar: 'Calendar', fly: 'Fly', galaxy: 'Whole galaxy' } as const;
+/** Typing in a field (a drop-down menu that still has focus doesn't count: its keys go to the path). */
+const typingNow = (): boolean => {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a as HTMLElement).isContentEditable);
+};
+const releaseMenu = (): void => {
+  const a = document.activeElement;
+  if (a instanceof HTMLSelectElement) a.blur();
+};
+const reducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** The look, without the sphere positions are measured on, as a key to compare. */
+const lookKey = (l: PointLook): string => JSON.stringify({ ...l, measure: undefined });
+
+/** Presentation mode: which path, which point, and whether the viewer has wandered off it. */
+interface Showing {
+  readonly path: Path;
+  readonly index: number;
+  readonly flying: boolean;
+  readonly wandered: boolean;
+}
 
 /** A phone: always full screen (there is no room for the round window). */
 const isPhone = (w: number, h: number): boolean =>
@@ -112,12 +139,235 @@ export function App() {
   };
 
   const pageRef = useRef<HTMLDivElement>(null);
-  const getShot = (): Shot | null => {
+  const veilRef = useRef<HTMLCanvasElement>(null);
+  const infoRef = useRef(info);
+  infoRef.current = info;
+  /** The views as they show now (both, while they cross-fade), and the dissolve's picture if it is fading. */
+  const getShot = (withVeil = true): Shot | null => {
     const root = pane.current?.root();
-    const s = root ? stageIn(root, in3D, info?.clip ?? null) : null;
-    if (!root || !s) return null;
-    return { stages: [s], region: root.getBoundingClientRect(), page: pageRef.current };
+    if (!root) return null;
+    const clip = infoRef.current?.clip ?? null;
+    const stages = viewStages(root, clip);
+    if (stages.length === 0) {
+      const s = stageIn(root, infoRef.current?.mode === 'fly', clip);
+      if (s) stages.push(s);
+    }
+    const v = veilRef.current;
+    const va = v ? Number(getComputedStyle(v).opacity) : 0;
+    if (withVeil && v && va > 0.01) stages.push({ canvas: v, overlays: [], clip: null, alpha: va });
+    if (stages.length === 0) return null;
+    return { stages, region: root.getBoundingClientRect(), page: pageRef.current };
   };
+
+  // --- Paths (ADR-0017) -------------------------------------------------------------
+
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const chromeRef = useRef(chrome);
+  chromeRef.current = chrome;
+  const speedRef = useRef({ speed, paused });
+  speedRef.current = { speed, paused };
+
+  /** A picture of the screen as it is, fading out over the new look. */
+  const dissolve = useCallback((): void => {
+    const v = veilRef.current;
+    const shot = getShot(false);
+    if (!v || !shot || reducedMotion()) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    v.width = Math.round(window.innerWidth * dpr);
+    v.height = Math.round(window.innerHeight * dpr);
+    const ctx = v.getContext('2d');
+    if (!ctx) return;
+    drawShot(shot, ctx, v.width, v.height, { overlay: [], watermark: false });
+    v.style.transition = 'none';
+    v.style.opacity = '1';
+    void v.offsetWidth;
+    v.style.transition = 'opacity 900ms ease-in-out';
+    v.style.opacity = '0';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const lookNow = (): PointLook => {
+    const st = settingsRef.current;
+    return {
+      themeId: st.themeId, round: st.round, chrome: chromeRef.current, planets: st.planets, moon: st.moon, rings: st.rings,
+      labels: st.labels, spirals: st.spirals, timeGrid: st.timeGrid, distanceGrid: st.distanceGrid,
+      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, strobe: st.strobe,
+      strobeSteps: st.strobeSteps, focus: st.focus, measure: pane.current?.snapshot().measure ?? 'near',
+    };
+  };
+  /** Exactly what is on screen, as a point. */
+  const pointNow = (): PathPoint | null => {
+    const s = pane.current?.snapshot();
+    if (!s) return null;
+    const sp = speedRef.current;
+    return {
+      view: s.view, present: clock(), speed: sp.speed, playing: !sp.paused, calendar: s.calendar, fly: s.fly,
+      look: { ...lookNow(), measure: s.measure }, caption: '', where: s.where, facing: s.facing,
+    };
+  };
+
+  const deps: FlightDeps = {
+    pane: () => pane.current,
+    clock,
+    setPresent: (t) => {
+      timeRef.current = { baseReal: Date.now(), baseSim: t, rate: 0 };
+    },
+    setClock: (t, sp, playing) => {
+      timeRef.current = { baseReal: Date.now(), baseSim: t, rate: playing ? sp : 0 };
+      setSpeed(sp);
+      setPaused(!playing);
+    },
+    applyLook: (look) => {
+      if (lookKey(look) === lookKey(lookNow())) return;
+      dissolve();
+      const { chrome: c, measure: _m, ...rest } = look;
+      update(rest);
+      setChrome(c);
+    },
+    reduced: reducedMotion,
+  };
+  const depsRef = useRef(deps);
+  depsRef.current = deps;
+
+  const [paths, setPaths] = useState<Path[]>([]);
+  const refreshPaths = useCallback(() => void listPaths().then(setPaths), []);
+  useEffect(refreshPaths, [refreshPaths]);
+  const [message, setMessage] = useState('');
+
+  // Making a path: Return opens the dialog with what is on screen at that moment.
+  const [making, setMaking] = useState<Path | null>(null);
+  const [dialog, setDialog] = useState<{ starting: boolean; point: PathPoint } | null>(null);
+  const confirmPoint = (r: DialogResult): void => {
+    if (!dialog) return;
+    const pt: PathPoint = { ...dialog.point, caption: r.caption };
+    const path: Path = making
+      ? { ...making, points: [...making.points, pt], finished: r.stop }
+      : { id: newPathId(), name: r.name, created: new Date().toISOString(), points: [pt], finished: r.stop };
+    setDialog(null);
+    setMaking(r.stop ? null : path);
+    void savePath(path).then(refreshPaths);
+  };
+  const finishMaking = (): void => {
+    if (!making) return;
+    const path = { ...making, finished: true };
+    setMaking(null);
+    void savePath(path).then(refreshPaths);
+  };
+  const discardMaking = (): void => {
+    if (making) void deletePath(making.id).then(refreshPaths);
+    setMaking(null);
+    setDialog(null);
+  };
+
+  // Presentation mode.
+  const [showing, setShowing] = useState<Showing | null>(null);
+  const showRef = useRef(showing);
+  showRef.current = showing;
+  const signal = useRef<FlightSignal>({ cancelled: false });
+  const goToPoint = useCallback((path: Path, index: number): void => {
+    const pt = path.points[index];
+    if (!pt) return;
+    signal.current.cancelled = true;
+    const sig: FlightSignal = { cancelled: false };
+    signal.current = sig;
+    setShowing({ path, index, flying: true, wandered: false });
+    void flyToPoint(pt, depsRef.current, sig).then((arrived) => {
+      if (sig.cancelled) return;
+      setShowing((s) => (s && s.path.id === path.id ? { ...s, index, flying: false, wandered: !arrived } : s));
+    });
+  }, []);
+  const stopPresenting = useCallback((): void => {
+    signal.current.cancelled = true;
+    setShowing(null);
+  }, []);
+  const startPresenting = (id: string): void => {
+    const path = paths.find((x) => x.id === id);
+    if (path) goToPoint(path, 0);
+  };
+
+  // Keys: Return (make a path's point, or in Presentation mode go on), → and ← (present), Esc (stop).
+  const dialogRef = useRef(dialog);
+  dialogRef.current = dialog;
+  const keyRef = useRef({ pointNow, making });
+  keyRef.current = { pointNow, making };
+  useEffect(() => {
+    const IGNORE = ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock', 'p', 'P', 'g', 'G', 'v', 'V'];
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (dialogRef.current || typingNow() || e.metaKey || e.ctrlKey || e.altKey) return;
+      const sh = showRef.current;
+      if (sh) {
+        if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          e.stopPropagation();
+          releaseMenu();
+          if (e.repeat) return;
+          // After looking around, a press only flies back to the point; the next goes on.
+          // (During a flight, a press heads on from wherever the flight has got to.)
+          if (sh.wandered && !sh.flying) return goToPoint(sh.path, sh.index);
+          const next = sh.index + (e.key === 'ArrowLeft' ? -1 : 1);
+          if (next >= 0 && next < sh.path.points.length) goToPoint(sh.path, next);
+          return;
+        }
+        if (e.key === 'Escape') {
+          if (!document.pointerLockElement) stopPresenting();
+          return;
+        }
+        if (!IGNORE.includes(e.key) && !sh.flying) setShowing((s) => (s ? { ...s, wandered: true } : s));
+        return;
+      }
+      if (e.key === 'Enter' && !e.repeat) {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseMenu();
+        const point = keyRef.current.pointNow();
+        if (point) setDialog({ starting: !keyRef.current.making, point });
+      }
+    };
+    // Looking around at a point (a drag, a scroll, a click on the boxes) is wandering off it.
+    const onPointer = (e: Event): void => {
+      const sh = showRef.current;
+      const t = e.target as Element | null;
+      if (!sh || sh.flying || !t || t.closest?.('[data-no-capture], .pointbox')) return;
+      setShowing((s) => (s ? { ...s, wandered: true } : s));
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    window.addEventListener('wheel', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('pointerdown', onPointer, true);
+      window.removeEventListener('wheel', onPointer, true);
+    };
+  }, [goToPoint, stopPresenting]);
+
+  const present: PresentControls = {
+    paths,
+    presenting: !!showing,
+    present: startPresenting,
+    stop: stopPresenting,
+    exportPath: (id) => {
+      const x = paths.find((q) => q.id === id);
+      if (x) exportPath(x);
+    },
+    importFile: (f) => {
+      setMessage('');
+      importPath(f).then(
+        (x) => {
+          setMessage(`Imported “${x.name}”.`);
+          refreshPaths();
+        },
+        (err: unknown) => setMessage(err instanceof Error ? err.message : 'That file could not be read.'),
+      );
+    },
+    deletePath: (id) => {
+      if (showing?.path.id === id) stopPresenting();
+      if (making?.id === id) setMaking(null);
+      void deletePath(id).then(refreshPaths);
+    },
+    message,
+  };
+  const shownPoint = showing ? showing.path.points[showing.index] : undefined;
 
   const round = !phone && settings.round;
   const [boxesHost, setBoxesHost] = useState<HTMLDivElement | null>(null);
@@ -150,6 +400,38 @@ export function App() {
         onInfo={onInfo}
       />
 
+      {/* A path's dissolve between looks (a picture of the old look, fading out). */}
+      <canvas ref={veilRef} className="veil" aria-hidden="true" />
+
+      {/* Presentation mode: the point's box (in captures, with its caption). */}
+      {showing && shownPoint && (
+        <section className="pointbox" aria-live="polite" aria-label="This point of the path">
+          <div className="pb-head">
+            <b>{pointLabel(showing.index, showing.path.points.length, showing.path.finished)}</b>
+            <span>
+              {showing.index + 1} of {showing.path.points.length} · {showing.path.name}
+            </span>
+          </div>
+          {shownPoint.caption && <p className="pb-caption">{shownPoint.caption}</p>}
+          <p className="pb-facts">
+            {VIEW_NAME[shownPoint.view]} · {formatTime(shownPoint.present, 1)}
+            {shownPoint.where && <> · {shownPoint.where}</>}
+          </p>
+          {shownPoint.facing && <p className="pb-facts">{shownPoint.facing}</p>}
+        </section>
+      )}
+
+      {dialog && (
+        <PathDialog
+          starting={dialog.starting}
+          pointName={pointLabel(making ? making.points.length : 0, (making ? making.points.length : 0) + 2, false)}
+          pathName={making?.name ?? ''}
+          onConfirm={confirmPoint}
+          onCancel={() => setDialog(null)}
+          onDiscard={discardMaking}
+        />
+      )}
+
       {/* Always on screen, never in a capture: the eye (also the space bar) and Capture. */}
       <div className="float-tools" data-no-capture>
         <button
@@ -165,7 +447,35 @@ export function App() {
             {chrome === 2 && <path d="M4 4l16 16" />}
           </svg>
         </button>
-        <CaptureMenu getShot={getShot} onPlay={play} in3D={in3D} />
+        <CaptureMenu getShot={getShot} onPlay={play} in3D={in3D} present={present} />
+        {showing && (
+          <div className="path-status" role="status">
+            ▷ {pointLabel(showing.index, showing.path.points.length, showing.path.finished)} · {showing.index + 1}/{showing.path.points.length}
+            <span className="note">
+              {showing.flying
+                ? ' · flying…'
+                : showing.wandered
+                  ? ' · Return, → or ← flies back to the point'
+                  : showing.index === showing.path.points.length - 1
+                    ? ' · the end · ← back · Esc stops'
+                    : showing.index === 0
+                      ? ' · Return or → next'
+                      : ' · Return or → next · ← back'}
+            </span>
+            <button type="button" onClick={stopPresenting} title="Stop presenting (Esc)">
+              ■ Stop
+            </button>
+          </div>
+        )}
+        {!showing && making && (
+          <div className="path-status making" role="status">
+            ● Making “{making.name}” · {making.points.length} point{making.points.length === 1 ? '' : 's'}
+            <span className="note"> · Return adds the next</span>
+            <button type="button" onClick={finishMaking} title="The last point becomes END">
+              Finish
+            </button>
+          </div>
+        )}
       </div>
 
       {/* The window's boxes (its own controls) go here. */}
@@ -178,7 +488,13 @@ export function App() {
         </button>
         <label className="select">
           <span className="visually-hidden">Theme</span>
-          <select value={theme.id} onChange={(e) => update({ themeId: e.target.value })}>
+          <select
+            value={theme.id}
+            onChange={(e) => {
+              update({ themeId: e.target.value });
+              e.target.blur();
+            }}
+          >
             {THEMES.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}

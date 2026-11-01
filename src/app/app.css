@@ -1067,3 +1067,215 @@ select option {
   fill: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Paths (0.3.0, ADR-0017) ----------------------------------------------- */
+
+/* The dissolve between looks: a picture of the old look over the new, fading out. */
+.veil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* The point's box in Presentation mode: top centre, with its caption (it is captured). */
+.pointbox {
+  position: absolute;
+  /* Below the top boxes (and at the top when they are hidden). */
+  top: calc(var(--gap) + 58px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(560px, calc(100vw - 2 * var(--gap)));
+  padding: 10px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+.is-round .pointbox {
+  width: min(440px, calc(100vw - 2 * var(--gap)));
+}
+.chrome-1 .pointbox {
+  top: var(--gap);
+}
+@media (max-width: 760px) {
+  .pointbox {
+    top: auto;
+    bottom: calc(var(--gap) + 44px);
+  }
+}
+.pointbox .pb-head {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: baseline;
+  letter-spacing: 0.06em;
+}
+.pointbox .pb-head b {
+  color: var(--accent);
+  font-size: 12px;
+}
+.pointbox .pb-head span,
+.pointbox .pb-facts {
+  color: var(--text-dim);
+}
+.pointbox .pb-caption {
+  margin: 6px 0 4px;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--text);
+}
+.pointbox .pb-facts {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+.chrome-2 .pointbox {
+  display: none;
+}
+
+/* Beside Capture while making or presenting a path (never captured). */
+.path-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px 0 12px;
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.path-status .note {
+  color: var(--text-dim);
+}
+.path-status button {
+  height: 24px;
+  border-radius: 12px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--button);
+  color: var(--text);
+  cursor: pointer;
+}
+.path-status.making {
+  color: var(--accent);
+}
+@media (max-width: 760px) {
+  .path-status .note {
+    display: none;
+  }
+}
+
+/* Present a path, inside the Capture menu. */
+.present-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.present-section .heading {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.present-section select {
+  width: 100%;
+}
+
+/* Return: start a path, or add the view as its next point. */
+.path-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--gap);
+  background: rgba(0, 0, 0, 0.25);
+}
+.path-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(440px, 100%);
+  padding: 16px 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--text);
+  font-size: 13px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+:root:not([data-ui='light']) .path-dialog {
+  background: rgba(8, 12, 24, 0.94);
+}
+.path-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.path-dialog .note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.path-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.path-dialog label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.path-dialog input:not([type='checkbox']) {
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--button);
+  color: var(--text);
+  font: inherit;
+}
+.path-dialog .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.path-dialog button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--button);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.path-dialog button.primary {
+  background: var(--pressed);
+}
+.path-dialog button.danger {
+  margin-left: auto;
+  color: #ff7b7b;
+}
+.path-dialog kbd {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 4px;
+}

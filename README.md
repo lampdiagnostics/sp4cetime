@@ -4,7 +4,7 @@
 
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
-Version 0.2.0 · 31 October 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
+Version 0.3.0 · 1 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
 Live at [sp4cetime.org](https://sp4cetime.org) once deployed. (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
@@ -17,9 +17,9 @@ The direction, in order (detail in [docs/PLAN.md](docs/PLAN.md) and [DECISIONS.m
 4. **Pro tier**, before any marketplace: sells output, polish and privacy (story videos, posters, private links, unbranded embeds, extra themes), never a truer picture. Free users always see the same science.
 5. Year two, only if wanted: theme editor, accounts and sync, education licence, creator marketplace.
 
-What exists today (0.2.0) is the instrument: the calendar, Fly mode, the sky, the galaxy, and capture. It is a toy as much as a tool; the owner's next step is to show it publicly. Stories, sharing links and Pro are not built yet.
+What exists today (0.3.0) is the instrument (the calendar, Fly mode, the sky, the galaxy, and capture) and paths: presentations flown through it. It is a toy as much as a tool; the owner's next step is to show it publicly. Stories, sharing links and Pro are not built yet.
 
-## Next goal (0.3.0): paths through time and space
+## 0.3.0: paths through time and space
 
 A **path** is a presentation, Prezi-style: a sequence of chosen views of the map, and the viewer flies from one to the next.
 
@@ -33,11 +33,11 @@ A **path** is a presentation, Prezi-style: a sequence of chosen views of the map
 
 **Storage.** Saved paths are listed in a drop-down. 0.3.0 keeps them on the device (IndexedDB) with `.sp4ce.json` export and import (schema-versioned, validated like themes); cloud storage comes with accounts and sync later. Points are the Library's *stops* (DECISIONS §1) and a path is the first kind of story; later there will be a library of ready-made presentations and a marketplace to buy and sell them. Flights are computed, not stored.
 
-**Code.** The schema, validation and flight interpolation are pure maths in `src/core` with property tests across ±5 Gyr. Reading the whole view as a point and setting it from one goes through `App.tsx` (theme, clock, speed, space-bar state), `Pane.tsx`'s handle (view, window, elements, calendar camera) and Fly's poses (`flight.ts`); the dialog, the drop-down, the point box and Presentation mode live in `src/app`. Keys: Return is unused today; the arrows move through time (calendar) and move you (Fly), and in Presentation mode they belong to the path. Record the design as ADR-0017.
+**Code.** `src/core/path.ts` (schema, `.sp4ce.json` validation, the time-flight curve, with property tests across ±5 Gyr), `src/app/flights.ts` (flying between points), `src/app/pathStore.ts` (IndexedDB, export, import), `PathDialog.tsx`, and the wiring in `App.tsx`, `Pane.tsx`, `GalacticCanvas.tsx` and `FlyView.tsx`. The design and its reasons: [ADR-0017](docs/adr/0017-paths.md).
 
-**Steps:** (1) point and path schema with tests; (2) read everything on screen as a point, and restore a view from one; (3) Return and the path dialog (name, confirm, caption, stop after this point); (4) flights and transitions between any two points; (5) Present in the Capture button, the drop-down of paths, Presentation mode with Return / → / ←, the return-to-point rule and the point box; (6) save in the browser, export and import `.sp4ce.json`; (7) CHANGELOG, ADR-0017, tag `v0.3.0`.
+**Status:** built (all seven steps), checked in headless Chromium in the calendar, Fly and the galaxy; waiting for the owner to try it on the Mac before tagging `v0.3.0`.
 
-## Then (0.4.0): release to GitHub and a public beta
+## Next goal (0.4.0): release to GitHub and a public beta
 
 0.2.0 lives only on the owner's Mac (git, tagged `v0.2.0`, no remote yet). 0.4.0 puts it on GitHub and live on sp4cetime.org as a public beta. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
 
@@ -124,6 +124,8 @@ npm run dev        # http://localhost:5173
 **Whole galaxy** (◎ Galaxy). Past 1,000 AU from the Sun you warp out, past light speed, until the whole Milky Way (a labelled model made of stars, 3D, with a dust lane, the bar and the Fermi bubbles) lies in front of you. The Sun's path is highlighted from any angle, with its whole life (≈42 overlapping turns, bobbing through the disc and swinging in and out) and a light-year ruler. Sgr A* (the black hole) and the Local Group neighbours (Andromeda, Triangulum, the Magellanic Clouds, M32, M110) are labelled; click one to fly there.
 
 **Capture** (◉ Capture, bottom centre, straight to Downloads): **P** a screenshot (PNG at screen resolution), **G** a 5-second GIF (time plays while it records, then pauses), **V** a video (MP4 where the browser can, else WebM; until V again or a click on its running time). What is on screen is recorded, the boxes too if they are showing; the Capture button never is. Watermark "@sp4cetime.org" unless turned off. For screen savers: set a view and a speed, hide the boxes with the space bar, ▶ Play, then V.
+
+**Paths** (presentations). Go anywhere and press **Return**: name the path, and what is on screen becomes START. Travel (in time, in space, into another view, another look) and press Return for POINT 1, 2 …, with a caption if you like; tick "Stop making the path after this point" for END (or press Finish beside Capture). **◉ Capture · ▷ Present** lists your paths: Present flies from point to point, never cutting; **Return** or **→** next, **←** back, **Esc** stops. Look around at a point and the next press first flies you back to it. Each point's box shows its caption, view, moment, place and direction. Record a presentation with V. Paths stay in this browser; Export and Import move them as `.sp4ce.json` files.
 
 ## Layout
 

@@ -14,6 +14,8 @@ export interface Stage {
   readonly overlays: readonly HTMLElement[];
   /** Its round window on screen (client px), or null for the whole rectangle. */
   readonly clip: { readonly cx: number; readonly cy: number; readonly r: number } | null;
+  /** How opaque it is (a view cross-fading, a path's dissolve); 1 if not given. */
+  readonly alpha?: number;
 }
 
 /** What to capture: some windows, within a region of the screen (client px), and the page around them. */
@@ -31,6 +33,22 @@ export function stageIn(root: HTMLElement, in3D: boolean, clip: { cx: number; cy
   const overlays = in3D ? [...root.querySelectorAll<HTMLElement>('.fly-markers, .fly-labels')] : [];
   const b = root.getBoundingClientRect();
   return { canvas, overlays, clip: clip ? { cx: b.left + clip.cx, cy: b.top + clip.cy, r: clip.r } : null };
+}
+
+/**
+ * Both of a window's views as they show now: the calendar and the 3D view, each as opaque
+ * as it is on screen (they cross-fade when the view changes).
+ */
+export function viewStages(root: HTMLElement, clip: { cx: number; cy: number; r: number } | null): Stage[] {
+  const out: Stage[] = [];
+  for (const in3D of [false, true]) {
+    const st = stageIn(root, in3D, clip);
+    if (!st) continue;
+    const view = st.canvas.closest<HTMLElement>('.view');
+    const alpha = view ? Number(getComputedStyle(view).opacity) : 1;
+    if (alpha > 0.01) out.push({ ...st, alpha });
+  }
+  return out;
 }
 
 /** Device pixels per CSS pixel of the first view (so a capture is as sharp as the screen). */
@@ -116,7 +134,7 @@ function snapshotElement(el: HTMLElement, k: number): Promise<Snap | null> {
  * controls), each as its own picture, so nothing but the boxes can ever cover the view.
  */
 export async function snapshotPage(page: HTMLElement, k: number): Promise<Snap[]> {
-  const els = Array.from(page.querySelectorAll<HTMLElement>('.corner')).filter((el) => {
+  const els = Array.from(page.querySelectorAll<HTMLElement>('.corner, .pointbox')).filter((el) => {
     if (el.closest('[data-no-capture]')) return false;
     const cs = getComputedStyle(el);
     const b = el.getBoundingClientRect();
@@ -222,6 +240,7 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
       out.clip();
     }
     const src = drawsBlank(st.canvas) ? readBack(st.canvas) : st.canvas;
+    out.globalAlpha = st.alpha ?? 1;
     out.drawImage(src, (r.left - R.left) * sx, (r.top - R.top) * sy, r.width * sx, r.height * sy);
     for (const host of st.overlays) {
       if (!shown(getComputedStyle(host))) continue;
@@ -232,7 +251,7 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
         const b = el.getBoundingClientRect();
         if (b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom) continue;
         const x = (b.left - R.left) * sx, y = (b.top - R.top) * sy, bw = b.width * sx, bh = b.height * sy;
-        out.globalAlpha = Number(cs.opacity);
+        out.globalAlpha = Number(cs.opacity) * (st.alpha ?? 1);
         if (el.classList.contains('fly-marker')) {
           out.fillStyle = cs.backgroundColor;
           out.beginPath();

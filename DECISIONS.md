@@ -2,7 +2,7 @@
 
 The specifics: what was decided, why, and where it lives in the code. Each architectural decision has a full record in [docs/adr/](docs/adr/); this file is the index plus everything that is not architecture (product, interaction, the owner's stated preferences). History of how it got here is in [CHANGELOG.md](CHANGELOG.md) and `git log`. The original Grok-era decision log is kept in `docs/archive/grok/` for reference only; where it disagrees with this file, this file wins.
 
-Status: 0.2.0, 31 October 2026. Versions carry a leading zero until the public launch, which will be 1.0. Next: 0.3.0, paths through time and space.
+Status: 0.3.0, 1 November 2026 (paths built; tag after the owner tries them). Versions carry a leading zero until the public launch, which will be 1.0. Next: 0.4.0, GitHub and a public beta.
 
 ## 1. Product
 
@@ -34,6 +34,7 @@ Status: 0.2.0, 31 October 2026. Versions carry a leading zero until the public l
 | A8 | Data assets are built by scripts (`scripts/*.py`, Pillow + NumPy) from named sources, committed to `public/`, and fetched at runtime outside the JS budget. | Reproducible, licensed, cacheable. | [0009](docs/adr/0009-fly-mode.md), [0011](docs/adr/0011-calendar-sky.md) |
 | A9 | Dev server pre-bundles `three` (`optimizeDeps.include`); Fly mode has an error boundary. | A lazily discovered dependency stalled the dev server ("Loading the solar system…"). | CHANGELOG 0.0.10.1 |
 | A10 | The page (`App.tsx`) holds what is shared (the present and its speed, the theme, the space-bar state, Capture); one window (`Pane.tsx`) holds a view (calendar, Fly, galaxy) with its settings, camera and corner boxes, portalled into the page. | Made several round "dial" windows possible; those were built, tried and removed as clunky, but the split stayed (it is cleaner). | [0016](docs/adr/0016-capture-play-true-scale.md) |
+| A12 | Paths: a point is everything on screen (view, present, speed, both cameras, the look, caption), in one validated `.sp4ce.json` format, kept in IndexedDB. Flights are computed from what is on screen to the point: van Wijk–Nuij zoom-and-pan through time in the calendar, body-anchored journeys and warps in 3D, the two views meeting at the calendar's own view in 3D, big time jumps by way of the calendar, looks dissolving from a picture of the old look. | Presentations made from the map itself, never a cut; deep-time jumps stay readable; arrival is exact. | [0017](docs/adr/0017-paths.md) |
 | A11 | Capture in the browser, no dependency: views copied from their canvases (WebGL keeps its frame, `preserveDrawingBuffer`; a view that copies empty is read back pixel by pixel), the HTML boxes painted in one by one from styled copies drawn through SVG `foreignObject`, Fly's labels painted per frame; our own GIF encoder (median cut, LZW); video through `MediaRecorder` (MP4 where possible). | Records what is on screen, boxes included, without the capture button; no screen-share prompt. | [0016](docs/adr/0016-capture-play-true-scale.md) |
 
 ## 3. Science and geometry
@@ -115,4 +116,5 @@ These came directly from the owner's feedback and should be kept unless they say
 - Fly mode needs WebGL; without it, it says so and the calendar still works.
 - Zodiac signs use the J2000 equinox (≈0.4° off today's; more over millennia). Next: equinox of the viewed date for boxes and labels.
 - Phones: one full-screen view; no touch flying yet (ideas: floating thumb stick, gyroscope looking, tap to travel).
-- Not yet built: Library/stories, sharing links, Pro, accessibility list view, presentation mode, screenshot tests in CI, Sentry/Plausible, autopilot camera for screen savers.
+- Paths: the boxes' colours switch at once on a theme change (only the views dissolve); paths stay on the device until exported.
+- Not yet built: events and stories (the rest of the Library), sharing links, Pro, accessibility list view, auto-advance and presenter notes for paths, screenshot tests in CI, Sentry/Plausible, autopilot camera for screen savers.

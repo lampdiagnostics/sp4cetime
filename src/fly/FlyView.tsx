@@ -46,6 +46,19 @@ import type { Theme } from '../core/theme';
 import type { PlanetId } from '../core/planets';
 import { CALENDAR_AXES } from '../core/paths3d';
 import { SIGNS } from '../core/skyfigures';
+import { type FlyState, logLerp } from '../core/path';
+
+/**
+ * What a path needs from the 3D view: read where you are, put you somewhere exactly, and
+ * fly there (the promise says whether the flight finished or was interrupted).
+ */
+export interface FlyApi {
+  getState(): FlyState & { readonly look: Vec3; readonly inGalaxy: boolean };
+  setState(s: FlyState): void;
+  flyTo(s: FlyState): Promise<boolean>;
+  /** To the calendar's own view in 3D, turned as given (where the calendar and 3D meet). */
+  flyOverview(axes: readonly [Vec3, Vec3, Vec3]): Promise<boolean>;
+}
 
 /** What the shared controls ask of the 3D view. `seq` makes each request a new one. */
 export type FlyCommand = { readonly seq: number } & (
@@ -97,6 +110,8 @@ interface Props {
   /** Shift + scroll or pinch: zoom time, as in the calendar (the grids' units follow it). */
   onTimeZoom: (factor: number) => void;
   onHud: (h: FlyHud) => void;
+  /** The 3D view's API for paths, once it is ready (null when it goes). */
+  onApi?: (api: FlyApi | null) => void;
 }
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -181,10 +196,17 @@ interface Flight {
    * planets as it is slow at the end), following the body as it moves. You first turn to
    * face it, fly at it, and only at the end turn to the view on arrival.
    */
-  body?: { id: BodyId; fromRel: Vec3; up: Vec3 };
+  body?: { id: BodyId; fromRel: Vec3; up: Vec3; face?: boolean };
+  /** Start from this pose, recomputed every frame (time may run during the flight). */
+  fromPose?: Pose;
+  /** The view's width and the "up" for flying, on arrival (a path's point). */
+  fov?: { from: number; to: number };
+  upTo?: Vec3;
+  /** Told when the flight ends: true if it arrived, false if something interrupted it. */
+  done?: (arrived: boolean) => void;
 }
 
-export default function FlyView({ active, focused = true, theme, overlays, clock, scale, spanSeconds, measure, command, onTimeZoom, onHud }: Props) {
+export default function FlyView({ active, focused = true, theme, overlays, clock, scale, spanSeconds, measure, command, onTimeZoom, onHud, onApi }: Props) {
   const live = useRef({ active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud });
   live.current = { active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud };
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -195,6 +217,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
   const errorRef = useRef<HTMLParagraphElement>(null);
   const styleRef = useRef<(t: Theme) => void>(() => {});
   const runRef = useRef<(c: FlyCommand) => void>(() => {});
+  const onApiRef = useRef(onApi);
+  onApiRef.current = onApi;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -565,6 +589,87 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     document.addEventListener('pointerlockchange', onLockChange);
     document.addEventListener('mousemove', onMouseLook);
 
+    // Paths: read and set the camera exactly, and fly to a saved camera.
+    const toPose = (s: FlyState): Pose => ({ anchor: s.anchor, frame: s.frame, rel: s.rel, quat: new THREE.Quaternion(s.quat[0], s.quat[1], s.quat[2], s.quat[3]) });
+    let watched: Flight | null = null;
+    const watch = (f: Flight): Promise<boolean> =>
+      new Promise((resolve) => {
+        if (watched && watched !== f) watched.done?.(false);
+        f.done = resolve;
+        watched = f;
+        if (f.ms === 0) {
+          // No motion wanted: arrive on the next frame.
+          f.start = performance.now() - 1;
+        }
+      });
+    const api: FlyApi = {
+      getState() {
+        const w = here();
+        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(w.quat);
+        return {
+          anchor: pose.anchor,
+          frame: pose.frame,
+          rel: [pose.rel[0], pose.rel[1], pose.rel[2]],
+          quat: [pose.quat.x, pose.quat.y, pose.quat.z, pose.quat.w],
+          fov,
+          up: [upRef.x, upRef.y, upRef.z],
+          look: [fwd.x, fwd.y, fwd.z],
+          inGalaxy: galaxyFade(len3(w.pos)) > 0.5,
+        };
+      },
+      setState(st) {
+        if (watched) watched.done?.(false);
+        watched = null;
+        flight = null;
+        pose = toPose(st);
+        fov = st.fov;
+        upRef.set(st.up[0], st.up[1], st.up[2]).normalize();
+      },
+      flyTo(st) {
+        const to = toPose(st);
+        const { bodies } = bodiesAt(now0());
+        const sun = find(bodies, 'sun').pos;
+        const from = here();
+        const dest = worldOf(to, bodies).pos;
+        const fromKm = len3(sub3(from.pos, sun)), toKm = len3(sub3(dest, sun));
+        const base = {
+          fromPos: from.pos, fromQuat: from.quat, to, start: performance.now(), fromPose: pose,
+          fov: { from: fov, to: st.fov }, upTo: st.up,
+        };
+        let f: Flight;
+        if (isWarp(fromKm, toKm)) f = { ...base, ms: reduced() ? 0 : WARP_MS, warp: true };
+        else if (galaxyFade(len3(from.pos)) > 0.5 && galaxyFade(len3(dest)) > 0.5) {
+          // Out among the galaxies: close in by equal factors of distance on where you are going.
+          f = { ...base, ms: reduced() ? 0 : 4000, warp: false, toward: dest };
+        } else {
+          // A journey: distance from where you are going falls by equal factors, following
+          // it as it moves; to another body you first turn to face it.
+          const c = find(bodies, to.anchor).pos;
+          const fromRel = sub3(from.pos, c);
+          const ratio = Math.max(len3(fromRel), 1) / Math.max(1, len3(sub3(dest, c)));
+          const span = Math.abs(Math.log10(ratio));
+          const ms = Math.min(7000, Math.max(1800, 1500 + 900 * span));
+          const up = new THREE.Vector3(0, 1, 0).applyQuaternion(from.quat);
+          f = { ...base, ms: reduced() ? 0 : ms, warp: false, body: { id: to.anchor, fromRel, up: [up.x, up.y, up.z], face: to.anchor !== pose.anchor && to.anchor !== 'sun' } };
+        }
+        flight = f;
+        return watch(f);
+      },
+      flyOverview(ax) {
+        axes = ax;
+        const { bodies } = bodiesAt(now0());
+        const v = overviewView(find(bodies, 'sun').pos, ax);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(v.quat);
+        const st: FlyState = {
+          anchor: 'sun', frame: 'inertial',
+          rel: [v.pos[0] - find(bodies, 'sun').pos[0], v.pos[1] - find(bodies, 'sun').pos[1], v.pos[2] - find(bodies, 'sun').pos[2]],
+          quat: [v.quat.x, v.quat.y, v.quat.z, v.quat.w], fov: FOV, up: [up.x, up.y, up.z],
+        };
+        return api.flyTo(st);
+      },
+    };
+    onApiRef.current?.(api);
+
     let raf = 0;
     let last = performance.now();
     let hudAt = 0;
@@ -580,6 +685,10 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         if (locked) document.exitPointerLock();
         return;
       }
+      if (watched && watched !== flight) {
+        watched.done?.(false);
+        watched = null;
+      }
       const now = L.clock();
       const { trueBodies, bodies } = bodiesAt(now);
       const sunPos = find(bodies, 'sun').pos;
@@ -591,6 +700,13 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const k = fl.ms === 0 ? 1 : Math.min(1, (ts - fl.start) / fl.ms);
         const e = ease(k);
         const to = worldOf(fl.to, bodies);
+        if (fl.fromPose) {
+          // Bodies move while time runs during the flight: start from where the start is now.
+          const w0 = worldOf(fl.fromPose, bodies);
+          fl.fromPos = w0.pos;
+          fl.fromQuat = w0.quat;
+        }
+        if (fl.fov) fov = logLerp(fl.fov.from, fl.fov.to, e);
         const jb = fl.body;
         const c = jb ? find(bodies, jb.id).pos : null;
         pos = fl.warp
@@ -600,7 +716,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           : fl.toward
             ? warpPoint(fl.toward, fl.fromPos, to.pos, e)
           : ([0, 1, 2].map((i) => fl.fromPos[i]! + (to.pos[i]! - fl.fromPos[i]!) * e) as unknown as Vec3);
-        if (c && jb) {
+        if (c && jb && jb.face !== false) {
           // Turn to face it, fly at it, and turn to the arrival view only at the end.
           const face = lookAt(pos, c, jb.up);
           const sm = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -611,7 +727,11 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           pose = fl.to;
           flight = null;
           // Where you arrive sets which way is up for flying.
-          upRef.set(0, 1, 0).applyQuaternion(worldOf(fl.to, bodies).quat);
+          if (fl.upTo) upRef.set(fl.upTo[0], fl.upTo[1], fl.upTo[2]).normalize();
+          else upRef.set(0, 1, 0).applyQuaternion(worldOf(fl.to, bodies).quat);
+          if (fl.fov) fov = fl.fov.to;
+          if (watched === fl) watched = null;
+          fl.done?.(true);
         }
       } else {
         const w = worldOf(pose, bodies);
@@ -979,6 +1099,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     raf = requestAnimationFrame(tick);
 
     return () => {
+      onApiRef.current?.(null);
+      watched?.done?.(false);
       cancelAnimationFrame(raf);
       observer.disconnect();
       canvas.removeEventListener('pointerdown', onDown);

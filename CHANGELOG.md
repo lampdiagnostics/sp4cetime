@@ -2,6 +2,21 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.3.0 — 2026-11-01
+
+Paths through time and space: presentations made from the map itself, Prezi-style. Go anywhere, press Return, and fly from point to point.
+
+- **Make a path with Return.** Go to any place in the map (any moment, any view: the calendar, Fly or the whole galaxy) and press Return. A dialog asks you to name the path; what is on screen becomes START. Travel anywhere (another time, another place, another view, another look) and press Return again: the dialog adds the view as POINT 1, then POINT 2 and so on, each with an optional caption. Tick "Stop making the path after this point" and it becomes END (or press Finish beside Capture). Esc cancels; "Discard path" throws the path away (it asks twice).
+- **A point is exactly what is on screen**: the view, the moment, how time is running (speed, direction, playing or paused), the calendar's turn, size and zoom, the 3D camera (where you are, which way you look, how wide the view is), the theme, round or full window, which planets and elements are drawn, and whether the boxes and names are showing.
+- **Present** (◉ Capture · ▷ Present, bottom centre): choose a saved path and Present. The view *flies* from point to point and never cuts. **Return** or **→** goes on, **←** goes back, **Esc** stops. A press during a flight heads straight on. After you look around at a point (drag, scroll, fly, change something), the next press first flies you back to the point; the press after that goes on.
+- **Flights through time** zoom out until both moments fit, glide, and zoom back in (the smooth zoom-and-pan of van Wijk and Nuij), so a jump of billions of years is as easy to follow as a jump of an hour, and the view arrives exactly.
+- **Flights through space** in Fly mode and the galaxy journey to the point's camera: turning to face a new body and closing in by equal factors of distance, warping past light speed when the scale changes enormously, gliding among the galaxies.
+- **Between the calendar and 3D**, the flight goes to where the two already match (the calendar's own view in 3D, turned the same way) and cross-fades there. A big jump in time in 3D goes by way of the calendar, so deep time is seen passing instead of the planets spinning into a blur.
+- **Changes of look dissolve**: a new theme, the round or full window, elements and boxes appearing or going fade over from a picture of the old look as the flight begins.
+- **Each point's box** (top centre) names the point (START, POINT 2, END), says where it is in the path, shows its caption large, and describes its view, moment, position and the direction it faces (in arcs). It is in captures, so recording a presentation (V) records the captions and every transition, cross-fades included.
+- **Saved in this browser**, after every point, so nothing is lost. **Export** downloads a path as a `.sp4ce.json` file and **Import** reads one back (it says plainly what is wrong with a file that is not a path). The same format will carry the Library's stories later.
+- ? How to explains paths. Version numbers in the docs now all use the 0.x names (the old `v1.0` tag is gone; `v0.1.0` marks the same release).
+
 ## 0.2.0 — 2026-10-31
 
 Three views with one set of controls, three looks everywhere, a galaxy made of stars with its black hole and neighbours, true scale only, and capture.

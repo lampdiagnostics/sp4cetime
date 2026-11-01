@@ -5,6 +5,7 @@ import { drawFrame, type LabelBox, type LabelId, layout, type SkyBackdrop, type 
 import { loadBackdrop } from './skyBackdrop';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
+import type { CalendarView } from '../core/path';
 import { clampTime, diffSeconds, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
 
 export interface CanvasHandle {
@@ -24,6 +25,12 @@ export interface CanvasHandle {
   resetSpaceZoom(): void;
   /** The calendar's current turn (roll about the line of travel, yaw), for Fly mode to match. */
   rotation(): { roll: number; yaw: number };
+  /** Everything about the calendar's camera, for a path's point. */
+  getView(): CalendarView;
+  /** Put the camera exactly here (a path's flight sets it every frame). */
+  setView(v: Partial<CalendarView>): void;
+  /** Width the time zoom is measured across (the round window's, or the screen's), px. */
+  viewWidth(): number;
 }
 
 
@@ -209,6 +216,33 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     },
     rotation() {
       return { roll: rollRef.current, yaw: yawRef.current };
+    },
+    getView() {
+      return {
+        offset: offsetRef.current,
+        secondsPerPixel: camRef.current.secondsPerPixel,
+        roll: rollRef.current,
+        yaw: yawRef.current,
+        spaceZoom: spaceZoomRef.current,
+        panY: panYRef.current,
+      };
+    },
+    setView(v) {
+      flightRef.current = null;
+      if (v.roll !== undefined) rollRef.current = v.roll;
+      if (v.yaw !== undefined) yawRef.current = Math.max(-MAX_YAW, Math.min(MAX_YAW, v.yaw));
+      if (v.panY !== undefined) panYRef.current = v.panY;
+      if (v.spaceZoom !== undefined) setSpaceZoom(v.spaceZoom);
+      if (v.secondsPerPixel !== undefined) setCam({ ...camRef.current, secondsPerPixel: clampZoom(v.secondsPerPixel) });
+      if (v.offset !== undefined) {
+        const wasLive = isZeroInterval(offsetRef.current);
+        offsetRef.current = v.offset;
+        const live = isZeroInterval(v.offset);
+        if (live !== wasLive) onLiveRef.current(live);
+      }
+    },
+    viewWidth() {
+      return Math.max(1, viewWidth(camRef.current, viewRef.current.round));
     },
   }));
 
