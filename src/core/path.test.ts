@@ -77,10 +77,31 @@ describe('.sp4ce.json', () => {
     expect(JSON.stringify(f).length).toBeLessThan(1000);
   });
 
-  it('still reads the first (0.3.0) layout', () => {
+  it('still reads the first (0.3.0) layout, as a new path', () => {
     const p = path([point()]);
     const old = { format: 'sp4ce', version: 1, kind: 'path', path: p };
-    expect(parseSp4ceFile(JSON.parse(JSON.stringify(old)))).toEqual(p);
+    const back = parseSp4ceFile(JSON.parse(JSON.stringify(old)));
+    expect({ ...back, id: p.id }).toEqual(p);
+    expect(back.id).not.toBe(p.id);
+  });
+
+  it('keeps uploaded numbers to what the app can show, and drops control characters', () => {
+    const f = JSON.parse(JSON.stringify(toSp4ceFile(path([point({ view: 'fly', fly: { anchor: 'earth', frame: 'inertial', rel: [7000, 0, 0], quat: [0, 0, 0, 1], fov: 60, up: [0, 0, 1] } })]))));
+    f.points[0].rate = 1e300;
+    f.points[0].cal.size = 1e9;
+    f.points[0].caption = 'Hi\u0001 there';
+    f.name = 'Tour\u0007';
+    const back = parseSp4ceFile(f);
+    expect(Math.abs(back.points[0]!.speed)).toBeLessThanOrEqual(3_155_760_000);
+    expect(back.points[0]!.calendar.spaceZoom).toBe(500);
+    expect(back.points[0]!.caption).toBe('Hi there');
+    const zeroUp = JSON.parse(JSON.stringify(f));
+    zeroUp.points[0].cam.up = [0, 0, 0];
+    expect(() => parseSp4ceFile(zeroUp)).toThrow(/up/);
+    const far = JSON.parse(JSON.stringify(f));
+    far.points[0].t = [1e15, 0];
+    expect(() => parseSp4ceFile(far)).toThrow(/day/);
+    expect(parsePath({ ...path([point()]), id: 'example:x' }).id).not.toMatch(/^example:/);
   });
 
   it('keeps deep times exact', () => {

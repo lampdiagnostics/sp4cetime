@@ -1,0 +1,30 @@
+sp4cetime · Galactic Calendar
+Copyright 2026 Lamp Diagnostics
+
+This product includes software developed for sp4cetime (https://sp4cetime.org),
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Attribution. If you build on this code, please keep this NOTICE file with it and,
+where your work shows its own credits or "about" information, include the line:
+
+    Based on sp4cetime (https://sp4cetime.org) by Lamp Diagnostics.
+
+The name "sp4cetime" and its logo are trademarks of Lamp Diagnostics and are not
+licensed under the Apache License (see TRADEMARK.md). The documentation is licensed
+under CC BY 4.0 (see LICENSE-docs.md).
+
+Third-party software and data included or used, under their own licences:
+
+- astronomy-engine by Don Cross (MIT): planets, Moon and rotation in the ephemeris tier.
+- three.js (MIT), React (MIT).
+- Star catalogue, constellation figures and Milky Way outline: d3-celestial by Olaf
+  Frohn (BSD-3-Clause; public/sky/LICENSE-d3-celestial.txt), from Hipparcos and the
+  IAU figures.
+- Milky Way and Moon maps: Solar System Scope (CC BY 4.0), based on NASA imagery.
+- Earth map: NASA Visible Earth, Blue Marble (public domain).
+  Details: public/textures/CREDITS.md.
+
+Inspirations (credited in the app, under ? How to): the galactic-motion visualization
+by @Geosophyy; Techartist's dancer worldline (@techartist_); NASA's Fermi Gamma-ray
+Space Telescope (the Fermi bubbles); Google Earth's zoom into Street View; Minecraft's
+creative-mode flying.

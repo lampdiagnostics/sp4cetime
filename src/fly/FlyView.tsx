@@ -689,6 +689,14 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         keys.clear();
         lastPos = null;
         if (locked) document.exitPointerLock();
+        // Left 3D mid-flight: the flight cannot finish here; tell whoever is waiting on it.
+        if (flight) {
+          if (watched === flight) {
+            watched.done?.(false);
+            watched = null;
+          }
+          flight = null;
+        }
         return;
       }
       if (watched && watched !== flight) {

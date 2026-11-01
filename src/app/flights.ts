@@ -95,10 +95,11 @@ async function calendarLeg(cal: CanvasHandle, d: FlightDeps, toP: Time, to: Cale
 }
 
 /** Into 3D at the calendar's view (they match there), cross-fading. */
-async function into3D(pane: PaneHandle): Promise<boolean> {
+async function into3D(pane: PaneHandle, sig: FlightSignal): Promise<boolean> {
+  if (sig.cancelled) return false;
   const ok = await pane.setView3D(true);
   await sleep(CROSSFADE_MS * 0.6);
-  return ok;
+  return ok && !sig.cancelled;
 }
 
 /** Out of 3D to the calendar: fly to the calendar's view in 3D, turned as `cal` will be, then cross-fade. */
@@ -115,6 +116,8 @@ async function outOf3D(pane: PaneHandle, cal: CanvasHandle, turnTo: CalendarView
 
 /** A 3D journey to the point's camera; time (a short jump) runs along with it. */
 async function flyLeg(pane: PaneHandle, d: FlightDeps, to: PathPoint, sig: FlightSignal): Promise<boolean> {
+  // A flight cancelled while waiting (a newer press) must not take the camera.
+  if (sig.cancelled) return false;
   const fly = pane.fly();
   if (!fly || !to.fly) return true;
   const p0 = d.clock();
@@ -152,7 +155,7 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
   let ok = true;
   if (!from3D && !to3D) ok = await calendarLeg(cal, d, to.present, to.calendar, sig);
   else if (!from3D && to3D) {
-    ok = (await calendarLeg(cal, d, to.present, to.calendar, sig)) && (await into3D(pane)) && (await flyLeg(pane, d, to, sig));
+    ok = (await calendarLeg(cal, d, to.present, to.calendar, sig)) && (await into3D(pane, sig)) && (await flyLeg(pane, d, to, sig));
   } else if (from3D && !to3D) {
     ok = (await outOf3D(pane, cal, to.calendar, sig)) && (await calendarLeg(cal, d, to.present, to.calendar, sig));
   } else {
@@ -161,7 +164,7 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
       ok =
         (await outOf3D(pane, cal, to.calendar, sig)) &&
         (await calendarLeg(cal, d, to.present, to.calendar, sig)) &&
-        (await into3D(pane)) &&
+        (await into3D(pane, sig)) &&
         (await flyLeg(pane, d, to, sig));
     } else ok = await flyLeg(pane, d, to, sig);
   }

@@ -18,6 +18,22 @@ const typingNow = (): boolean => {
   const a = document.activeElement;
   return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a as HTMLElement).isContentEditable);
 };
+/**
+ * A button or link chosen with the keyboard (Tab), or anything in a dialog or menu: there
+ * Return and Space press it, as everywhere on the web. (A button last clicked with the
+ * mouse keeps focus, but Return and Space still go to the app: a new path point, the boxes.)
+ */
+const keyboardOnControl = (): boolean => {
+  const a = document.activeElement as HTMLElement | null;
+  if (!a || a === document.body) return false;
+  if (a.closest('[role="dialog"], .popover')) return true;
+  if (!(a.tagName === 'BUTTON' || a.tagName === 'A' || a.getAttribute('role') === 'button')) return false;
+  try {
+    return a.matches(':focus-visible');
+  } catch {
+    return false;
+  }
+};
 const releaseMenu = (): void => {
   const a = document.activeElement;
   if (a instanceof HTMLSelectElement) a.blur();
@@ -54,7 +70,7 @@ export function App() {
     };
     // Captured before buttons see it, so a focused button is not pressed by the space bar.
     const down = (e: globalThis.KeyboardEvent): void => {
-      if (e.key !== ' ' || typing() || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== ' ' || typing() || keyboardOnControl() || e.metaKey || e.ctrlKey || e.altKey) return;
       // While steering with the mouse in 3D (as in Minecraft), Space flies up instead.
       if (document.pointerLockElement) return;
       e.preventDefault();
@@ -279,39 +295,58 @@ export function App() {
     setShowing({ path, index, flying: true, wandered: false });
     void flyToPoint(pt, depsRef.current, sig).then((arrived) => {
       if (sig.cancelled) return;
+      // Interrupted (a drag in 3D, say): time was held for the flight; say so in the controls.
+      if (!arrived) setPaused(true);
       setShowing((s) => (s && s.path.id === path.id ? { ...s, index, flying: false, wandered: !arrived } : s));
     });
   }, []);
   const stopPresenting = useCallback((): void => {
     signal.current.cancelled = true;
+    // Stopped mid-flight: time is held where the flight left it; the controls show it paused.
+    if (showRef.current?.flying) setPaused(true);
     setShowing(null);
   }, []);
+  /** Next (+1) or back (−1), from the keys or the ◀ ▶ buttons (phones). */
+  const stepPath = useCallback(
+    (dir: 1 | -1): void => {
+      const sh = showRef.current;
+      if (!sh) return;
+      // After looking around, a press only flies back to the point; the next goes on.
+      // (During a flight, a press heads on from wherever the flight has got to.)
+      if (sh.wandered && !sh.flying) return goToPoint(sh.path, sh.index);
+      const next = sh.index + dir;
+      if (next >= 0 && next < sh.path.points.length) goToPoint(sh.path, next);
+    },
+    [goToPoint],
+  );
   const startPresenting = (id: string): void => {
     const path = findPath(id);
     if (path) goToPoint(path, 0);
   };
 
   // Keys: Return (make a path's point, or in Presentation mode go on), → and ← (present), Esc (stop).
+  /** Return, or the + Point button: what is on screen now becomes the next point. */
+  const openPathDialog = (): void => {
+    const point = keyRef.current.pointNow();
+    if (point) setDialog({ starting: !keyRef.current.making, point });
+  };
   const dialogRef = useRef(dialog);
   dialogRef.current = dialog;
   const keyRef = useRef({ pointNow, making });
   keyRef.current = { pointNow, making };
   useEffect(() => {
-    const IGNORE = ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock', 'p', 'P', 'g', 'G', 'v', 'V'];
+    // Keys that don't count as wandering off a point (Space only shows or hides the boxes).
+    const IGNORE = ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock', 'Tab', ' ', 'p', 'P', 'g', 'G', 'v', 'V'];
     const onKey = (e: globalThis.KeyboardEvent): void => {
       if (dialogRef.current || typingNow() || e.metaKey || e.ctrlKey || e.altKey) return;
       const sh = showRef.current;
       if (sh) {
+        if (e.key === 'Enter' && keyboardOnControl()) return;
         if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
           e.preventDefault();
           e.stopPropagation();
           releaseMenu();
-          if (e.repeat) return;
-          // After looking around, a press only flies back to the point; the next goes on.
-          // (During a flight, a press heads on from wherever the flight has got to.)
-          if (sh.wandered && !sh.flying) return goToPoint(sh.path, sh.index);
-          const next = sh.index + (e.key === 'ArrowLeft' ? -1 : 1);
-          if (next >= 0 && next < sh.path.points.length) goToPoint(sh.path, next);
+          if (!e.repeat) stepPath(e.key === 'ArrowLeft' ? -1 : 1);
           return;
         }
         if (e.key === 'Escape') {
@@ -321,19 +356,26 @@ export function App() {
         if (!IGNORE.includes(e.key) && !sh.flying) setShowing((s) => (s ? { ...s, wandered: true } : s));
         return;
       }
-      if (e.key === 'Enter' && !e.repeat) {
+      if (e.key === 'Enter' && !e.repeat && !keyboardOnControl()) {
         e.preventDefault();
         e.stopPropagation();
         releaseMenu();
-        const point = keyRef.current.pointNow();
-        if (point) setDialog({ starting: !keyRef.current.making, point });
+        openPathDialog();
       }
     };
     // Looking around at a point (a drag, a scroll, a click on the boxes) is wandering off it.
     const onPointer = (e: Event): void => {
       const sh = showRef.current;
       const t = e.target as Element | null;
-      if (!sh || sh.flying || !t || t.closest?.('[data-no-capture], .pointbox')) return;
+      if (!sh || !t || t.closest?.('[data-no-capture], .pointbox')) return;
+      if (sh.flying) {
+        // Taking the controls during a flight stops it where it is (as a drag in 3D does);
+        // the next Return or arrow flies back to the point.
+        signal.current.cancelled = true;
+        setPaused(true);
+        setShowing((s) => (s ? { ...s, flying: false, wandered: true } : s));
+        return;
+      }
       setShowing((s) => (s ? { ...s, wandered: true } : s));
     };
     window.addEventListener('keydown', onKey, true);
@@ -344,7 +386,7 @@ export function App() {
       window.removeEventListener('pointerdown', onPointer, true);
       window.removeEventListener('wheel', onPointer, true);
     };
-  }, [goToPoint, stopPresenting]);
+  }, [goToPoint, stopPresenting, stepPath]);
 
   const present: PresentControls = {
     paths,
@@ -474,6 +516,12 @@ export function App() {
                       ? ' · Return or → next'
                       : ' · Return or → next · ← back'}
             </span>
+            <button type="button" onClick={() => stepPath(-1)} aria-label="Back (←)" title="Back (←)" disabled={showing.index === 0 && !showing.wandered}>
+              ◀
+            </button>
+            <button type="button" onClick={() => stepPath(1)} aria-label="Next (Return or →)" title="Next (Return or →)" disabled={showing.index === showing.path.points.length - 1 && !showing.wandered}>
+              ▶
+            </button>
             <button type="button" onClick={stopPresenting} title="Stop presenting (Esc)">
               ■ Stop
             </button>
@@ -483,6 +531,9 @@ export function App() {
           <div className="path-status making" role="status">
             ● Making “{making.name}” · {making.points.length} point{making.points.length === 1 ? '' : 's'}
             <span className="note"> · Return adds the next</span>
+            <button type="button" onClick={openPathDialog} title="Add what is on screen as the next point (Return)">
+              + Point
+            </button>
             <button type="button" onClick={finishMaking} title="The last point becomes END">
               Finish
             </button>

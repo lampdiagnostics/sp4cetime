@@ -39,6 +39,8 @@ async function run<T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBReq
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
       tx.oncomplete = () => db.close();
+      tx.onabort = () => db.close();
+      tx.onerror = () => resolve(null);
     } catch {
       resolve(null);
     }
@@ -105,7 +107,9 @@ export async function importPath(file: File): Promise<Path> {
 /** The app's own example paths: `public/paths/index.json` lists the files. */
 export async function loadExamples(base: string): Promise<Path[]> {
   try {
-    const list = (await (await fetch(`${base}paths/index.json`)).json()) as unknown;
+    const res = await fetch(`${base}paths/index.json`);
+    if (!res.ok) return [];
+    const list = (await res.json()) as unknown;
     if (!Array.isArray(list)) return [];
     const out: Path[] = [];
     for (const name of list) {

@@ -11,6 +11,13 @@ import { BODIES, type BodyId } from './bodies';
 import type { Vec3 } from './geometry';
 import { PLANET_IDS, type PlanetId } from './planets';
 import { addSeconds, diffSeconds, makeTime, type Time } from './time';
+import { MAX_SECONDS_PER_PIXEL, MIN_SECONDS_PER_PIXEL } from './constants';
+
+/** Limits a file's numbers must keep to (anything beyond them is not a view the app can show). */
+const MAX_RATE = 3_155_760_000; // a century each second, the fastest speed offered
+const MAX_DAYS = 2e12; // far beyond the Sun's life (±5 Gyr ≈ ±1.8e12 days)
+const MAX_KM = 1e20; // beyond the Local Group
+const clampNum = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 
 export type PointView = 'calendar' | 'fly' | 'galaxy';
 
@@ -160,7 +167,8 @@ function bool(o: Obj, k: string, where: string): boolean {
 function str(o: Obj, k: string, where: string, max = 2000): string {
   const x = o[k];
   if (typeof x !== 'string' || x.length > max) fail(where, `${k} must be text (at most ${max} characters)`);
-  return x;
+  // Control characters and lone surrogates are dropped: they cannot be shown, and they would break a capture's picture of the boxes.
+  return x.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
 }
 function oneOf<T extends string | number>(o: Obj, k: string, where: string, options: readonly T[]): T {
   const x = o[k];
@@ -178,7 +186,7 @@ function vec(x: unknown, n: number, where: string, k: string): number[] {
 }
 function time(x: unknown, where: string, k: string): Time {
   if (!isObj(x)) fail(where, `${k} must be a time { day, sec }`);
-  const day = num(x, 'day', `${where} ${k}`, Number.isInteger);
+  const day = num(x, 'day', `${where} ${k}`, (d) => Number.isInteger(d) && Math.abs(d) <= MAX_DAYS);
   const sec = num(x, 'sec', `${where} ${k}`);
   return makeTime(day, sec);
 }
@@ -187,11 +195,11 @@ const BODY_IDS = BODIES.map((b) => b.id);
 function parseCalendar(o: Obj, where: string): CalendarView {
   return {
     offset: time(o.offset, where, 'offset'),
-    secondsPerPixel: num(o, 'secondsPerPixel', where, (x) => x > 0),
+    secondsPerPixel: clampNum(num(o, 'secondsPerPixel', where, (x) => x > 0), MIN_SECONDS_PER_PIXEL, MAX_SECONDS_PER_PIXEL),
     roll: num(o, 'roll', where),
     yaw: num(o, 'yaw', where),
-    spaceZoom: num(o, 'spaceZoom', where, (x) => x > 0),
-    panY: num(o, 'panY', where),
+    spaceZoom: clampNum(num(o, 'spaceZoom', where, (x) => x > 0), 0.1, 500),
+    panY: clampNum(num(o, 'panY', where), -5000, 5000),
   };
 }
 
@@ -202,10 +210,19 @@ function parseFly(o: Obj, where: string): FlyState {
   return {
     anchor: oneOf(o, 'anchor', where, BODY_IDS),
     frame: oneOf(o, 'frame', where, ['inertial', 'body'] as const),
-    rel: vec(o.rel, 3, where, 'rel') as unknown as Vec3,
+    rel: (() => {
+      const r = vec(o.rel, 3, where, 'rel');
+      if (Math.hypot(r[0]!, r[1]!, r[2]!) > MAX_KM) fail(where, 'rel is too far away');
+      return r as unknown as Vec3;
+    })(),
     quat: q.map((v) => v / ql) as unknown as FlyState['quat'],
     fov: num(o, 'fov', where, (x) => x > 0 && x < 180),
-    up: vec(o.up, 3, where, 'up') as unknown as Vec3,
+    up: (() => {
+      const u = vec(o.up, 3, where, 'up');
+      const l = Math.hypot(u[0]!, u[1]!, u[2]!);
+      if (l < 1e-6) fail(where, 'up must not be zero');
+      return u.map((v) => v / l) as unknown as Vec3;
+    })(),
   };
 }
 
@@ -238,7 +255,7 @@ export function parsePoint(x: unknown, where = 'point'): PathPoint {
   return {
     view: oneOf(x, 'view', where, ['calendar', 'fly', 'galaxy'] as const),
     present: time(x.present, where, 'present'),
-    speed: num(x, 'speed', where),
+    speed: clampNum(num(x, 'speed', where), -MAX_RATE, MAX_RATE),
     playing: bool(x, 'playing', where),
     calendar: parseCalendar(obj(x, 'calendar', where), `${where} calendar`),
     fly: x.fly === null || x.fly === undefined ? null : parseFly(obj(x, 'fly', where), `${where} 3D camera`),
@@ -256,7 +273,11 @@ export function parsePath(x: unknown): Path {
   if (points.length > 500) fail('path', 'too many points (at most 500)');
   const name = str(x, 'name', 'path', 120).trim();
   return {
-    id: str(x, 'id', 'path', 80) || newPathId(),
+    id: (() => {
+      const id = str(x, 'id', 'path', 80);
+      // Example paths are the app's own (read-only); a saved path can never claim to be one.
+      return id && !id.startsWith('example:') ? id : newPathId();
+    })(),
     name: name || 'Untitled path',
     created: typeof x.created === 'string' ? str(x, 'created', 'path', 40) : '',
     points: points.map((p, i) => parsePoint(p, i === 0 ? 'START' : `POINT ${i}`)),
@@ -332,7 +353,8 @@ export function parseSp4ceFile(x: unknown): Path {
   if (!isObj(x)) throw new PathError('This is not a sp4cetime file.');
   if (x.format === 'sp4ce' && x.version === 1) {
     if (x.kind !== 'path') throw new PathError('This sp4cetime file does not hold a path.');
-    return parsePath(x.path);
+    // An uploaded path is always a new one: it never replaces a path already saved here.
+    return { ...parsePath(x.path), id: newPathId() };
   }
   if (x.sp4ce === undefined) throw new PathError('This is not a sp4cetime file.');
   if (x.sp4ce !== 'path') throw new PathError('This sp4cetime file does not hold a path.');
@@ -340,7 +362,7 @@ export function parseSp4ceFile(x: unknown): Path {
   const pts = x.points;
   if (!Array.isArray(pts) || pts.length === 0) fail('path', 'it has no points');
   if (pts.length > 500) fail('path', 'too many points (at most 500)');
-  const name = typeof x.name === 'string' ? x.name.trim().slice(0, 120) : '';
+  const name = typeof x.name === 'string' ? str(x, 'name', 'path', 100_000).trim().slice(0, 120) : '';
   return {
     id: newPathId(),
     name: name || 'Untitled path',

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { createGovernor } from './quality';
+import { createGovernor, holdQuality } from './quality';
 
 const feed = (g: ReturnType<typeof createGovernor>, ms: number, n: number): number[] => {
   const changes: number[] = [];
@@ -24,6 +24,14 @@ describe('resolution governor', () => {
     expect(c.length).toBeGreaterThan(0);
     expect(g.scale).toBe(0.75);
     for (let i = 1; i < c.length; i++) expect(c[i]!).toBeLessThan(c[i - 1]!);
+  });
+
+  it('holds still while a capture is being made', () => {
+    const g = createGovernor({ max: 2 });
+    holdQuality(true);
+    expect(feed(g, 40, 2000)).toEqual([]);
+    holdQuality(false);
+    expect(feed(g, 40, 2000).length).toBeGreaterThan(0);
   });
 
   it('leaves a browser that caps the rate at 30 frames a second alone', () => {

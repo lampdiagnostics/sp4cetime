@@ -36,49 +36,24 @@ A **path** is a presentation, Prezi-style: a sequence of chosen views of the map
 
 **Code.** `src/core/path.ts` (schema, `.sp4ce.json` validation, the time-flight curve, with property tests across ±5 Gyr), `src/app/flights.ts` (flying between points), `src/app/pathStore.ts` (IndexedDB, export, import), `PathDialog.tsx`, and the wiring in `App.tsx`, `Pane.tsx`, `GalacticCanvas.tsx` and `FlyView.tsx`. The design and its reasons: [ADR-0017](docs/adr/0017-paths.md).
 
-**Status:** built (all seven steps), checked in headless Chromium in the calendar, Fly and the galaxy; waiting for the owner to try it on the Mac before tagging `v0.3.0`.
+**Status:** built and released in 0.3.0 (tag `v0.3.0`), checked in headless Chromium in the calendar, Fly and the galaxy.
 
-## Next goal: the public beta, with 0.3.0
+## Going live (0.3.0)
 
-0.3.0 (paths, smooth recording, the beta basics) lives on the owner's Mac (git, no remote yet). Going live means putting it on GitHub and on sp4cetime.org. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
+0.3.0 is the public beta. The code is open source (see **Licence** below), on GitHub, and served by Cloudflare at sp4cetime.org. The owner approves anything that publishes, changes an account or touches DNS, and types every password and token; an AI assistant can do the rest through the Claude app's built-in browser and Claude's GitHub connection.
 
-### Part 1: release to GitHub
-
-1. **Sign in.** The owner signs in to GitHub and Cloudflare in the Claude app's built-in browser.
-2. **Create the repository.** On github.com: New repository, name `sp4cetime`, **Private** (the business plan is in `docs/PLAN.md` and `DECISIONS.md`; there is no licence yet). Don't add a README, .gitignore or licence; the folder has them.
-3. **Push the code and the tags.** Either:
-   - **Connect GitHub to Claude** (claude.ai → Settings → Connectors → GitHub, with access to `sp4cetime`), then the assistant pushes, now and for every later version; or
-   - **Once, in Terminal on the Mac:**
-     ```sh
-     brew install gh            # if needed
-     gh auth login              # GitHub.com, HTTPS, log in with the browser
-     cd ~/sp4cetime
-     git remote add origin https://github.com/YOUR-USERNAME/sp4cetime.git
-     git push -u origin main --follow-tags
-     ```
-     (Or in one step: `gh repo create sp4cetime --private --source=. --push && git push --tags`.)
-4. **Check CI.** On GitHub → Actions, the workflow in `.github/workflows/ci.yml` (typecheck, tests, build, bundle budgets) should pass on `main`.
+1. **GitHub.** The repository `sp4cetime` exists on the owner's account (empty). Connect GitHub to Claude (claude.ai → Settings → Connectors → GitHub, with access to `sp4cetime`) so the assistant can push now and for every later version. The full history and tags (`v0.1.0`, `v0.2.0`, `v0.3.0`) go up from the Mac's repository. Set the repository **public** (the code is Apache 2.0). Check GitHub → Actions: the CI workflow (typecheck, tests, build, bundle budgets) passes on `main`.
+   - Without the connector, once in Terminal on the Mac: `cd ~/sp4cetime && git remote add origin https://github.com/USERNAME/sp4cetime.git && git push -u origin main --follow-tags` (sign in when asked, or use `gh auth login` first).
+2. **Cloudflare.** Workers & Pages → Create → Import a repository → GitHub (the owner approves Cloudflare's GitHub app for `sp4cetime`). Build command `npm run build`, output directory `dist`, Node 22 (environment variable `NODE_VERSION=22`). Every push to `main` then deploys; pull requests get preview links. (`wrangler.jsonc` describes the same static site for `npx wrangler deploy`.)
+3. **Domain.** In the project: Custom domains → add `sp4cetime.org` (and `www.sp4cetime.org`, redirected to it). The domain is already on Cloudflare, so DNS is set automatically; HTTPS follows within minutes.
+4. **Email.** Email Routing → create `hello@sp4cetime.org`, forwarding to the owner's inbox (Cloudflare sends a confirmation email to that inbox).
+5. **Check the live site** (link preview, About, feedback link) and then on a laptop, a phone and a tablet (docs/ROADMAP.md, 0.4.0 "after the launch").
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
-### Part 2: public beta on sp4cetime.org
+## 0.4.0: "Stand here", the sky over a place (signs and houses)
 
-1. **Cloudflare project.** Cloudflare → Workers & Pages → Create → connect the `sp4cetime` GitHub repository (the owner approves GitHub's permission screen). Build command `npm run build`, output directory `dist`, Node 22. Every push to `main` then deploys; every pull request gets a preview URL.
-2. **Domain.** Add `sp4cetime.org` as the project's custom domain (move the domain's DNS to Cloudflare if it isn't there). Redirect `sp4cetime.com`, `.io` and `.ai` to `.org`.
-3. **Check the live site** on a laptop, a phone and a tablet, in Safari, Chrome and Firefox: calendar, Fly mode (WebGL), sky, galaxy, the three themes, round and full window, keyboard controls, reduced motion, and **capture** (screenshot, GIF, video).
-4. **Beta basics** (done in 0.3.0):
-   - [x] "? How to" has the instructions, every credit, and *About this beta*: what it is, the accuracy tiers, privacy (no accounts, no cookies, no tracking; settings and paths stay in the browser), and feedback to **hello@sp4cetime.org**.
-   - [x] The accuracy tier is shown again in the top-left box (Ephemeris, Modelled or Schematic, for the moment in the middle of the view).
-   - [x] Link preview: Open Graph and X card tags with `public/og.png` (1200 × 630).
-   - [x] "Beta" in the title box and the page title; `robots.txt`; `_headers` (long caching for built files, basic security headers); no source maps on the public site.
-   - [ ] **Email**: set up `hello@sp4cetime.org` with Cloudflare Email Routing (free; forwards to the owner's inbox) once the domain is on Cloudflare.
-   - Phones: one full-screen view; touch flying (a thumb stick, gyroscope looking) is not built yet.
-   - Later, optional: Plausible for page counts and Sentry for error reports (both noted in the plan); the privacy note must change if they are added.
-5. **Label it "Beta"** in the corner and in the page title (done).
-6. **Tag the release** `v0.3.0` (its CHANGELOG entry is written).
-7. **Announce** to a small group first (teachers, science communicators, @Geosophyy and @techartist_ whose work inspired it), with a short screen recording made with Capture, then more widely.
-
-## Then (0.4.0): "Stand here", the sky over a place (signs and houses)
+The whole to-do list for 0.4.0 and after is in [docs/ROADMAP.md](docs/ROADMAP.md); "Stand here" is the main new feature:
 
 The first piece of *Sky on your day* (DECISIONS §1), and the first example of **Planetary mode**: a person standing on a planet is a sphere on that planet's surface skin (docs/SPHERES.md), as a cell will be a sphere in Cellular mode and an atom in Atomic mode. Built into the instrument as an honest view of the real sky over a place, with astrology's houses as a clearly labelled overlay.
 
@@ -109,7 +84,7 @@ The first piece of *Sky on your day* (DECISIONS §1), and the first example of *
 
 `sp4cetime.org/?live` opens one view with no boxes and time running (or loops a path), so the site is also a screen saver and a live wallpaper (docs/ROADMAP.md, "Screen saver").
 
-Decide at the beta whether the repository becomes public (add a `LICENSE`, e.g. MIT; the data in `public/` keeps its own licences). After 0.4.0: the spheres model (0.5), then events and stories, the rest of the Library; see [docs/ROADMAP.md](docs/ROADMAP.md).
+Everything else not yet built is on the to-do list in [docs/ROADMAP.md](docs/ROADMAP.md): the spheres model, events and stories, the screen saver, the four modes.
 
 ## Run it
 
@@ -183,6 +158,14 @@ Shown on screen in three tiers: **Ephemeris** within ±3,000 years (astronomy-en
 ## Deploy (Cloudflare)
 
 Static files only. Cloudflare → Workers & Pages → connect the GitHub repo; build command `npm run build`, output `dist`. Or `npm run build && npx wrangler deploy` (uses `wrangler.jsonc`). Add `sp4cetime.org` as the custom domain and redirect the `.com`, `.io` and `.ai` domains to it.
+
+## Licence
+
+- **Code**: [Apache License 2.0](LICENSE), with a [NOTICE](NOTICE): use it, change it, build it into your own work, commercial or not; keep the NOTICE and please credit "Based on sp4cetime (https://sp4cetime.org) by Lamp Diagnostics".
+- **Documentation** (this README, DECISIONS, the docs, the example paths): [CC BY 4.0](LICENSE-docs.md): share and adapt with credit.
+- **The name** "sp4cetime", its title and logo, and the domain: trademarks, not licensed ([TRADEMARK.md](TRADEMARK.md)). Forks get their own name.
+- **Data** in `public/` keeps its own licences (listed in NOTICE and Credits below).
+- Who did what: [AUTHORS.md](AUTHORS.md) (vision, design and direction by Lamp Diagnostics; implementation with AI assistance).
 
 ## Credits
 

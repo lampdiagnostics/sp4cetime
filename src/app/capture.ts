@@ -5,6 +5,7 @@
  * (anything marked data-no-capture) are never in it. A watermark is added by default.
  */
 import { GifEncoder } from './gif';
+import { holdQuality } from '../core/quality';
 
 export const WATERMARK = '@sp4cetime.org';
 
@@ -418,6 +419,7 @@ export async function recordGif(
   const w = Math.max(16, Math.round(o.width));
   const h = Math.max(16, Math.round(w * aspect));
   const page = liveOverlay(getShot, first ? w / first.region.width : 1);
+  holdQuality(true);
   await page.ready;
   const c = document.createElement('canvas');
   c.width = w;
@@ -435,20 +437,30 @@ export async function recordGif(
     done = true;
     cancelAnimationFrame(raf);
     page.stop();
-    if (enc.frames > 0) download(enc.finish(), 'gif');
-    onDone();
+    holdQuality(false);
+    try {
+      if (enc.frames > 0) download(enc.finish(), 'gif');
+    } finally {
+      onDone();
+    }
   };
   const tick = (t: number): void => {
     if (done) return;
-    if (t - last >= interval - 2) {
-      last = t;
-      const s = getShot();
-      if (s && ctx) {
-        drawShot(s, ctx, w, h, { overlay: page.current(), watermark: o.watermark });
-        enc.add(ctx.getImageData(0, 0, w, h).data);
-        onProgress(enc.frames / total);
+    try {
+      if (t - last >= interval - 2) {
+        last = t;
+        const s = getShot();
+        if (s && ctx) {
+          drawShot(s, ctx, w, h, { overlay: page.current(), watermark: o.watermark });
+          enc.add(ctx.getImageData(0, 0, w, h).data);
+          onProgress(enc.frames / total);
+        }
+        if (enc.frames >= total) return finish();
       }
-      if (enc.frames >= total) return finish();
+    } catch (e) {
+      // A picture the browser will not let us read (or anything else): stop cleanly, keep what was recorded.
+      console.warn('GIF recording stopped:', e);
+      return finish();
     }
     raf = requestAnimationFrame(tick);
   };
@@ -489,7 +501,9 @@ export async function recordVideo(
   const ctx = c.getContext('2d');
   if (!ctx) return null;
   const page = liveOverlay(getShot, k);
+  holdQuality(true);
   await page.ready;
+  const startVideo = (): Recording => {
   drawShot(first, ctx, c.width, c.height, { overlay: page.current(), watermark: o.watermark });
   // Frames are handed to the encoder one by one, as they are drawn, at an even rate: no
   // frame is sampled twice or skipped, so motion stays smooth.
@@ -507,6 +521,7 @@ export async function recordVideo(
   let raf = 0;
   let stopped = false;
   rec.onstop = () => {
+    holdQuality(false);
     live.getTracks().forEach((t) => t.stop());
     stream.getTracks().forEach((t) => t.stop());
     if (chunks.length) download(new Blob(chunks, { type: fmt.mime.split(';')[0] ?? fmt.mime }), fmt.ext);
@@ -535,6 +550,17 @@ export async function recordVideo(
       cancelAnimationFrame(raf);
       page.stop();
       if (rec.state !== 'inactive') rec.stop();
+      else holdQuality(false);
     },
   };
+  };
+  try {
+    return startVideo();
+  } catch (e) {
+    // This browser would not record (a format or stream it refuses): say so and leave nothing running.
+    console.warn('Video recording could not start:', e);
+    page.stop();
+    holdQuality(false);
+    return null;
+  }
 }

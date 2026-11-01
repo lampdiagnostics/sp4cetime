@@ -105,9 +105,16 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
             setBusy(null);
             onPlay(false);
           },
-        ).then((r) => {
-          rec.current = r;
-        }),
+        ).then(
+          (r) => {
+            rec.current = r;
+          },
+          () => {
+            rec.current = null;
+            setBusy(null);
+            onPlay(false);
+          },
+        ),
       80,
     );
   };
@@ -122,10 +129,16 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
     void recordVideo(stage, { fps: VIDEO_FPS, watermark, sharp }, () => {
       rec.current = null;
       setBusy(null);
-    }).then((r) => {
-      if (!r) setBusy(null);
-      rec.current = r;
-    });
+    }).then(
+      (r) => {
+        if (!r) setBusy(null);
+        rec.current = r;
+      },
+      () => {
+        rec.current = null;
+        setBusy(null);
+      },
+    );
   };
 
   // Keys (not while typing in a field): P, G, V.

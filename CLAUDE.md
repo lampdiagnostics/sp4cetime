@@ -9,7 +9,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**, the public beta: paths through time and space (ADR-0017), smooth recording, adaptive resolution; tag `v0.3.0`. Going live on sp4cetime.org: README.md "Next goal". Then 0.4.0: "Stand here", the sky over a place with signs and houses (README.md "Then (0.4.0)"); 0.5 the spheres model (docs/SPHERES.md); to-do lists in docs/ROADMAP.md.
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0** (tag `v0.3.0`), the public beta on sp4cetime.org: paths through time and space (ADR-0017), smooth recording, adaptive resolution. Open source: code Apache 2.0, docs CC BY 4.0, name a trademark (README.md "Licence"). Everything not done is on the 0.4.0 to-do list in docs/ROADMAP.md; next is "Stand here" (README.md "0.4.0").
 
 ## Commands
 
@@ -67,6 +67,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - Constants with published uncertainty go in `src/core/constants.ts` with the range in a comment.
 - Keep `aria-label`s and keyboard controls working. Respect `prefers-reduced-motion`.
 - UI text and docs in plain language; Canadian/British spelling is fine.
+- **Licences**: code Apache 2.0, docs CC BY 4.0 (README.md "Licence"). Anything added must be compatible: permissive code (MIT, BSD, Apache), data in the public domain or CC BY; no GPL or AGPL code. Record each new source in NOTICE (and `public/**/CREDITS.md` for data).
 - Each version: bump `package.json` (0.x.y until the public launch, which is 1.0), add a CHANGELOG entry written for the user, update or add an ADR for architectural changes, tag `v0.x.y`.
 
 ## Working with the owner
@@ -94,21 +95,17 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 > In sp4cetime (read CLAUDE.md first), [what I see, where, and what I expected]. Reproduce it first (a test or a screenshot), then fix the cause rather than the symptom, and add a test that would have caught it.
 
-**0.3.0: paths through time and space**
-
-> In sp4cetime (read CLAUDE.md, then DECISIONS.md and the "Next goal" section of README.md), build paths as designed there: Return opens the path dialog (name, confirm each point, caption, stop after it); a point is exactly what is on screen; Present lives in the Capture button; Presentation mode flies between points (Return / → next, ← back; after wandering, a press only flies back to the point); every transition made beautiful. Show me videos of the transitions. Schema, validation and flight maths in `src/core` with property tests; record ADR-0017; verify with screenshots in the calendar, Fly and the galaxy.
-
 **Library / events and stories (after the beta)**
 
 > In sp4cetime (read CLAUDE.md and DECISIONS.md, especially §1 "Library"), start the Library: the `.sp4ce.json` schema for events, stops and stories (schema-versioned, validated like themes), adding an event by tapping the Sun line, event pins and spans on the calendar, and saving to IndexedDB with file export/import. Pure schema and maths in `src/core` with tests; UI in `src/app`.
 
-**0.3.0 beta: GitHub and sp4cetime.org**
+**Going live (GitHub and sp4cetime.org)**
 
-> In sp4cetime (read CLAUDE.md, then the "Next goal" section of README.md), help me release to GitHub and then launch the public beta on sp4cetime.org (Parts 1–2). Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+> In sp4cetime (read CLAUDE.md, then the "Going live" section of README.md), help me release to GitHub and launch on sp4cetime.org. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
 
 **0.4.0: Stand here (signs and houses)**
 
-> In sp4cetime (read CLAUDE.md, DECISIONS.md and the "Then (0.4.0)" section of README.md), build "Stand here" as designed there: the house maths in `src/core/houses.ts` with property tests first, then the dialog (place in degrees, minutes, seconds; a time frame), the ground view with house wedges and a transparent planet, and points that remember it. Verify with screenshots and a video of each view.
+> In sp4cetime (read CLAUDE.md, DECISIONS.md and the "0.4.0" section of README.md and docs/ROADMAP.md), build "Stand here" as designed there: the house maths in `src/core/houses.ts` with property tests first, then the dialog (place in degrees, minutes, seconds; a time frame), the ground view with house wedges and a transparent planet, and points that remember it. Verify with screenshots and a video of each view.
 
 **Release**
 
@@ -119,4 +116,4 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 - `npm run check` passes; new maths has tests; bundle budgets hold.
 - Visual changes checked in screenshots in both the calendar and Fly mode where relevant.
 - CHANGELOG entry and version bump; ADR for architectural changes; DECISIONS.md updated if a decision or preference changed.
-- Credits and licences recorded for any new data or images.
+- Credits and licences recorded for any new code, data or images (NOTICE, `public/**/CREDITS.md`).

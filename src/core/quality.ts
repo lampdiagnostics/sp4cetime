@@ -23,6 +23,12 @@ export interface GovernorOptions {
   readonly patience?: number;
 }
 
+/** While a screenshot, GIF or video is being made, the resolution holds still (a recording slows frames; it should not soften them). */
+let held = 0;
+export function holdQuality(on: boolean): void {
+  held = Math.max(0, held + (on ? 1 : -1));
+}
+
 export function createGovernor(o: GovernorOptions): Governor {
   const max = o.max;
   const min = Math.min(max, o.min ?? 0.75);
@@ -42,7 +48,7 @@ export function createGovernor(o: GovernorOptions): Governor {
     },
     sample(ms) {
       // Gaps (a hidden tab, a pause, a dialog) say nothing about drawing speed.
-      if (!(ms > 0) || ms > 250) return null;
+      if (!(ms > 0) || ms > 250 || held > 0) return null;
       dev += (Math.abs(ms - avg) - dev) * 0.1;
       avg += (ms - avg) * 0.1;
       const capped = dev < 1.5 && Math.abs(avg - 1000 / 30) < 2.5;
