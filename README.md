@@ -38,9 +38,9 @@ A **path** is a presentation, Prezi-style: a sequence of chosen views of the map
 
 **Status:** built (all seven steps), checked in headless Chromium in the calendar, Fly and the galaxy; waiting for the owner to try it on the Mac before tagging `v0.3.0`.
 
-## Next goal (0.4.0): release to GitHub and a public beta
+## Next goal (0.4.0): GitHub, a public beta, and the sky over a place
 
-0.2.0 lives only on the owner's Mac (git, tagged `v0.2.0`, no remote yet). 0.4.0 puts it on GitHub and live on sp4cetime.org as a public beta. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
+0.2.0 lives only on the owner's Mac (git, tagged `v0.2.0`, no remote yet). 0.4.0 puts it on GitHub and live on sp4cetime.org as a public beta (Parts 1–2), adds the sky over a place with signs and houses (Part 3), and a live link for screen savers (Part 4). An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
 
 ### Part 1: release to GitHub
 
@@ -76,6 +76,32 @@ What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `di
 5. **Label it "Beta"** in the corner and in the page title.
 6. **Tag the release** `v0.4.0` and write its CHANGELOG entry.
 7. **Announce** to a small group first (teachers, science communicators, @Geosophyy and @techartist_ whose work inspired it), with a short screen recording made with Capture, then more widely.
+
+### Part 3: "Stand here": the sky over a place, with signs and houses
+
+The first piece of *Sky on your day* (DECISIONS §1), built into the instrument as an honest view of the real sky over a place, with astrology's houses as a clearly labelled overlay.
+
+**Sign and house, in one line each.** A planet's **sign** is where it sits along the zodiac (its ecliptic longitude seen from Earth's centre): the same for everyone on Earth at that moment. Its **house** is where it sits relative to *one person's horizon* at *one place and time*: the horizon and the meridian of that spot divide the sky into 12 sectors, which sweep the whole sky once a day as Earth turns. So signs need only a date; houses need a date, an exact time and a place.
+
+**The geometry.** At latitude φ and longitude L, with local sidereal time θ = Greenwich sidereal time + L and obliquity ε = 23.44°:
+- **Ascendant** (cusp of house 1): where the eastern horizon cuts the ecliptic: λ = atan2(cos θ, −(sin θ cos ε + tan φ sin ε)). **Descendant** (house 7) opposite.
+- **Midheaven, MC** (cusp of house 10): where the meridian cuts the ecliptic overhead: λ = atan2(sin θ, cos θ cos ε). **IC** (house 4) opposite.
+- **House systems**: Whole Sign (house 1 is the sign holding the Ascendant) and Equal (cusps every 30° from the Ascendant) first; Placidus (trisecting the times points take to rise and culminate) later. Placidus is undefined inside the polar circles; there the view says so.
+- Height above the ground does not change the houses (they follow the vertical through the spot beneath you); planets are taken from Earth's centre (the Moon's position shifts up to ~1° by place, shown as a note).
+- In the spheres model (docs/SPHERES.md) a place's horizon is a frame on Earth's surface skin: its latitude and longitude give the zenith, and the skin's spin turns it once a sidereal day.
+
+**What to build:**
+1. **A place**: pick it by name, by latitude and longitude, or by clicking Earth's surface in Fly mode; and a moment (date and time, with time zone), reusing the present and TIME controls.
+2. **On the ground**: stand at the place looking up: the horizon as a ring, the meridian, the ecliptic with the signs, the 12 houses as tinted wedges on the sky; each body's label reads e.g. "Mars · 14° Leo · house 10". ▶ Play and the houses wheel across the sky over a day.
+3. **From outside**: float back and see Earth with the horizon as a disc tangent at the place, the house planes fanning from it like orange segments, and a line from Earth to each body crossing them.
+4. **The chart**: the same numbers as the usual flat wheel (Ascendant on the left), as a picture to capture.
+5. **Honest labels**: positions are astronomy (ephemeris tier, real sky); signs are tropical (from the equinox) and sit ≈24° from the constellations of the same name; houses and their meanings are astrology, labelled as such. No interpretations in the instrument; a link out to horoscopes belongs to the separate *Sky on your day* product.
+6. **Maths in `src/core/houses.ts`** with property tests (Ascendant and MC against published examples; cusps in order; houses sweep 360° in a sidereal day); our own code, no Swiss Ephemeris (AGPL unless licensed).
+7. **Points remember it**: a path's point stores the place and the house system (CLAUDE.md rule 16), so a path can fly to "your sky on the day you were born".
+
+### Part 4: a live link (screen saver)
+
+`sp4cetime.org/?live` opens one view with no boxes and time running (or loops a path), so the beta is also a screen saver and a live wallpaper from day one (docs/ROADMAP.md, "Screen saver").
 
 Decide at this point whether the repository becomes public (add a `LICENSE`, e.g. MIT; the data in `public/` keeps its own licences). After the beta: events and stories, the rest of the Library; see [DECISIONS.md](DECISIONS.md) §1.
 

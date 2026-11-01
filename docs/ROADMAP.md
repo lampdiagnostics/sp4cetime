@@ -23,9 +23,10 @@ The spheres model ([SPHERES.md](SPHERES.md)) is what joins them: a cell and an a
 - [ ] Owner tries it on the Mac (Safari and Chrome), then tag `v0.3.0`.
 - [ ] More example paths (life of the Sun, Earth's deep history, the planets' retrograde loops).
 
-### 0.4.0 — GitHub and a public beta
-- [ ] Steps in README.md "Next goal".
-- [ ] A shareable "live" link: `sp4cetime.org/?live` (see Screen saver below), so the beta is also a screen saver from day one.
+### 0.4.0 — GitHub, a public beta, and the sky over a place
+- [ ] Parts 1–2 in README.md "Next goal": GitHub, then the public beta on sp4cetime.org.
+- [ ] Part 3, **Stand here** (details in README.md): pick a place and a moment; the ground view (horizon, meridian, ecliptic and signs, 12 house wedges, labels "Mars · 14° Leo · house 10"); the view from outside (horizon disc, house planes, lines to each body); the flat chart wheel; Ascendant, MC and cusps in `src/core/houses.ts` (Whole Sign and Equal first, Placidus later), property-tested; honest labels (positions astronomy, signs tropical, houses astrology); points remember place and house system.
+- [ ] Part 4: a shareable "live" link: `sp4cetime.org/?live` (see Screen saver below), so the beta is also a screen saver from day one.
 
 ### 0.5 — the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (frame, sphere size, galaxy root, time, inner skins).

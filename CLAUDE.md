@@ -9,7 +9,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**: paths through time and space, Prezi-style presentations (README.md, ADR-0017); last tag `v0.2.0`, tag `v0.3.0` once the owner has tried it. Next goal (0.4.0): GitHub and a public beta. Then events and stories, the rest of the Library (DECISIONS.md §1).
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**: paths through time and space, Prezi-style presentations (README.md, ADR-0017); last tag `v0.2.0`, tag `v0.3.0` once the owner has tried it. Next goal (0.4.0): GitHub, a public beta, "Stand here" (the sky over a place with signs and houses) and a live link (README.md). Then events and stories, the rest of the Library (DECISIONS.md §1).
 
 ## Commands
 
@@ -104,7 +104,7 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 **0.4.0: GitHub and public beta**
 
-> In sp4cetime (read CLAUDE.md, then the "Then (0.4.0)" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+> In sp4cetime (read CLAUDE.md, then the "Next goal (0.4.0)" section of README.md), help me release to GitHub and then launch the public beta (Parts 1–2). For Part 3 ("Stand here": the sky over a place, signs and houses), build the house maths in `src/core/houses.ts` with property tests first, then the views, and verify with screenshots. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
 
 **Release**
 
