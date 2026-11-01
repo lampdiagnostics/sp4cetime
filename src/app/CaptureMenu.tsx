@@ -17,12 +17,16 @@ const VIDEO_FPS = 30;
  */
 export interface PresentControls {
   readonly paths: readonly Path[];
+  /** The app's own example paths (read-only; Continue makes your own copy). */
+  readonly examples: readonly Path[];
   readonly presenting: boolean;
   present(id: string): void;
   stop(): void;
   exportPath(id: string): void;
   importFile(f: File): void;
   deletePath(id: string): void;
+  /** Go on adding points to this path (Return adds the next). */
+  continuePath(id: string): void;
   /** What went wrong with the last import, if anything. */
   readonly message: string;
 }
@@ -39,7 +43,15 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
   const [chosen, setChosen] = useState('');
   const [sureDelete, setSureDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const pathId = present.paths.some((x) => x.id === chosen) ? chosen : (present.paths[0]?.id ?? '');
+  const all = [...present.paths, ...present.examples];
+  const pathId = all.some((x) => x.id === chosen) ? chosen : (all[0]?.id ?? '');
+  const isExample = pathId.startsWith('example:');
+  const option = (x: Path) => (
+    <option key={x.id} value={x.id}>
+      {x.name} · {x.points.length} point{x.points.length === 1 ? '' : 's'}
+      {x.finished ? '' : ' (unfinished)'}
+    </option>
+  );
   const [busy, setBusy] = useState<null | { kind: 'gif'; progress: number } | { kind: 'video'; since: number }>(null);
   const [, tickClock] = useState(0);
   const rec = useRef<Recording | null>(null);
@@ -172,17 +184,14 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
           <hr />
           <div className="present-section" aria-label="Present a path">
             <span className="heading">Present a path</span>
-            {present.paths.length === 0 ? (
-              <p className="note">No paths yet. Go anywhere and press Return to start one; travel and press Return for each next point.</p>
-            ) : (
+            {present.paths.length === 0 && (
+              <p className="note">Make your own: go anywhere and press Return to start a path; travel and press Return for each next point.</p>
+            )}
+            {all.length > 0 && (
               <>
-                <select value={pathId} onChange={(e) => (setChosen(e.target.value), setSureDelete(false))} aria-label="Saved paths">
-                  {present.paths.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.name} · {x.points.length} point{x.points.length === 1 ? '' : 's'}
-                      {x.finished ? '' : ' (unfinished)'}
-                    </option>
-                  ))}
+                <select value={pathId} onChange={(e) => (setChosen(e.target.value), setSureDelete(false))} aria-label="Paths">
+                  {present.paths.length > 0 && <optgroup label="Your paths">{present.paths.map(option)}</optgroup>}
+                  {present.examples.length > 0 && <optgroup label="Examples">{present.examples.map(option)}</optgroup>}
                 </select>
                 {present.presenting ? (
                   <button type="button" className="primary" onClick={() => (setOpen(false), present.stop())}>
@@ -194,18 +203,24 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
                   </button>
                 )}
                 <div className="capture-row">
-                  <button type="button" onClick={() => present.exportPath(pathId)} title="Download it as a .sp4ce.json file">
-                    ⤓ Export
+                  <button type="button" onClick={() => (setOpen(false), present.continuePath(pathId))} title={isExample ? 'Make your own copy and add points to it (Return)' : 'Add more points to it (Return)'}>
+                    ✎ Continue
                   </button>
-                  <button type="button" onClick={() => (sureDelete ? (present.deletePath(pathId), setSureDelete(false)) : setSureDelete(true))}>
-                    {sureDelete ? 'Really delete?' : 'Delete'}
+                  <button type="button" onClick={() => present.exportPath(pathId)} title="Download it as a .sp4ce.json file to keep or share">
+                    ⤓ Download
                   </button>
+                  {!isExample && (
+                    <button type="button" onClick={() => (sureDelete ? (present.deletePath(pathId), setSureDelete(false)) : setSureDelete(true))}>
+                      {sureDelete ? 'Really?' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               </>
             )}
-            <button type="button" onClick={() => fileRef.current?.click()} title="Open a .sp4ce.json file">
-              ⤒ Import a path…
+            <button type="button" onClick={() => fileRef.current?.click()} title="Open a .sp4ce.json file to present it or keep working on it">
+              ⤒ Upload a path (.json)…
             </button>
+            <p className="note">Paths are files: download yours to keep them, upload them to present or carry on. This browser keeps a copy too.</p>
             <input
               ref={fileRef}
               type="file"

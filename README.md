@@ -16,6 +16,7 @@ The direction, in order (detail in [docs/PLAN.md](docs/PLAN.md) and [DECISIONS.m
 3. **Sharing.** Read-only links and embeds; local-first storage, no accounts until people ask for sync. Screenshots, GIFs and videos already work (0.2.0), watermarked "@sp4cetime.org".
 4. **Pro tier**, before any marketplace: sells output, polish and privacy (story videos, posters, private links, unbranded embeds, extra themes), never a truer picture. Free users always see the same science.
 5. Year two, only if wanted: theme editor, accounts and sync, education licence, creator marketplace.
+6. **Four modes** (the 4 in sp4cetime): Galactic (built), then Planetary (detailed Earth, Moon and Mars from public geodata; imaginary planets), Cellular and Atomic, all on one model of spheres and skins. To-do lists: [docs/ROADMAP.md](docs/ROADMAP.md); the spheres: [docs/SPHERES.md](docs/SPHERES.md).
 
 What exists today (0.3.0) is the instrument (the calendar, Fly mode, the sky, the galaxy, and capture) and paths: presentations flown through it. It is a toy as much as a tool; the owner's next step is to show it publicly. Stories, sharing links and Pro are not built yet.
 
@@ -31,7 +32,7 @@ A **path** is a presentation, Prezi-style: a sequence of chosen views of the map
 
 **Transitions.** Every change between points is shaped to be as beautiful as it can be, not just interpolated: calendar ↔ Fly ↔ galaxy, Dark ↔ Bright ↔ Colour, round ↔ full, boxes and labels appearing and going. Time and distance change by equal factors in equal steps (as the warp does), so a jump of a billion years or of 40 kpc reads as clearly as a day or a few km; directions turn with easing. Each kind of transition is designed and checked by eye in screenshots and Capture videos. With reduced motion, short cross-fades.
 
-**Storage.** Saved paths are listed in a drop-down. 0.3.0 keeps them on the device (IndexedDB) with `.sp4ce.json` export and import (schema-versioned, validated like themes); cloud storage comes with accounts and sync later. Points are the Library's *stops* (DECISIONS §1) and a path is the first kind of story; later there will be a library of ready-made presentations and a marketplace to buy and sell them. Flights are computed, not stored.
+**Storage.** Paths are files: light `.sp4ce.json` (version 2: a name and a list of points with their view, moment, place and mode; numbers rounded; the look only where it differs). People download theirs and upload them again to present or continue them; no accounts. The browser keeps a copy (IndexedDB) so the list survives a reload; example paths ship in `public/paths/` (listed in `index.json`). Cloud storage and sync could be Premium later.
 
 **Code.** `src/core/path.ts` (schema, `.sp4ce.json` validation, the time-flight curve, with property tests across ±5 Gyr), `src/app/flights.ts` (flying between points), `src/app/pathStore.ts` (IndexedDB, export, import), `PathDialog.tsx`, and the wiring in `App.tsx`, `Pane.tsx`, `GalacticCanvas.tsx` and `FlyView.tsx`. The design and its reasons: [ADR-0017](docs/adr/0017-paths.md).
 
@@ -125,7 +126,7 @@ npm run dev        # http://localhost:5173
 
 **Capture** (◉ Capture, bottom centre, straight to Downloads): **P** a screenshot (PNG at screen resolution), **G** a 5-second GIF (time plays while it records, then pauses), **V** a video (MP4 where the browser can, else WebM; until V again or a click on its running time). What is on screen is recorded, the boxes too if they are showing; the Capture button never is. Watermark "@sp4cetime.org" unless turned off. For screen savers: set a view and a speed, hide the boxes with the space bar, ▶ Play, then V.
 
-**Paths** (presentations). Go anywhere and press **Return**: name the path, and what is on screen becomes START. Travel (in time, in space, into another view, another look) and press Return for POINT 1, 2 …, with a caption if you like; tick "Stop making the path after this point" for END (or press Finish beside Capture). **◉ Capture · ▷ Present** lists your paths: Present flies from point to point, never cutting; **Return** or **→** next, **←** back, **Esc** stops. Look around at a point and the next press first flies you back to it. Each point's box shows its caption, view, moment, place and direction. Record a presentation with V. Paths stay in this browser; Export and Import move them as `.sp4ce.json` files.
+**Paths** (presentations). Go anywhere and press **Return**: name the path, and what is on screen becomes START. Travel (in time, in space, into another view, another look) and press Return for POINT 1, 2 …, with a caption if you like; tick "Stop making the path after this point" for END (or press Finish beside Capture). **◉ Capture · ▷ Present** lists your paths: Present flies from point to point, never cutting; **Return** or **→** next, **←** back, **Esc** stops. Look around at a point and the next press first flies you back to it. Each point's box shows its caption, view, moment, place and direction. Record a presentation with V. Paths are small `.sp4ce.json` files: **⤓ Download** yours to keep them, **⤒ Upload** one to present it or **✎ Continue** adding points (no account needed; this browser also keeps a copy). The app comes with an example, *A first tour*.
 
 ## Layout
 
@@ -136,7 +137,7 @@ src/fly/      Fly mode and the galaxy (Three.js), loaded only when opened.
 content/      Themes as validated JSON.
 public/       Sky data, Milky Way, galaxy, Earth and Moon maps (with credits).
 scripts/      Python scripts that rebuild public/ data from their sources.
-docs/         PLAN.md (critique and 12-month plan), adr/ (one file per decision), archive/, reference/.
+docs/         ROADMAP.md (to-do lists, the four modes), SPHERES.md (the spheres model), PLAN.md, adr/, archive/, reference/.
 ```
 
 - [CLAUDE.md](CLAUDE.md): rules and context for anyone (human or AI) changing the code, and how to start a new chat. [AGENTS.md](AGENTS.md) points other tools to it.

@@ -63,14 +63,32 @@ describe('.sp4ce.json', () => {
       }),
     ]);
     const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(p))));
-    expect(back).toEqual(p);
+    expect({ ...back, id: p.id }).toEqual(p);
+  });
+
+  it('writes a light file: the look only where it differs, no 3D camera for calendar points', () => {
+    const p = path([point(), point({ look: { ...point().look, themeId: 'bright' } })]);
+    const f = toSp4ceFile(p, () => '1 Nov 2026');
+    // The test points show only Earth and Mars; the app's default shows four planets.
+    expect(f.points[0]?.look).toEqual({ planets: ['earth', 'mars'] });
+    expect(f.points[1]?.look).toEqual({ themeId: 'bright', planets: ['earth', 'mars'] });
+    expect(f.points[0]?.cam).toBeUndefined();
+    expect(f.points[0]?.when).toBe('1 Nov 2026');
+    expect(JSON.stringify(f).length).toBeLessThan(1000);
+  });
+
+  it('still reads the first (0.3.0) layout', () => {
+    const p = path([point()]);
+    const old = { format: 'sp4ce', version: 1, kind: 'path', path: p };
+    expect(parseSp4ceFile(JSON.parse(JSON.stringify(old)))).toEqual(p);
   });
 
   it('keeps deep times exact', () => {
     fc.assert(
       fc.property(arbTime, (t) => {
         const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path([point({ present: t })])))));
-        expect(back.points[0]?.present).toEqual(t);
+        expect(back.points[0]?.present.day).toBe(t.day);
+        expect(Math.abs((back.points[0]?.present.sec ?? -1) - t.sec)).toBeLessThan(6e-4);
       }),
     );
   });
@@ -78,6 +96,9 @@ describe('.sp4ce.json', () => {
   it('rejects what is not a path, saying why', () => {
     expect(() => parseSp4ceFile({ hello: 1 })).toThrow(PathError);
     expect(() => parseSp4ceFile({ ...toSp4ceFile(path([point()])), version: 99 })).toThrow(/newer version/);
+    const f = JSON.parse(JSON.stringify(toSp4ceFile(path([point()]))));
+    f.points[0].cal.spp = -1;
+    expect(() => parseSp4ceFile(f)).toThrow(/secondsPerPixel/);
     expect(() => parsePath({ id: 'x', name: 'x', points: [] })).toThrow(/no points/);
     const bad = JSON.parse(JSON.stringify(path([point()]))) as { points: Array<{ look: { planets: string[] } }> };
     bad.points[0]!.look.planets = ['vulcan'];

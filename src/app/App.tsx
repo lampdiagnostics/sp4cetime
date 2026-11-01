@@ -9,7 +9,7 @@ import { Pane, type PaneHandle, type PaneInfo } from './Pane';
 import { newPathId, type Path, type PathPoint, type PointLook, pointLabel } from '../core/path';
 import { formatTime } from '../core/time';
 import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
-import { deletePath, exportPath, importPath, listPaths, savePath } from './pathStore';
+import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath } from './pathStore';
 import { type DialogResult, PathDialog } from './PathDialog';
 
 const VIEW_NAME = { calendar: 'Calendar', fly: 'Fly', galaxy: 'Whole galaxy' } as const;
@@ -234,6 +234,11 @@ export function App() {
   const refreshPaths = useCallback(() => void listPaths().then(setPaths), []);
   useEffect(refreshPaths, [refreshPaths]);
   const [message, setMessage] = useState('');
+  const [examples, setExamples] = useState<Path[]>([]);
+  useEffect(() => {
+    void loadExamples(import.meta.env.BASE_URL).then(setExamples);
+  }, []);
+  const findPath = (id: string): Path | undefined => paths.find((x) => x.id === id) ?? examples.find((x) => x.id === id);
 
   // Making a path: Return opens the dialog with what is on screen at that moment.
   const [making, setMaking] = useState<Path | null>(null);
@@ -282,7 +287,7 @@ export function App() {
     setShowing(null);
   }, []);
   const startPresenting = (id: string): void => {
-    const path = paths.find((x) => x.id === id);
+    const path = findPath(id);
     if (path) goToPoint(path, 0);
   };
 
@@ -346,15 +351,26 @@ export function App() {
     presenting: !!showing,
     present: startPresenting,
     stop: stopPresenting,
+    examples,
     exportPath: (id) => {
-      const x = paths.find((q) => q.id === id);
+      const x = findPath(id);
       if (x) exportPath(x);
+    },
+    continuePath: (id) => {
+      const x = findPath(id);
+      if (!x) return;
+      stopPresenting();
+      // An example stays as it is: you carry on with your own copy.
+      const own: Path = id.startsWith('example:') ? { ...x, id: newPathId(), name: `${x.name} (my copy)`, created: new Date().toISOString() } : x;
+      setMaking({ ...own, finished: false });
+      void savePath({ ...own, finished: false }).then(refreshPaths);
+      setMessage('');
     },
     importFile: (f) => {
       setMessage('');
       importPath(f).then(
         (x) => {
-          setMessage(`Imported “${x.name}”.`);
+          setMessage(`Uploaded “${x.name}”: present it, or ✎ Continue to add points.`);
           refreshPaths();
         },
         (err: unknown) => setMessage(err instanceof Error ? err.message : 'That file could not be read.'),

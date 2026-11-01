@@ -1,9 +1,12 @@
 /**
- * Saved paths, on this device (IndexedDB), with `.sp4ce.json` export and import. Local
- * first (ADR-0004): no account; cloud storage comes with accounts and sync later. If the
- * browser keeps no storage (a private window), paths last for this visit only.
+ * Paths are `.sp4ce.json` files (ADR-0017): people download theirs, keep them, and upload
+ * them again to present or keep working on them. No account and no server: the browser
+ * also keeps a copy of each (IndexedDB) so the list survives a reload, and the app ships
+ * example paths as files in `public/paths/`. If the browser keeps no storage (a private
+ * window), paths last for this visit only; the files are what last.
  */
 import { type Path, parsePath, parseSp4ceFile, pathFileName, toSp4ceFile } from '../core/path';
+import { formatTime } from '../core/time';
 
 const DB = 'sp4cetime';
 const STORE = 'paths';
@@ -67,9 +70,15 @@ export async function deletePath(id: string): Promise<void> {
   await run('readwrite', (s) => s.delete(id));
 }
 
+/** A path as the text of its file: indented, with each list of numbers on one line. */
+export function sp4ceText(p: Path): string {
+  const json = JSON.stringify(toSp4ceFile(p, (t) => formatTime(t, 1)), null, 1);
+  return `${json.replace(/\[\s+([-\d.e+,\s]+?)\s+\]/g, (_m, inner: string) => `[${inner.trim().split(/,\s*/).join(', ')}]`)}\n`;
+}
+
 /** Download a path as `name.sp4ce.json`. */
 export function exportPath(p: Path): void {
-  const blob = new Blob([JSON.stringify(toSp4ceFile(p), null, 1)], { type: 'application/json' });
+  const blob = new Blob([sp4ceText(p)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -91,4 +100,25 @@ export async function importPath(file: File): Promise<Path> {
   const p = parseSp4ceFile(data);
   await savePath(p);
   return p;
+}
+
+/** The app's own example paths: `public/paths/index.json` lists the files. */
+export async function loadExamples(base: string): Promise<Path[]> {
+  try {
+    const list = (await (await fetch(`${base}paths/index.json`)).json()) as unknown;
+    if (!Array.isArray(list)) return [];
+    const out: Path[] = [];
+    for (const name of list) {
+      if (typeof name !== 'string' || !/^[\w.-]+\.sp4ce\.json$/.test(name)) continue;
+      try {
+        const p = parseSp4ceFile(await (await fetch(`${base}paths/${name}`)).json());
+        out.push({ ...p, id: `example:${name}` });
+      } catch (e) {
+        console.warn(`Example path ${name} not read:`, e);
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }

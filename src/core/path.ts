@@ -88,14 +88,48 @@ export interface Path {
   readonly finished: boolean;
 }
 
-/** The file format: one format for downloads, share links and the Library. */
-export interface Sp4ceFile {
-  readonly format: 'sp4ce';
-  readonly version: 1;
-  readonly kind: 'path';
-  readonly path: Path;
+/**
+ * The file format, `.sp4ce.json`: one format for downloads, uploads, the app's example
+ * paths and (later) the Library. Version 2 is light and readable: a name and a list of
+ * points (view, moment, place, mode), numbers rounded to what the eye can see, the look
+ * only where it differs from the app's default, and a line of plain words per point.
+ */
+export const SP4CE_VERSION = 2;
+
+/** The look a new visit opens with; a file lists only what differs from it. */
+export const DEFAULT_LOOK: PointLook = {
+  themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
+  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true,
+  strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
+};
+
+/** One point as written in a file (version 2). */
+export interface FilePoint {
+  readonly view: PointView;
+  /** Plain words: when, where, which way (written for people; ignored on reading). */
+  readonly when?: string;
+  readonly where?: string;
+  readonly facing?: string;
+  readonly caption?: string;
+  /** The present: [whole days since 2000-01-01 00:00 UTC, seconds into the day]. */
+  readonly t: readonly [number, number];
+  /** Time running: seconds per second (0 = paused). */
+  readonly rate: number;
+  /** The calendar: offset of the view from the present [days, s], seconds per pixel, roll, yaw (radians), size, the Sun's vertical offset (px). */
+  readonly cal: { readonly off: readonly [number, number]; readonly spp: number; readonly roll: number; readonly yaw: number; readonly size: number; readonly y: number };
+  /** The 3D camera (Fly and galaxy points only): anchor body, frame, offset (km), orientation (quaternion), view width (°), up. */
+  readonly cam?: { readonly on: string; readonly frame: 'inertial' | 'body'; readonly km: readonly number[]; readonly q: readonly number[]; readonly fov: number; readonly up: readonly number[] };
+  /** Only what differs from DEFAULT_LOOK. */
+  readonly look?: Partial<PointLook>;
 }
-export const SP4CE_VERSION = 1;
+export interface Sp4ceFile {
+  readonly sp4ce: 'path';
+  readonly version: typeof SP4CE_VERSION;
+  readonly name: string;
+  readonly created?: string;
+  readonly finished: boolean;
+  readonly points: readonly FilePoint[];
+}
 
 /** START, POINT 1, POINT 2 … and END (the last point of a finished path). */
 export function pointLabel(i: number, n: number, finished: boolean): string {
@@ -230,16 +264,90 @@ export function parsePath(x: unknown): Path {
   };
 }
 
-/** Read a `.sp4ce.json` file's contents (already JSON-parsed). */
-export function parseSp4ceFile(x: unknown): Path {
-  if (!isObj(x) || x.format !== 'sp4ce') throw new PathError('This is not a sp4cetime file.');
-  if (typeof x.version !== 'number' || x.version > SP4CE_VERSION) throw new PathError('This file was made by a newer version of sp4cetime.');
-  if (x.kind !== 'path') throw new PathError('This sp4cetime file does not hold a path.');
-  return parsePath(x.path);
+const sig = (x: number, n: number): number => (x === 0 ? 0 : Number(x.toPrecision(n)));
+const dec = (x: number, n: number): number => Math.round(x * 10 ** n) / 10 ** n || 0;
+
+/** A path as a light, readable file. `when` gives each point's moment in words (formatTime). */
+export function toSp4ceFile(path: Path, when: (t: Time) => string = () => ''): Sp4ceFile {
+  return {
+    sp4ce: 'path',
+    version: SP4CE_VERSION,
+    name: path.name,
+    ...(path.created && { created: path.created }),
+    finished: path.finished,
+    points: path.points.map((p): FilePoint => {
+      const look: Record<string, unknown> = {};
+      for (const k of Object.keys(DEFAULT_LOOK) as Array<keyof PointLook>) {
+        if (JSON.stringify(p.look[k]) !== JSON.stringify(DEFAULT_LOOK[k])) look[k] = p.look[k];
+      }
+      const c = p.calendar;
+      const f = p.fly;
+      const w = when(p.present);
+      return {
+        view: p.view,
+        ...(w && { when: w }),
+        ...(p.where && { where: p.where }),
+        ...(p.facing && { facing: p.facing }),
+        ...(p.caption && { caption: p.caption }),
+        t: [p.present.day, dec(p.present.sec, 3)],
+        rate: p.playing ? p.speed : 0,
+        cal: { off: [c.offset.day, dec(c.offset.sec, 3)], spp: sig(c.secondsPerPixel, 6), roll: dec(c.roll, 6), yaw: dec(c.yaw, 6), size: sig(c.spaceZoom, 6), y: dec(c.panY, 1) },
+        ...(p.view !== 'calendar' && f && {
+          cam: { on: f.anchor, frame: f.frame, km: f.rel.map((v) => sig(v, 12)), q: f.quat.map((v) => dec(v, 7)), fov: dec(f.fov, 2), up: f.up.map((v) => dec(v, 6)) },
+        }),
+        ...(Object.keys(look).length > 0 && { look: look as Partial<PointLook> }),
+      };
+    }),
+  };
 }
 
-export function toSp4ceFile(path: Path): Sp4ceFile {
-  return { format: 'sp4ce', version: SP4CE_VERSION, kind: 'path', path };
+/** A version 2 point back into a full point (validated as any point is). */
+function fromFilePoint(x: unknown, where: string): PathPoint {
+  if (!isObj(x)) fail(where, 'not a point');
+  const t = vec(x.t, 2, where, 't');
+  const cal = obj(x, 'cal', where);
+  const off = vec(cal.off, 2, `${where} cal`, 'off');
+  const rate = num(x, 'rate', where);
+  const cam = isObj(x.cam) ? x.cam : null;
+  const lookIn = isObj(x.look) ? x.look : {};
+  return parsePoint(
+    {
+      view: x.view,
+      present: { day: t[0], sec: t[1] },
+      speed: rate === 0 ? 1 : rate,
+      playing: rate !== 0,
+      calendar: { offset: { day: off[0], sec: off[1] }, secondsPerPixel: cal.spp, roll: cal.roll, yaw: cal.yaw, spaceZoom: cal.size, panY: cal.y },
+      fly: cam && { anchor: cam.on, frame: cam.frame, rel: cam.km, quat: cam.q, fov: cam.fov, up: cam.up },
+      look: { ...DEFAULT_LOOK, ...lookIn },
+      caption: typeof x.caption === 'string' ? x.caption : '',
+      where: typeof x.where === 'string' ? x.where : '',
+      facing: typeof x.facing === 'string' ? x.facing : '',
+    },
+    where,
+  );
+}
+
+/** Read a `.sp4ce.json` file's contents (already JSON-parsed): version 2, or the first (0.3.0) layout. */
+export function parseSp4ceFile(x: unknown): Path {
+  if (!isObj(x)) throw new PathError('This is not a sp4cetime file.');
+  if (x.format === 'sp4ce' && x.version === 1) {
+    if (x.kind !== 'path') throw new PathError('This sp4cetime file does not hold a path.');
+    return parsePath(x.path);
+  }
+  if (x.sp4ce === undefined) throw new PathError('This is not a sp4cetime file.');
+  if (x.sp4ce !== 'path') throw new PathError('This sp4cetime file does not hold a path.');
+  if (typeof x.version !== 'number' || x.version > SP4CE_VERSION) throw new PathError('This file was made by a newer version of sp4cetime.');
+  const pts = x.points;
+  if (!Array.isArray(pts) || pts.length === 0) fail('path', 'it has no points');
+  if (pts.length > 500) fail('path', 'too many points (at most 500)');
+  const name = typeof x.name === 'string' ? x.name.trim().slice(0, 120) : '';
+  return {
+    id: newPathId(),
+    name: name || 'Untitled path',
+    created: typeof x.created === 'string' ? x.created.slice(0, 40) : '',
+    points: pts.map((p, i) => fromFilePoint(p, i === 0 ? 'START' : `POINT ${i}`)),
+    finished: typeof x.finished === 'boolean' ? x.finished : true,
+  };
 }
 
 export function newPathId(): string {

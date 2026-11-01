@@ -1279,3 +1279,13 @@ select option {
   opacity: 0.6;
   margin-left: 4px;
 }
+
+.float-tools .capture > button {
+  white-space: nowrap;
+}
+.present-section .capture-row button {
+  flex: 1;
+  white-space: nowrap;
+  padding-left: 6px;
+  padding-right: 6px;
+}
