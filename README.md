@@ -5,23 +5,41 @@
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
 Version 0.2.0 · 31 October 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
-Live at [sp4cetime.org](https://sp4cetime.org) once deployed. (Versions were renumbered with a leading zero: the release tagged `v1.0` is 0.1.0; this is 0.2.0. The public launch will be 1.0.)
+Live at [sp4cetime.org](https://sp4cetime.org) once deployed. (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
 
 The direction, in order (detail in [docs/PLAN.md](docs/PLAN.md) and [DECISIONS.md](DECISIONS.md)):
 
 1. **A truthful instrument first.** Real positions where they are known, honest labels where they are modelled, nothing invented. Every measure is an arc on a sphere (degrees, minutes, seconds), every view is north-up with the Sun in sight. One scale only: true.
-2. **Stories (the Library).** Events placed on the timeline, gathered into stories that play as guided flights. One file format (`.sp4ce.json`) for downloads, share links and curated Library entries.
+2. **Stories (the Library).** Events placed on the timeline, gathered into stories that play as guided flights. Paths (guided flights through chosen views) come first, in 0.3.0. One file format (`.sp4ce.json`) for downloads, share links and curated Library entries.
 3. **Sharing.** Read-only links and embeds; local-first storage, no accounts until people ask for sync. Screenshots, GIFs and videos already work (0.2.0), watermarked "@sp4cetime.org".
 4. **Pro tier**, before any marketplace: sells output, polish and privacy (story videos, posters, private links, unbranded embeds, extra themes), never a truer picture. Free users always see the same science.
 5. Year two, only if wanted: theme editor, accounts and sync, education licence, creator marketplace.
 
 What exists today (0.2.0) is the instrument: the calendar, Fly mode, the sky, the galaxy, and capture. It is a toy as much as a tool; the owner's next step is to show it publicly. Stories, sharing links and Pro are not built yet.
 
-## Next goal (0.3.0): release to GitHub, then a public beta
+## Next goal (0.3.0): paths through time and space
 
-0.2.0 lives only on the owner's Mac (git, tagged `v0.2.0`, no remote yet). 0.3.0 puts it on GitHub and live on sp4cetime.org as a public beta. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
+A **path** is a presentation, Prezi-style: a sequence of chosen views of the map, and the viewer flies from one to the next.
+
+**Making a path** (not in Presentation mode). Go to a place in the map and press **Return**. A dialog asks: *Start a path? Name it.* Confirm, and what is on screen becomes **START**. Travel to a different time, place and view and press Return again: the same dialog asks you to confirm the current view as **POINT 1**, with an optional caption and a choice to **stop making the path after this point**. Go on for POINT 2, 3 …; the point you stop at is **END**. (In the dialog, Return confirms and Esc cancels.)
+
+**A point is exactly what is on screen** when Return is pressed, in any view: calendar, Fly or galaxy; the moment and the time zoom; the camera (position, direction, size, field of view); the theme; round or full window; which planets and elements are shown; whether the boxes and labels are showing (the space-bar state); whether time is running or paused, and at what speed and direction. Arriving at the point puts all of that back.
+
+**Presenting.** A **Present** button, built into the Capture button (bottom centre; presentations are one of the things people will capture), starts and stops Presentation mode, with a drop-down of saved paths to choose from. In Presentation mode the viewer *flies* between points; nothing disappears at one point and reappears at the next. **Return** or **→** goes on to the next point; **←** goes back to the previous one. After arriving, the viewer is free to look around, move and zoom; then Return or either arrow **only flies them back to that point**, and the next press continues along the path. Each point of a loaded path has a point box describing its view, position, time and view angle, and showing its caption.
+
+**Transitions.** Every change between points is shaped to be as beautiful as it can be, not just interpolated: calendar ↔ Fly ↔ galaxy, Dark ↔ Bright ↔ Colour, round ↔ full, boxes and labels appearing and going. Time and distance change by equal factors in equal steps (as the warp does), so a jump of a billion years or of 40 kpc reads as clearly as a day or a few km; directions turn with easing. Each kind of transition is designed and checked by eye in screenshots and Capture videos. With reduced motion, short cross-fades.
+
+**Storage.** Saved paths are listed in a drop-down. 0.3.0 keeps them on the device (IndexedDB) with `.sp4ce.json` export and import (schema-versioned, validated like themes); cloud storage comes with accounts and sync later. Points are the Library's *stops* (DECISIONS §1) and a path is the first kind of story; later there will be a library of ready-made presentations and a marketplace to buy and sell them. Flights are computed, not stored.
+
+**Code.** The schema, validation and flight interpolation are pure maths in `src/core` with property tests across ±5 Gyr. Reading the whole view as a point and setting it from one goes through `App.tsx` (theme, clock, speed, space-bar state), `Pane.tsx`'s handle (view, window, elements, calendar camera) and Fly's poses (`flight.ts`); the dialog, the drop-down, the point box and Presentation mode live in `src/app`. Keys: Return is unused today; the arrows move through time (calendar) and move you (Fly), and in Presentation mode they belong to the path. Record the design as ADR-0017.
+
+**Steps:** (1) point and path schema with tests; (2) read everything on screen as a point, and restore a view from one; (3) Return and the path dialog (name, confirm, caption, stop after this point); (4) flights and transitions between any two points; (5) Present in the Capture button, the drop-down of paths, Presentation mode with Return / → / ←, the return-to-point rule and the point box; (6) save in the browser, export and import `.sp4ce.json`; (7) CHANGELOG, ADR-0017, tag `v0.3.0`.
+
+## Then (0.4.0): release to GitHub and a public beta
+
+0.2.0 lives only on the owner's Mac (git, tagged `v0.2.0`, no remote yet). 0.4.0 puts it on GitHub and live on sp4cetime.org as a public beta. An AI assistant can do most of this through the Claude app's built-in browser and a GitHub connection; the owner approves anything that publishes, changes an account or touches DNS, and passwords and tokens are always typed by the owner.
 
 ### Part 1: release to GitHub
 
@@ -46,7 +64,7 @@ What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `di
 
 1. **Cloudflare project.** Cloudflare → Workers & Pages → Create → connect the `sp4cetime` GitHub repository (the owner approves GitHub's permission screen). Build command `npm run build`, output directory `dist`, Node 22. Every push to `main` then deploys; every pull request gets a preview URL.
 2. **Domain.** Add `sp4cetime.org` as the project's custom domain (move the domain's DNS to Cloudflare if it isn't there). Redirect `sp4cetime.com`, `.io` and `.ai` to `.org`.
-3. **Check the live site** on a laptop, a phone and a tablet, in Safari, Chrome and Firefox: calendar, Fly mode (WebGL), sky, galaxy, the three themes, round and full window, keyboard controls, reduced motion, and **capture** (screenshot, GIF, video: the view must appear in each, not only the boxes; see DECISIONS §6).
+3. **Check the live site** on a laptop, a phone and a tablet, in Safari, Chrome and Firefox: calendar, Fly mode (WebGL), sky, galaxy, the three themes, round and full window, keyboard controls, reduced motion, and **capture** (screenshot, GIF, video).
 4. **Beta basics before announcing:**
    - The "? How to" pop-up already has instructions and every credit; add a short About (what it is, the accuracy tiers).
    - A privacy note: no accounts, no tracking beyond privacy-friendly page counts, settings stay in the browser.
@@ -55,10 +73,10 @@ What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `di
    - Phones: one full-screen view already; touch flying (a thumb stick, gyroscope looking) is not built yet.
    - Optional: Plausible for page counts and Sentry for error reports (both noted in the plan).
 5. **Label it "Beta"** in the corner and in the page title.
-6. **Tag the release** `v0.3.0` and write its CHANGELOG entry.
+6. **Tag the release** `v0.4.0` and write its CHANGELOG entry.
 7. **Announce** to a small group first (teachers, science communicators, @Geosophyy and @techartist_ whose work inspired it), with a short screen recording made with Capture, then more widely.
 
-Decide at this point whether the repository becomes public (add a `LICENSE`, e.g. MIT; the data in `public/` keeps its own licences). After the beta: the Library (stories) is the next phase; see [DECISIONS.md](DECISIONS.md) §1.
+Decide at this point whether the repository becomes public (add a `LICENSE`, e.g. MIT; the data in `public/` keeps its own licences). After the beta: events and stories, the rest of the Library; see [DECISIONS.md](DECISIONS.md) §1.
 
 ## Run it
 

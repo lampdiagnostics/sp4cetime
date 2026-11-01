@@ -4,7 +4,7 @@ Status: accepted (0.2.0)
 
 ## Context
 
-The calendar, Fly mode and the whole galaxy were three screens with different controls. The owner wants the same controls everywhere, the calendar first, and the views reached by buttons, by clicking a body, and (between Fly and the galaxy) by zooming. A first version of v1.1 made the calendar the bridge between the other two (zoom out of the calendar to the galaxy, zoom in to Fly, back out of Fly to the calendar); the owner reversed that, and asked for the lens selector to go.
+The calendar, Fly mode and the whole galaxy were three screens with different controls. The owner wants the same controls everywhere, the calendar first, and the views reached by buttons, by clicking a body, and (between Fly and the galaxy) by zooming. A first version of 0.2.0 made the calendar the bridge between the other two (zoom out of the calendar to the galaxy, zoom in to Fly, back out of Fly to the calendar); the owner reversed that, and asked for the lens selector to go.
 
 ## Decision
 

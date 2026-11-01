@@ -1,6 +1,6 @@
 # Changelog
 
-Versions carry a leading zero until the public launch (1.0): the release tagged `v1.0` is now 0.1.0, and earlier 0.N releases are 0.0.N.
+Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.2.0 — 2026-10-31
 
@@ -66,14 +66,14 @@ In short: Calendar first, ✦ Fly and ◎ Galaxy; Dark, Bright and Colour everyw
 - **Bright Mode in Fly** now draws stars exactly as the calendar does (solid ink dots of the same size and strength), and constellation and zodiac lines show their true theme colours.
 - Fly mode's panels follow the theme: dark panels with light text in Dark and Colour, light panels with dark text in Bright.
 
-## 0.1.0 — 2026-10-30 (tagged `v1.0`)
+## 0.1.0 — 2026-10-30
 
 The instrument is complete: the calendar, Fly mode, the real sky and the galaxy. This release adds no new features; it makes the project self-explaining so work can continue in a fresh conversation, with any AI model or person.
 
 - **README.md**: what sp4cetime is, where it is going (truthful instrument → Library of stories → sharing → Pro → year-two options), how to run and use it, layout, accuracy, deploy, credits.
 - **DECISIONS.md** (new): every decision with its reason and record: product and business, architecture, science and geometry, the owner's interaction preferences, process, known limits.
 - **CLAUDE.md**: model-agnostic working context: code map, rules, conventions, how to work with the owner, ready-to-paste prompts for starting new conversations, and a definition of done. **AGENTS.md** points other tools to it.
-- Tagged `v1.0` in git.
+- Tagged `v0.1.0` in git.
 
 ## 0.0.16 — 2026-10-30
 

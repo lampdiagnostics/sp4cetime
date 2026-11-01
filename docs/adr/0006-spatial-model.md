@@ -21,7 +21,7 @@ The helix should be geometrically honest (wireframe, real orbital elements, real
 ## Consequences
 
 - Geometry is testable without a browser (`geometry.test.ts`).
-- The galactic "direction of travel" uses circular rotation only; the Sun's in-plane peculiar motion is not modelled. Its bobbing through the galactic plane is modelled since v1.1 (ADR-0014).
+- The galactic "direction of travel" uses circular rotation only; the Sun's in-plane peculiar motion is not modelled. Its bobbing through the galactic plane is modelled since 0.2.0 (ADR-0014).
 - Adding a body is one row of elements plus a theme colour.
 
 

@@ -9,7 +9,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.2.0** (tag `v0.2.0`). Next goal (0.3.0): release to GitHub, then a public beta (steps in README.md, "Next goal"). After that: the Library (stories), DECISIONS.md §1.
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.2.0** (tag `v0.2.0`). Next goal (0.3.0): paths through time and space, Prezi-style presentations (README.md, "Next goal"). Then 0.4.0: GitHub and a public beta. Then events and stories, the rest of the Library (DECISIONS.md §1).
 
 ## Commands
 
@@ -90,17 +90,17 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 > In sp4cetime (read CLAUDE.md first), [what I see, where, and what I expected]. Reproduce it first (a test or a screenshot), then fix the cause rather than the symptom, and add a test that would have caught it.
 
-**Library / stories (the next phase)**
+**0.3.0: paths through time and space**
+
+> In sp4cetime (read CLAUDE.md, then DECISIONS.md and the "Next goal" section of README.md), build paths as designed there: Return opens the path dialog (name, confirm each point, caption, stop after it); a point is exactly what is on screen; Present lives in the Capture button; Presentation mode flies between points (Return / → next, ← back; after wandering, a press only flies back to the point); every transition made beautiful. Show me videos of the transitions. Schema, validation and flight maths in `src/core` with property tests; record ADR-0017; verify with screenshots in the calendar, Fly and the galaxy.
+
+**Library / events and stories (after the beta)**
 
 > In sp4cetime (read CLAUDE.md and DECISIONS.md, especially §1 "Library"), start the Library: the `.sp4ce.json` schema for events, stops and stories (schema-versioned, validated like themes), adding an event by tapping the Sun line, event pins and spans on the calendar, and saving to IndexedDB with file export/import. Pure schema and maths in `src/core` with tests; UI in `src/app`.
 
-**0.3.0: GitHub and public beta**
+**0.4.0: GitHub and public beta**
 
-> In sp4cetime (read CLAUDE.md, then the "Next goal" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
-
-**Check capture on my Mac**
-
-> In sp4cetime (read CLAUDE.md and DECISIONS §6), capture recorded only the boxes on my Mac in [browser]. Open the app in the Claude app's built-in browser (http://localhost:5173, I'll approve it), test drawing each view canvas into another canvas, find why it comes out empty, fix it, and verify a screenshot, a GIF and a video.
+> In sp4cetime (read CLAUDE.md, then the "Then (0.4.0)" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
 
 **Release**
 

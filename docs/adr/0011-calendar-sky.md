@@ -12,7 +12,7 @@ The calendar's background was a schematic spiral of dots. Fly mode now has the r
 - It uses the calendar's own view matrix (roll and yaw), so dragging to rotate the solar system rotates the sky with it, exactly.
 - Same data as Fly mode (`public/sky`): the photographic Milky Way and stars to magnitude 5.5. The Milky Way is re-rasterised (a quarter of screen resolution, scaled smoothly) only when the view turns; stars are re-projected at the same moments and drawn each frame.
 - Over deep time the sky does not spin: the Sun's travel frame turns with its orbit, and the Milky Way (seen from the Sun, the galactic centre stays at l = 0°) turns with it. Today's star positions are shown at all times; individual stars drift over ~100,000 years, which is noted as a limit.
-- Light themes draw the sky as dark ink, like a star chart. (Since v1.1 each theme's `sky` block sets this, the same in Fly mode: see ADR-0012.)
+- Light themes draw the sky as dark ink, like a star chart. (Since 0.2.0 each theme's `sky` block sets this, the same in Fly mode: see ADR-0012.)
 - Drawing needs images, so the backdrop lives in the app and is passed into `drawFrame` (`FrameInput.backdrop`); `src/core` stays free of the DOM.
 
 ## Consequences
