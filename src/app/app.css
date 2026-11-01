@@ -622,8 +622,14 @@ select option {
     justify-content: flex-start;
     max-width: none;
   }
+  /* The boxes stack without overlapping: their heights are measured (App.tsx) into
+     --tl-h, --tr-h and --br-h. Top: the title box, then the view buttons (a row that
+     scrolls sideways). Bottom, above the eye and Capture: time and speed, then space and view. */
+  .br {
+    bottom: calc(var(--gap) + 44px);
+  }
   .bl {
-    bottom: calc(var(--gap) + 128px);
+    bottom: calc(var(--gap) * 2 + 44px + var(--br-h, 150px));
     right: var(--gap);
     flex-direction: row;
     flex-wrap: wrap;
@@ -633,10 +639,20 @@ select option {
     display: none;
   }
   .tr {
-    top: auto;
-    bottom: calc(var(--gap) + 180px);
+    top: calc(var(--gap) * 2 + var(--tl-h, 110px));
+    bottom: auto;
     left: var(--gap);
+    right: var(--gap);
     justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tr::-webkit-scrollbar {
+    display: none;
+  }
+  .tr > * {
+    flex: 0 0 auto;
   }
   .center-date {
     font-size: 19px;
@@ -1052,10 +1068,12 @@ select option {
 .chrome-1 .pointbox {
   top: var(--gap);
 }
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .pointbox {
-    top: auto;
-    bottom: calc(var(--gap) + 44px);
+    top: calc(var(--gap) * 3 + var(--tl-h, 110px) + var(--tr-h, 40px));
+  }
+  .chrome-1 .pointbox {
+    top: var(--gap);
   }
 }
 .pointbox .pb-head {
@@ -1239,4 +1257,47 @@ select option {
 .help-popover a {
   color: inherit;
   text-decoration: underline;
+}
+
+/* Short screens (a phone held sideways): compact boxes so all four corners fit. */
+@media (max-height: 520px) and (min-width: 721px) {
+  :root {
+    --gap: 8px;
+  }
+  .corner {
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .corner .heading,
+  .bl .note,
+  .fly-where .facts {
+    display: none;
+  }
+  .center-date {
+    font-size: 17px;
+  }
+  .bl {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: 46vw;
+  }
+  .bl .row {
+    flex-wrap: wrap;
+  }
+  .br {
+    bottom: calc(var(--gap) + 40px);
+  }
+  .pointbox {
+    top: var(--gap);
+    width: min(360px, 40vw);
+    padding: 6px 10px;
+  }
+  .pointbox .pb-caption {
+    font-size: 14px;
+  }
+  .pointbox .pb-facts {
+    display: none;
+  }
 }

@@ -155,6 +155,24 @@ export function App() {
   };
 
   const pageRef = useRef<HTMLDivElement>(null);
+  // Narrow screens stack the boxes; their heights go into CSS variables so they never overlap.
+  useEffect(() => {
+    const root = document.documentElement;
+    let last = '';
+    const measure = (): void => {
+      const h = (sel: string): number => Math.ceil(document.querySelector<HTMLElement>(sel)?.getBoundingClientRect().height ?? 0);
+      const key = `${h('.corner.tl')},${h('.corner.tr')},${h('.corner.br')}`;
+      if (key === last) return;
+      last = key;
+      const [tl, tr, br] = key.split(',');
+      root.style.setProperty('--tl-h', `${tl}px`);
+      root.style.setProperty('--tr-h', `${tr}px`);
+      root.style.setProperty('--br-h', `${br}px`);
+    };
+    measure();
+    const t = window.setInterval(measure, 400);
+    return () => window.clearInterval(t);
+  }, []);
   const veilRef = useRef<HTMLCanvasElement>(null);
   const infoRef = useRef(info);
   infoRef.current = info;

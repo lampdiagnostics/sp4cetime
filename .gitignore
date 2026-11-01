@@ -6,3 +6,7 @@ coverage/
 .DS_Store
 .env
 .env.*
+
+# Transfer files used when working from a linked cloud session
+*.bundle
+.sp-*.tgz
