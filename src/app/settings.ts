@@ -1,10 +1,9 @@
-import type { ScaleMode } from '../core/geometry';
 import { PLANET_IDS, type PlanetId } from '../core/planets';
 
 /**
  * Per-viewer preferences, remembered in this browser only. Every visit (and every reload)
  * still opens the same way: the calendar, round window, Dark Mode, the Sun in the centre.
- * What is drawn (planets, overlays, scale) is remembered.
+ * What is drawn (planets, overlays) is remembered.
  */
 export interface Settings {
   readonly themeId: string;
@@ -24,7 +23,6 @@ export interface Settings {
   /** Strobe: the solar system's frozen poses behind the present, and how many a year. */
   readonly strobe: boolean;
   readonly strobeSteps: number;
-  readonly scale: ScaleMode;
   readonly focus: 'sun' | PlanetId;
 }
 
@@ -43,7 +41,6 @@ export const DEFAULT_SETTINGS: Settings = {
   galactic: true,
   strobe: false,
   strobeSteps: 5.2,
-  scale: 'fit',
   focus: 'sun',
 };
 
@@ -80,7 +77,6 @@ export function loadSettings(): Settings {
         typeof data.strobeSteps === 'number' && data.strobeSteps >= STROBE_MIN && data.strobeSteps <= STROBE_MAX
           ? data.strobeSteps
           : DEFAULT_SETTINGS.strobeSteps,
-      scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
       focus: 'sun',
     };
   } catch {

@@ -13,7 +13,7 @@
 import { type CSSProperties, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { BODIES, type BodyId, solarSystemAt } from '../core/bodies';
-import type { ScaleMode, Vec3 } from '../core/geometry';
+import type { Vec3 } from '../core/geometry';
 import type { Time } from '../core/time';
 import {
   aboveNorth,
@@ -28,8 +28,6 @@ import {
   type Pose,
   poseFrom,
   pushOut,
-  scaleBodies,
-  shapeFor,
   vantage,
   WARP_HINT_KM,
   WARP_IN_ANGLE,
@@ -47,6 +45,7 @@ import type { PlanetId } from '../core/planets';
 import { CALENDAR_AXES } from '../core/paths3d';
 import { SIGNS } from '../core/skyfigures';
 import { type FlyState, logLerp } from '../core/path';
+import { createGovernor } from '../core/quality';
 
 /**
  * What a path needs from the 3D view: read where you are, put you somewhere exactly, and
@@ -102,7 +101,6 @@ interface Props {
   overlays: OverlayOptions;
   /** The simulated present, shared with the calendar. */
   clock: () => Time;
-  scale: ScaleMode;
   /** The zoom preset's span (seconds across): paths reach half of it into past and future. */
   spanSeconds: number;
   measure: Measure;
@@ -206,9 +204,9 @@ interface Flight {
   done?: (arrived: boolean) => void;
 }
 
-export default function FlyView({ active, focused = true, theme, overlays, clock, scale, spanSeconds, measure, command, onTimeZoom, onHud, onApi }: Props) {
-  const live = useRef({ active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud });
-  live.current = { active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud };
+export default function FlyView({ active, focused = true, theme, overlays, clock, spanSeconds, measure, command, onTimeZoom, onHud, onApi }: Props) {
+  const live = useRef({ active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud });
+  live.current = { active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<HTMLDivElement>(null);
@@ -242,7 +240,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     const now0 = (): Time => live.current.clock();
     const bodiesAt = (t: Time) => {
       const trueBodies = solarSystemAt(t);
-      return { trueBodies, bodies: scaleBodies(trueBodies, live.current.scale) };
+      // One scale, true (ADR-0016): the bodies are drawn where they are.
+      return { trueBodies, bodies: trueBodies };
     };
     const aspect = (): number => canvas.clientWidth / Math.max(1, canvas.clientHeight);
     let axes: readonly [Vec3, Vec3, Vec3] = CALENDAR_AXES;
@@ -674,11 +673,18 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     let last = performance.now();
     let hudAt = 0;
     let lastPos: Vec3 | null = null;
+    // Smooth on any device: draw at a lower resolution while frames are slow.
+    const governor = createGovernor({ max: Math.min(window.devicePixelRatio || 1, 2), min: 0.6 });
     const tick = (ts: number): void => {
       raf = requestAnimationFrame(tick);
-      const dt = Math.min(0.1, (ts - last) / 1000);
+      const frameMs = ts - last;
+      const dt = Math.min(0.1, frameMs / 1000);
       last = ts;
       const L = live.current;
+      if (L.active) {
+        const q = governor.sample(frameMs);
+        if (q !== null) scene.setPixelRatio(q);
+      }
       if (!L.active) {
         keys.clear();
         lastPos = null;
@@ -820,7 +826,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         }
       }
 
-      const shape = shapeFor(L.scale, find(trueBodies, 'sun').pos);
+      const shape = undefined;
 
       // The warp: a slight widening of the view and a vignette, and the speed in light speeds.
       const warpEl = warpRef.current;

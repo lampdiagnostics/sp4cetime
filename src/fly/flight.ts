@@ -323,35 +323,6 @@ export function aboveNorth(id: BodyId, bodies: readonly BodyState[]): { pose: Po
   return { pose: poseFrom(pos, quat, id, 'inertial', bodies), pos, quat };
 }
 
-/** Distances from the Sun compressed as in the calendar's √ fit: r → √(r · 1 AU), so Earth stays at 1 AU. */
-export function fitRadius(rKm: number): number {
-  return rKm > 0 ? Math.sqrt(rKm * AU_KM) : 0;
-}
-
-/** Reshape a place around the Sun for a scale mode (√ fit compresses; linear and true are real distances in 3D). */
-export function shapeFor(mode: 'fit' | 'linear' | 'true', sun: Vec3): ((o: Vec3) => Vec3) | undefined {
-  if (mode !== 'fit') return undefined;
-  return (o) => {
-    const d = sub(o, sun);
-    const r = Math.hypot(...d);
-    return r > 0 ? addv(sun, scale(d, fitRadius(r) / r)) : o;
-  };
-}
-
-/** Bodies placed for a scale mode: planets moved in toward the Sun, the Moon kept beside Earth, sizes unchanged. */
-export function scaleBodies(bodies: readonly BodyState[], mode: 'fit' | 'linear' | 'true'): readonly BodyState[] {
-  const sun = find(bodies, 'sun').pos;
-  const shape = shapeFor(mode, sun);
-  if (!shape) return bodies;
-  const earth = find(bodies, 'earth').pos;
-  const earth2 = shape(earth);
-  return bodies.map((b) => {
-    if (b.info.id === 'sun') return b;
-    if (b.info.id === 'moon') return { ...b, pos: addv(earth2, sub(b.pos, earth)) };
-    return { ...b, pos: shape(b.pos) };
-  });
-}
-
 /**
  * Turn around a point (the body you are looking at, or the galaxy's centre), keeping
  * it where it is on screen: like turning a globe in your hands. `yaw` turns about your

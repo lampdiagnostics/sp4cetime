@@ -40,6 +40,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
 }) {
   const [open, setOpen] = useState(false);
   const [watermark, setWatermark] = useState(true);
+  const [sharp, setSharp] = useState(false);
   const [chosen, setChosen] = useState('');
   const [sureDelete, setSureDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -118,7 +119,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
     if (busy || !format) return;
     setOpen(false);
     setBusy({ kind: 'video', since: Date.now() });
-    void recordVideo(stage, { fps: VIDEO_FPS, watermark }, () => {
+    void recordVideo(stage, { fps: VIDEO_FPS, watermark, sharp }, () => {
       rec.current = null;
       setBusy(null);
     }).then((r) => {
@@ -176,6 +177,9 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
           </button>
           <label>
             <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} /> Watermark “@sp4cetime.org”
+          </label>
+          <label title="Video at up to 4K instead of 1080p: sharper, but heavier for the computer while recording">
+            <input type="checkbox" checked={sharp} onChange={(e) => setSharp(e.target.checked)} /> Sharp video (up to 4K)
           </label>
           <p className="note">
             Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (the space bar hides them); this button never is.

@@ -6,6 +6,7 @@ import { loadBackdrop } from './skyBackdrop';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
 import type { CalendarView } from '../core/path';
+import { createGovernor } from '../core/quality';
 import { clampTime, diffSeconds, fromUnixMs, isZeroInterval, makeTime, type Time, timeAdd, timeDiff } from '../core/time';
 
 export interface CanvasHandle {
@@ -253,9 +254,11 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     if (!ctx) return;
 
     let first = true;
+    // Smooth on any device: draw at a lower resolution while frames are slow.
+    const governor = createGovernor({ max: Math.min(window.devicePixelRatio || 1, 2), min: 0.75 });
     const resize = (): void => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = governor.scale;
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -423,7 +426,10 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     canvas.addEventListener('wheel', onWheel, { passive: false });
 
     let raf = 0;
+    let lastTs = 0;
     const frame = (ts: number): void => {
+      if (activeRef.current && lastTs > 0 && governor.sample(ts - lastTs) !== null) resize();
+      lastTs = ts;
       const now = nowTime();
       const f = flightRef.current;
       if (f) {

@@ -11,7 +11,8 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    sourcemap: true,
+    // No source maps on the public site: the repository is private.
+    sourcemap: false,
     // Fly mode (Three.js) is a separate, on-demand chunk with its own budget in CI.
     chunkSizeWarningLimit: 700,
   },

@@ -9,6 +9,10 @@ import { densePaths, layout } from '../core/render';
 import type { Theme } from '../core/theme';
 import { CALENDAR_YEAR_LIMIT, formatDuration, formatTime, type Time, toCivil } from '../core/time';
 import { formatKm } from '../core/ticks';
+import { accuracyTier, TIER_LABELS } from '../core/models';
+import { version } from '../../package.json';
+
+const FEEDBACK = 'hello@sp4cetime.org';
 import { type CanvasHandle, GalacticCanvas } from './GalacticCanvas';
 import { PlanetPicker } from './PlanetPicker';
 import { ElementsPicker } from './ElementsPicker';
@@ -172,22 +176,15 @@ interface Props {
   onSelect: () => void;
   /** Where it is on screen, px. */
   box: { x: number; y: number; w: number; h: number };
-  /** Drawn round (a dial or the round window) or full. */
+  /** Drawn in the round window, or full. */
   round: boolean;
-  /** One of several dials: the whole pane is cut to its circle. */
-  dial: boolean;
-  /** Not shown (another window is full screen): nothing is drawn. */
-  hidden: boolean;
-  initialMode: PaneMode;
-  /** Load the 3D view in the background soon after opening (the first window only). */
-  prefetch3D: boolean;
   /** Where its boxes go (the screen's corners), while selected. */
   boxesHost: HTMLElement | null;
   handleRef: Ref<PaneHandle>;
   onInfo: (id: number, info: PaneInfo) => void;
 }
 
-/** The circle a dial is cut to: the round window plus its rim of ticks. */
+/** The round window's rim of ticks, outside its circle (a capture of the calendar includes it). */
 export const RIM_PX = 14;
 
 /**
@@ -196,7 +193,7 @@ export const RIM_PX = 14;
  * While selected, its controls fill the screen's corner boxes.
  */
 export function Pane(p: Props) {
-  const { id, theme, settings, update, clock, rate, speed, playing, onPlay, changeRate, chrome, selected, box, round, dial, hidden } = p;
+  const { id, theme, settings, update, clock, rate, speed, playing, onPlay, changeRate, chrome, selected, box, round } = p;
   const [mode, setMode] = useState<'calendar' | 'fly'>('calendar');
   const [measure, setMeasure] = useState<Measure>('near');
   const [flyHud, setFlyHud] = useState<FlyHud | null>(null);
@@ -210,10 +207,9 @@ export function Pane(p: Props) {
   // Load the 3D view shortly after the calendar first draws, so going there is instant.
   const [flyWanted, setFlyWanted] = useState(false);
   useEffect(() => {
-    if (!p.prefetch3D) return;
     const t = window.setTimeout(() => setFlyWanted(true), 1500);
     return () => window.clearTimeout(t);
-  }, [p.prefetch3D]);
+  }, []);
 
   const [live, setLive] = useState(true);
   const [cam, setCam] = useState<Camera | null>(null);
@@ -307,16 +303,6 @@ export function Pane(p: Props) {
   };
   const showRef = useRef(show);
   showRef.current = show;
-  // A new window opens in its own view.
-  useEffect(() => {
-    if (p.initialMode !== 'calendar') {
-      // After the calendar has measured itself (its turn sets the 3D view's start).
-      const t = window.setTimeout(() => showRef.current(p.initialMode), 50);
-      return () => window.clearTimeout(t);
-    }
-    return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const localNow = (): void => {
     canvas.current?.goNow();
@@ -430,17 +416,15 @@ export function Pane(p: Props) {
 
   // The round window, the same in 3D as in the calendar.
   const L = layout({ center: now, secondsPerPixel: 1, width: box.w, height: box.h }, true);
-  // A dial is cut just outside its rim of ticks; so is a capture of the calendar (the 3D view's circle is exact).
-  const clip = round && L.clipR ? { cx: L.cx, cy: L.clipY, r: L.clipR + (dial || !in3D ? RIM_PX : 0) } : null;
+  // A capture of the calendar is cut just outside its rim of ticks (the 3D view's circle is exact).
+  const clip = round && L.clipR ? { cx: L.cx, cy: L.clipY, r: L.clipR + (!in3D ? RIM_PX : 0) } : null;
   const flyStyle: CSSProperties = round && L.clipR ? { clipPath: `circle(${L.clipR}px at 50% ${L.clipY}px)` } : {};
   const paneStyle: CSSProperties = {
     left: box.x,
     top: box.y,
     width: box.w,
     height: box.h,
-    background: dial ? 'transparent' : in3D ? theme.sky.background : theme.background,
-    ...(dial && clip ? { clipPath: `circle(${clip.r}px at ${clip.cx}px ${clip.cy}px)` } : {}),
-    ...(hidden ? { visibility: 'hidden' } : {}),
+    background: in3D ? theme.sky.background : theme.background,
   };
 
   // Tell the window manager what it needs (view, clip) when that changes.
@@ -456,11 +440,20 @@ export function Pane(p: Props) {
       {/* Top left: when, and where */}
       <header className="corner tl">
         <div className="brand">
-          sp4cetime <span>{inGalaxy ? 'Whole galaxy' : in3D ? 'Fly' : 'Galactic Calendar'}</span>
+          sp4cetime <b className="beta" title={`Public beta, version ${version}`}>Beta</b> <span>{inGalaxy ? 'Whole galaxy' : in3D ? 'Fly' : 'Galactic Calendar'}</span>
         </div>
         <output className="center-date" aria-live="off">
           {formatTime(now, 3600)}
         </output>
+        {(() => {
+          // How sure the positions are (ADR-0005), at the moment in the middle of the view.
+          const tier = accuracyTier(!in3D && cam ? cam.center : now);
+          return (
+            <div className="tier-line" title="Ephemeris within ±3,000 years of 2000; modelled (mean orbits) to ±10,000; schematic beyond">
+              <span className={`tier tier-${tier}`}>{TIER_LABELS[tier]}</span>
+            </div>
+          );
+        })()}
         {gmt && <div className="clock">{gmt}{rate !== 1 && <span className="rate"> · {rate === 0 ? 'Paused' : RATES.find((r) => r.rate === rate)?.label.replace(/^[◀▶❚ ]+/, '')}</span>}</div>}
         {in3D && flyHud && (
           // In Fly and the galaxy: where you are, as an arc position on a chosen sphere.
@@ -623,10 +616,27 @@ export function Pane(p: Props) {
               Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,
               the moment, how time runs, the look). Travel and press Return for each next point, with a caption if you like; tick “Stop after this
               point” for END. ◉ Capture · ▷ Present plays a saved path: the view flies from point to point; Return or → next, ← back, Esc stops. Look
-              around at a point and the next press flies you back to it first. Paths stay in this browser; Export and Import share them as
-              .sp4ce.json files.
+              around at a point and the next press flies you back to it first. Paths are small .sp4ce.json files: Download yours to keep them, Upload one to
+              present it or ✎ Continue it (this browser keeps a copy too).
             </li>
             <li>◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
+          </ul>
+          <h3>About this beta</h3>
+          <ul>
+            <li>
+              sp4cetime {version}, a public beta: a map of time drawn as the real motion of the solar system. The Sun is always the present, moving at
+              230 km/s around the galaxy; the planets and the Moon wind around its path.
+            </li>
+            <li>
+              How sure it is: positions are real (ephemeris) within 3,000 years of today, modelled from mean orbits to 10,000 years, and schematic beyond
+              (shapes and directions right, where along an orbit illustrative). The label in the top-left box says which. The whole galaxy is a model.
+            </li>
+            <li>
+              Privacy: no accounts, no cookies, no tracking. Your settings and paths stay in this browser; the files you download are yours.
+            </li>
+            <li>
+              Feedback, ideas, mistakes: <a href={`mailto:${FEEDBACK}?subject=${encodeURIComponent(`sp4cetime ${version} beta`)}`}>{FEEDBACK}</a>
+            </li>
           </ul>
           <h3>Inspirations and credits</h3>
           <ul className="credits">
@@ -656,7 +666,7 @@ export function Pane(p: Props) {
   return (
     <div
       ref={rootRef}
-      className={`pane ${selected ? 'selected' : ''} ${dial ? 'dial' : ''} ${in3D ? 'in-3d' : ''}`}
+      className={`pane ${selected ? 'selected' : ''} ${in3D ? 'in-3d' : ''}`}
       style={paneStyle}
       onPointerDownCapture={p.onSelect}
       data-pane={id}
@@ -678,7 +688,7 @@ export function Pane(p: Props) {
           onSpaceZoomChange={() => {}}
           handleRef={canvas}
           clock={clock}
-          active={!in3D && !hidden}
+          active={!in3D}
           onBodyClick={onBodyClick}
           onSpaceStatement={(t, b) => {
             setSpaceStatement(t);
@@ -689,16 +699,15 @@ export function Pane(p: Props) {
       </div>
 
       {flyWanted && (
-        <div className={`view view-3d ${in3D ? 'on' : ''}`} style={dial ? {} : flyStyle} aria-hidden={!in3D}>
+        <div className={`view view-3d ${in3D ? 'on' : ''}`} style={flyStyle} aria-hidden={!in3D}>
           <FlyBoundary onExit={() => setMode('calendar')}>
             <Suspense fallback={in3D ? <p className="fly-error">Loading the solar system…</p> : null}>
               <FlyView
-                active={in3D && !hidden}
+                active={in3D}
                 focused={selected}
                 theme={theme}
                 overlays={overlays}
                 clock={clock}
-                scale="true"
                 spanSeconds={spanSeconds}
                 measure={measure}
                 command={command}

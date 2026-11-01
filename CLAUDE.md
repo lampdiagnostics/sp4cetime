@@ -9,7 +9,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**: paths through time and space, Prezi-style presentations (README.md, ADR-0017); last tag `v0.2.0`, tag `v0.3.0` once the owner has tried it. Next goal (0.4.0): GitHub, a public beta, "Stand here" (the sky over a place with signs and houses) and a live link (README.md). Then events and stories, the rest of the Library (DECISIONS.md §1).
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0**, the public beta: paths through time and space (ADR-0017), smooth recording, adaptive resolution; tag `v0.3.0`. Going live on sp4cetime.org: README.md "Next goal". Then 0.4.0: "Stand here", the sky over a place with signs and houses (README.md "Then (0.4.0)"); 0.5 the spheres model (docs/SPHERES.md); to-do lists in docs/ROADMAP.md.
 
 ## Commands
 
@@ -102,9 +102,13 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 > In sp4cetime (read CLAUDE.md and DECISIONS.md, especially §1 "Library"), start the Library: the `.sp4ce.json` schema for events, stops and stories (schema-versioned, validated like themes), adding an event by tapping the Sun line, event pins and spans on the calendar, and saving to IndexedDB with file export/import. Pure schema and maths in `src/core` with tests; UI in `src/app`.
 
-**0.4.0: GitHub and public beta**
+**0.3.0 beta: GitHub and sp4cetime.org**
 
-> In sp4cetime (read CLAUDE.md, then the "Next goal (0.4.0)" section of README.md), help me release to GitHub and then launch the public beta (Parts 1–2). For Part 3 ("Stand here": the sky over a place, signs and houses), build the house maths in `src/core/houses.ts` with property tests first, then the views, and verify with screenshots. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+> In sp4cetime (read CLAUDE.md, then the "Next goal" section of README.md), help me release to GitHub and then launch the public beta on sp4cetime.org (Parts 1–2). Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+
+**0.4.0: Stand here (signs and houses)**
+
+> In sp4cetime (read CLAUDE.md, DECISIONS.md and the "Then (0.4.0)" section of README.md), build "Stand here" as designed there: the house maths in `src/core/houses.ts` with property tests first, then the dialog (place in degrees, minutes, seconds; a time frame), the ground view with house wedges and a transparent planet, and points that remember it. Verify with screenshots and a video of each view.
 
 **Release**
 

@@ -43,6 +43,8 @@ export interface FlyScene {
   /** Lens: vertical field of view in degrees (narrow = telescope). */
   setFov(deg: number): void;
   resize(width: number, height: number): void;
+  /** Drawing resolution, device pixels per CSS pixel (lowered on slow devices). */
+  setPixelRatio(r: number): void;
   /** Space colour and the Sun's glow for a theme (Dark, Bright or Colour). */
   setStyle(s: SkyStyle): void;
   dispose(): void;
@@ -276,6 +278,11 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
       if (camera.fov === deg) return;
       camera.fov = deg;
       camera.updateProjectionMatrix();
+    },
+    setPixelRatio(r) {
+      if (Math.abs(renderer.getPixelRatio() - r) < 0.01) return;
+      renderer.setPixelRatio(r);
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
     },
     resize(width, height) {
       renderer.setSize(width, height, false);

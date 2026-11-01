@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Vec3 } from '../core/geometry';
 import { GEO_RADIUS_KM, solarSystemAt } from '../core/bodies';
 import { addSeconds, fromCivil } from '../core/time';
-import { aboveNorth, arrivalView, AU_KM, orbitAround, orbitTarget, fitRadius, OVERVIEW_KM, overviewView, scaleBodies, cruiseSpeed, DESTINATIONS, find, isWarp, nearest, poseFrom, pushOut, vantage, warpPoint, WARP_HINT_KM, WARP_OUT_KM, ARRIVAL_KM, worldOf } from './flight';
+import { aboveNorth, arrivalView, AU_KM, orbitAround, orbitTarget, OVERVIEW_KM, overviewView, cruiseSpeed, DESTINATIONS, find, isWarp, nearest, poseFrom, pushOut, vantage, warpPoint, WARP_HINT_KM, WARP_OUT_KM, ARRIVAL_KM, worldOf } from './flight';
 
 const t = fromCivil(2026, 10, 30, 12 * 3600);
 const bodies = solarSystemAt(t);
@@ -157,21 +157,7 @@ describe('Clicking a body: standing just above its north pole, facing the Sun', 
   }
 });
 
-describe('Scale modes in 3D', () => {
-  it('√ fit keeps Earth at 1 AU, pulls Neptune in, and leaves sizes and the Moon beside Earth', () => {
-    expect(fitRadius(AU_KM)).toBeCloseTo(AU_KM, 3);
-    expect(fitRadius(30 * AU_KM) / AU_KM).toBeCloseTo(Math.sqrt(30), 9);
-    const s = scaleBodies(bodies, 'fit');
-    const sun = find(s, 'sun').pos, nep = find(s, 'neptune').pos;
-    expect(dist(nep, sun) / AU_KM).toBeLessThan(6);
-    const e0 = find(bodies, 'earth'), m0 = find(bodies, 'moon'), e1 = find(s, 'earth'), m1 = find(s, 'moon');
-    expect(dist(m1.pos, e1.pos)).toBeCloseTo(dist(m0.pos, e0.pos), 3);
-    expect(find(s, 'jupiter').info.radiusKm).toBe(find(bodies, 'jupiter').info.radiusKm);
-  });
-  it('linear and true are real distances', () => {
-    expect(scaleBodies(bodies, 'true')).toBe(bodies);
-    expect(scaleBodies(bodies, 'linear')).toBe(bodies);
-  });
+describe('The overview', () => {
   it('the overview is the calendar’s view from 3.2 AU', () => {
     const sun = find(bodies, 'sun').pos;
     const v = overviewView(sun);

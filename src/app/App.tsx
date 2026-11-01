@@ -407,10 +407,6 @@ export function App() {
         onSelect={() => {}}
         box={{ x: 0, y: 0, w: vp.w, h: vp.h }}
         round={round}
-        dial={false}
-        hidden={false}
-        initialMode="calendar"
-        prefetch3D
         boxesHost={boxesHost}
         handleRef={pane}
         onInfo={onInfo}

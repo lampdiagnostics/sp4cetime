@@ -176,6 +176,16 @@ body {
   color: var(--accent);
 }
 
+.brand .beta {
+  margin-left: 4px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  vertical-align: 1px;
+}
+
 .brand span {
   margin-left: 6px;
   font-weight: 500;
@@ -201,12 +211,6 @@ body {
   color: var(--text-dim);
 }
 
-.viewing {
-  font-size: 12px;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
 .facts {
   display: flex;
   flex-wrap: wrap;
@@ -222,6 +226,10 @@ body {
   align-items: center;
 }
 
+.tier-line {
+  font-size: 10.5px;
+  line-height: 1.6;
+}
 .tier {
   padding: 1px 8px;
   border-radius: 999px;
@@ -309,7 +317,6 @@ body {
   align-items: center;
 }
 
-.float-tools .pause-now,
 .float-tools .capture > button {
   height: 32px;
   border-radius: 16px;
@@ -326,25 +333,7 @@ body {
 .chrome-2 .corner,
 .chrome-2 .fly-labels,
 .chrome-2 .fly-tip,
-.chrome-2 .fly-warp span,
-.chrome-2 .fly-statement {
-  display: none;
-}
-
-/* "Space grid · 2 million km between lines", as the calendar says it, near the top. */
-.fly-statement {
-  position: absolute;
-  top: calc(var(--gap) + 44px);
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--sky-galactic, var(--text-dim));
-  text-shadow: 0 0 4px var(--label-halo, #000);
-}
-
-.fly-statement:empty {
+.chrome-2 .fly-warp span {
   display: none;
 }
 
@@ -425,13 +414,6 @@ button.primary {
 button.primary.live {
   border-color: var(--live);
   color: var(--live);
-}
-
-button.ghost {
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 12px;
 }
 
 .presets button {
@@ -751,17 +733,9 @@ select option {
   color: rgba(29, 29, 31, 0.62);
 }
 
-.fly button.ghost {
-  color: var(--text-dim);
-}
-
 .fly .note,
 .fly .facts {
   color: var(--text-dim);
-}
-
-.fly-hold {
-  color: var(--text);
 }
 
 .fly-labels {
@@ -802,19 +776,6 @@ select option {
 
 .fly-label:hover {
   color: var(--accent);
-}
-
-.fly-time {
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.fly-hold {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
 }
 
 .fly-error {
@@ -1004,21 +965,6 @@ select option {
   position: relative;
 }
 
-/* While recording: always on screen (even with the boxes hidden), never in the recording. */
-.rec-badge-unused {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 80, 80, 0.6);
-  background: rgba(40, 0, 0, 0.6);
-  color: #ff6b6b;
-  font-size: 12px;
-  cursor: pointer;
-}
 
 /* Windows: one fills the screen; several are round dials, each cut to its circle. */
 .pane {
@@ -1288,4 +1234,9 @@ select option {
   white-space: nowrap;
   padding-left: 6px;
   padding-right: 6px;
+}
+
+.help-popover a {
+  color: inherit;
+  text-decoration: underline;
 }

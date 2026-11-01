@@ -86,6 +86,10 @@ Notable skins:
 
 **Later (3D, to be defined):** a skin with relief, its radius varying with position, r(φ′, λ′) = r_K + h(φ′, λ′), from an elevation model (MOLA for Mars, LOLA for the Moon, Copernicus or SRTM for Earth); then meshes in skin coordinates (3D tiles of cities, an imaginary planet's buildings); then volumes for interiors. All tiled as a quad-tree in skin coordinates, so detail loads only where you are looking.
 
+## 5½. Everything is a sphere, and its skin carries what it is
+
+Owner, 1 November 2026: the model reaches down every scale. In **Planetary** mode each organism (a person standing somewhere on Earth) is a sphere on the planet's surface skin; in **Cellular** mode each cell is a sphere; in **Atomic** mode each atom is a sphere. **All attributes of any sphere are coded in its skin**: a person's sphere carries their place, the time frame of a birth and the houses around them (the first example, "Stand here", 0.4.0); a cell's skin its membrane and what is known of it; an atom's skin its element and state. The sphere itself stays a plain, fixed sphere with a centre and a radius; what it is lives in its skins.
+
 ## 6. How spheres interact
 
 - **Which sphere you are in**: the smallest sphere whose domain D contains you. Read-outs and Fly mode's "nearest" use it, and hand over smoothly at domain edges.

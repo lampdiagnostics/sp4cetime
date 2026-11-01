@@ -2,9 +2,15 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
-## 0.3.0 — 2026-11-01
+## 0.3.0 — 2026-11-01 (public beta)
 
-Paths through time and space: presentations made from the map itself, Prezi-style. Go anywhere, press Return, and fly from point to point.
+Paths through time and space: presentations made from the map itself, Prezi-style. Go anywhere, press Return, and fly from point to point. Also: smooth video recording, smoother drawing on ordinary computers, and everything the public beta on sp4cetime.org needs.
+
+- **Smooth videos.** Recordings were choppy (about 12 frames a second with stalls); now they are an even 30. Each frame goes to the encoder as it is drawn; the boxes' picture is refreshed only when a box changes (the clock, once a second) and copies only the styles that show; hidden names are skipped. Video is 1080p by default; tick **Sharp video (up to 4K)** in the Capture menu for more detail on a powerful computer.
+- **Smooth on more devices.** The calendar and the 3D view lower their drawing resolution while frames are slow and raise it again when there is room (a steady 30 frames a second, as in Safari's Low Power Mode, is left alone). The picture is the same, only a little softer on a slow device.
+- **How sure the positions are** is shown again, in the top-left box: *Ephemeris: real positions* (within 3,000 years of today), *Modelled: mean orbits* (to 10,000 years) or *Schematic* (beyond), for the moment in the middle of the view.
+- **Beta**: a Beta label; *About this beta* in ? How to (what it is, how sure it is, privacy: no accounts, no cookies, no tracking; feedback to hello@sp4cetime.org); a link preview picture for posts; caching and safety headers for the site; no source maps published.
+- Removed what was left of features already gone: √ fit in 3D, the dial windows' plumbing, unused styles.
 
 - **Make a path with Return.** Go to any place in the map (any moment, any view: the calendar, Fly or the whole galaxy) and press Return. A dialog asks you to name the path; what is on screen becomes START. Travel anywhere (another time, another place, another view, another look) and press Return again: the dialog adds the view as POINT 1, then POINT 2 and so on, each with an optional caption. Tick "Stop making the path after this point" and it becomes END (or press Finish beside Capture). Esc cancels; "Discard path" throws the path away (it asks twice).
 - **A point is exactly what is on screen**: the view, the moment, how time is running (speed, direction, playing or paused), the calendar's turn, size and zoom, the 3D camera (where you are, which way you look, how wide the view is), the theme, round or full window, which planets and elements are drawn, and whether the boxes and names are showing.

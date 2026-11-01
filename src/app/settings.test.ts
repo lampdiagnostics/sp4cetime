@@ -20,7 +20,6 @@ describe('Opening the app', () => {
     // What is drawn is remembered.
     expect(s.planets).toEqual(['jupiter']);
     expect(s.spirals).toBe(false);
-    expect(s.scale).toBe('true');
   });
 
   it('opens with the defaults on a first visit', () => {

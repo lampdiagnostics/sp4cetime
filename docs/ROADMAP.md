@@ -17,16 +17,25 @@ The spheres model ([SPHERES.md](SPHERES.md)) is what joins them: a cell and an a
 
 ## Near term
 
-### 0.3.x — paths (done, waiting for the owner's try-out)
+### 0.3.0 — paths and the public beta
 - [x] Return makes a path; Present in the Capture button; flights between points; point box.
 - [x] Paths are light, readable `.sp4ce.json` files (version 2): download, upload, ✎ Continue; example paths ship in `public/paths/`.
-- [ ] Owner tries it on the Mac (Safari and Chrome), then tag `v0.3.0`.
+- [x] Smooth video recording (even frames, 1080p by default, "Sharp" for 4K; boxes refreshed only when they change).
+- [x] Smooth on more devices: the drawing resolution adapts to the device (lower while frames are slow); dead code removed (√ fit in 3D, dial windows, unused styles).
+- [x] Beta basics: Beta label, accuracy tier shown again, About / privacy / feedback (hello@sp4cetime.org), link preview image, `_headers`, `robots.txt`, no public source maps.
+- [ ] Tag `v0.3.0`; GitHub (private); Cloudflare project and sp4cetime.org (README.md "Next goal"); Cloudflare Email Routing for hello@sp4cetime.org.
+- [ ] Check the live site on a laptop, a phone and a tablet (Safari, Chrome, Firefox); announce to a small group.
 - [ ] More example paths (life of the Sun, Earth's deep history, the planets' retrograde loops).
 
-### 0.4.0 — GitHub, a public beta, and the sky over a place
-- [ ] Parts 1–2 in README.md "Next goal": GitHub, then the public beta on sp4cetime.org.
-- [ ] Part 3, **Stand here** (details in README.md): pick a place and a moment; the ground view (horizon, meridian, ecliptic and signs, 12 house wedges, labels "Mars · 14° Leo · house 10"); the view from outside (horizon disc, house planes, lines to each body); the flat chart wheel; Ascendant, MC and cusps in `src/core/houses.ts` (Whole Sign and Equal first, Placidus later), property-tested; honest labels (positions astronomy, signs tropical, houses astrology); points remember place and house system.
-- [ ] Part 4: a shareable "live" link: `sp4cetime.org/?live` (see Screen saver below), so the beta is also a screen saver from day one.
+### 0.4.0 — "Stand here": the sky over a place (signs and houses); a live link
+The first example of Planetary mode (a person on Earth's surface is a sphere on its skin). Full design in README.md "Then (0.4.0)".
+- [ ] Signs from above, as now (each body's name gives its sign seen from where you are).
+- [ ] Houses dialog: a place (latitude and longitude in degrees, minutes, seconds and fractions; a less precise place taken at its middle point) and a time frame (one moment, time stopped; or a range, e.g. the hour around a birth, playing live or sped up, looping).
+- [ ] Ground view: horizon, meridian, ecliptic and signs, 12 house wedges, labels "Mars · 14° Leo · house 10"; a toggle makes the planet transparent so all 12 houses and every body show from where you stand.
+- [ ] Optional view from outside (horizon disc, house planes, lines to each body); later the flat chart wheel.
+- [ ] Birthday product: two videos (signs from above; houses from the ground) over the time frame, via paths and Capture.
+- [ ] `src/core/houses.ts` (Ascendant, MC, Whole Sign and Equal; Placidus later), property-tested; honest labels; points remember place, time frame and house system.
+- [ ] A shareable "live" link: `sp4cetime.org/?live` (see Screen saver below).
 
 ### 0.5 — the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (frame, sphere size, galaxy root, time, inner skins).
@@ -62,7 +71,7 @@ See the owner's notes in DECISIONS §1. Built as a separate, clearly labelled pr
 
 ## Planetary mode (to do)
 
-Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginary planets.
+Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginary planets. First example: "Stand here" in 0.4.0 (a person, a sphere on Earth's surface skin, with the sky's houses around them). In Planetary mode each organism is a sphere; in Cellular mode each cell; in Atomic mode each atom; every attribute of a sphere is coded in its skin (SPHERES.md).
 - [ ] Skins with relief (SPHERES.md §5): elevation models as tiled height fields.
   - Moon: LRO LOLA elevation and LROC imagery (NASA, public domain).
   - Mars: MGS MOLA elevation, Mars Express HRSC and Viking colour mosaics (NASA/ESA, check each licence).
