@@ -632,7 +632,7 @@ export function Pane(p: Props) {
               (shapes and directions right, where along an orbit illustrative). The label in the top-left box says which. The whole galaxy is a model.
             </li>
             <li>
-              Privacy: no accounts, no cookies, no tracking. Your settings and paths stay in this browser; the files you download are yours.
+              Privacy: no accounts, no cookies, no tracking of you. Cloudflare Web Analytics counts page visits anonymously (no cookies, no personal data). Your settings and paths stay in this browser; the files you download are yours.
             </li>
             <li>
               Feedback, ideas, mistakes: <a href={`mailto:${FEEDBACK}?subject=${encodeURIComponent(`sp4cetime ${version} beta`)}`}>{FEEDBACK}</a>

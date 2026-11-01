@@ -26,20 +26,21 @@ Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 - [x] Beta basics: Beta label, accuracy tier shown, About / privacy / feedback (hello@sp4cetime.org), link preview image, `_headers`, `robots.txt`, no public source maps.
 - [x] Open source: code under Apache 2.0 with a NOTICE, documentation under CC BY 4.0, the name kept as a trademark (LICENSE, NOTICE, LICENSE-docs.md, TRADEMARK.md, AUTHORS.md).
 - [x] Pre-launch review for bugs; fixes in CHANGELOG.md.
-- [ ] Pushed to GitHub (public) and live on sp4cetime.org via Cloudflare (README.md "Going live"). *(ticked when done)*
+- [x] Pushed to GitHub (public) and live on sp4cetime.org via Cloudflare Workers (README.md "Going live"), with anonymous page counts by Cloudflare Web Analytics.
 
 ## 0.4.0 — to-do list
 
 Everything not done yet. The first block is the next version; the rest stays on the list until it is picked up.
 
 ### Next: after the launch
-- [ ] Cloudflare Email Routing: hello@sp4cetime.org forwarding to the owner's inbox.
+- [ ] Cloudflare Email Routing: hello@sp4cetime.org forwarding to the owner's inbox (rule and destination set; DNS records and the inbox verification to finish).
+- [ ] Tags v0.1.0, v0.2.0, v0.3.0 and a 0.3.0 release on GitHub (Releases page).
 - [ ] Redirect sp4cetime.com, .io and .ai to sp4cetime.org (if owned).
 - [ ] Check the live site on a laptop, a phone and a tablet (Safari, Chrome, Firefox): calendar, Fly, galaxy, themes, round and full, keys, reduced motion, capture, paths.
 - [ ] Announce to a small group (teachers, science communicators, @Geosophyy, @techartist_) with a Capture recording.
 - [ ] More example paths (life of the Sun, Earth's deep history, the planets' retrograde loops).
 - [ ] Phones: touch flying (a thumb stick, gyroscope looking, tap to travel).
-- [ ] Optional: Plausible page counts and Sentry error reports (update the privacy note if added).
+- [ ] Optional: Sentry error reports (update the privacy note if added). Page counts: Cloudflare Web Analytics, on since launch.
 - [ ] Screenshot tests in CI; an accessibility list view; presenter notes and auto-advance for paths.
 
 ### Next: "Stand here", the sky over a place (signs and houses)

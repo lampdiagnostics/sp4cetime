@@ -40,14 +40,16 @@ A **path** is a presentation, Prezi-style: a sequence of chosen views of the map
 
 ## Going live (0.3.0)
 
-0.3.0 is the public beta. The code is open source (see **Licence** below), on GitHub, and served by Cloudflare at sp4cetime.org. The owner approves anything that publishes, changes an account or touches DNS, and types every password and token; an AI assistant can do the rest through the Claude app's built-in browser and Claude's GitHub connection.
+0.3.0 is the public beta, **live at [sp4cetime.org](https://sp4cetime.org)** since 1 November 2026. The code is open source (see **Licence** below) at [github.com/lampdiagnostics/sp4cetime](https://github.com/lampdiagnostics/sp4cetime). The owner approves anything that publishes, changes an account or touches DNS, and types every password and token.
 
-1. **GitHub.** The repository `sp4cetime` exists on the owner's account (empty). Connect GitHub to Claude (claude.ai → Settings → Connectors → GitHub, with access to `sp4cetime`) so the assistant can push now and for every later version. The full history and tags (`v0.1.0`, `v0.2.0`, `v0.3.0`) go up from the Mac's repository. Set the repository **public** (the code is Apache 2.0). Check GitHub → Actions: the CI workflow (typecheck, tests, build, bundle budgets) passes on `main`.
-   - Without the connector, once in Terminal on the Mac: `cd ~/sp4cetime && git remote add origin https://github.com/USERNAME/sp4cetime.git && git push -u origin main --follow-tags` (sign in when asked, or use `gh auth login` first).
-2. **Cloudflare.** Workers & Pages → Create → Import a repository → GitHub (the owner approves Cloudflare's GitHub app for `sp4cetime`). Build command `npm run build`, output directory `dist`, Node 22 (environment variable `NODE_VERSION=22`). Every push to `main` then deploys; pull requests get preview links. (`wrangler.jsonc` describes the same static site for `npx wrangler deploy`.)
-3. **Domain.** In the project: Custom domains → add `sp4cetime.org` (and `www.sp4cetime.org`, redirected to it). The domain is already on Cloudflare, so DNS is set automatically; HTTPS follows within minutes.
-4. **Email.** Email Routing → create `hello@sp4cetime.org`, forwarding to the owner's inbox (Cloudflare sends a confirmation email to that inbox).
-5. **Check the live site** (link preview, About, feedback link) and then on a laptop, a phone and a tablet (docs/ROADMAP.md, 0.4.0 "after the launch").
+How it is set up (done):
+1. **GitHub.** `lampdiagnostics/sp4cetime`, public; CI (typecheck, tests, build, bundle budgets) runs on every push. Claude's GitHub app has access to this repository only.
+2. **Cloudflare Workers.** The Worker `sp4cetime` builds from GitHub on every push to `main` (build `npm run build`, deploy `npx wrangler deploy`, `NODE_VERSION=22`; `wrangler.jsonc` serves `dist` as a single-page app). Temporary address: sp4cetime.lampdiagnostics.workers.dev.
+3. **Domain.** `sp4cetime.org` and `www.sp4cetime.org` attached as custom domains, HTTPS automatic.
+4. **Page counts.** Cloudflare Web Analytics: anonymous, no cookies, no personal data (said so in *About this beta*).
+5. **Email.** Email Routing: `hello@sp4cetime.org` forwards to the owner's inbox (finish: add the Email Routing DNS records, verify the inbox).
+
+Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0` and a release on GitHub; the device checks (docs/ROADMAP.md, 0.4.0 "after the launch").
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
