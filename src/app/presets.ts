@@ -10,15 +10,19 @@ export interface ZoomPreset {
 
 export const ZOOM_PRESETS: readonly ZoomPreset[] = [
   { id: 'minute', label: 'Minute', spanSeconds: 60 },
+  { id: 'hour', label: 'Hour', spanSeconds: 3600 },
   { id: 'day', label: 'Day', spanSeconds: SECONDS_PER_DAY },
+  { id: 'week', label: 'Week', spanSeconds: SECONDS_PER_DAY * 7 },
   { id: 'month', label: 'Month', spanSeconds: SECONDS_PER_DAY * 30 },
-  { id: 'years', label: 'Years', spanSeconds: SECONDS_PER_YEAR * 2.5 },
+  { id: 'year', label: 'Year', spanSeconds: SECONDS_PER_YEAR },
+  { id: 'decade', label: 'Decade', spanSeconds: SECONDS_PER_YEAR * 10 },
   { id: 'century', label: 'Century', spanSeconds: SECONDS_PER_YEAR * 100 },
   { id: 'galactic', label: 'Galactic year', spanSeconds: SECONDS_PER_YEAR * 230e6 },
   { id: 'sun', label: "Sun's life", spanSeconds: SECONDS_PER_YEAR * 10.5e9 },
 ];
 
-export const DEFAULT_PRESET = ZOOM_PRESETS[3] as ZoomPreset;
+/** The calendar opens at a minute across: the present, second by second. */
+export const DEFAULT_PRESET = ZOOM_PRESETS[0] as ZoomPreset;
 
 export const PLANET_SETS: ReadonlyArray<{ label: string; ids: readonly PlanetId[] }> = [
   { label: 'Earth', ids: ['earth'] },

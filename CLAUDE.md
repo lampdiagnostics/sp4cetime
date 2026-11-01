@@ -1,14 +1,15 @@
 # Working on sp4cetime
 
-Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human picking this project up cold. Read this file, then [DECISIONS.md](DECISIONS.md). Together they replace the history of the conversations that built v1.0; you should not need anything else to start. [README.md](README.md) has the general direction; [docs/adr/](docs/adr/) has the reasoning behind each architectural choice; `git log` and [CHANGELOG.md](CHANGELOG.md) have the history.
+Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human picking this project up cold. Read this file, then [DECISIONS.md](DECISIONS.md). Together they replace the history of the conversations that built 0.1.0 and 0.2.0; you should not need anything else to start. [README.md](README.md) has the general direction; [docs/adr/](docs/adr/) has the reasoning behind each architectural choice; `git log` and [CHANGELOG.md](CHANGELOG.md) have the history.
 
 ## What this is (in five lines)
 
 - A static web app: a zoomable map of time drawn as the solar system's real motion. The Sun is always *now*, travelling at 230 km/s; planets and the Moon wind around its path as spirals, from −4.6 Gyr to +5 Gyr.
 - **Calendar** (Canvas 2D, `src/core` + `src/app`): the round-window timeline, with the real sky behind it.
-- **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and a whole-galaxy view.
+- **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
+- **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Next goal (v2): release to GitHub, then a public beta (steps in README.md, "Goal for v2"). After that: the Library (stories), DECISIONS.md §1.
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.2.0** (tag `v0.2.0`). Next goal (0.3.0): release to GitHub, then a public beta (steps in README.md, "Next goal"). After that: the Library (stories), DECISIONS.md §1.
 
 ## Commands
 
@@ -22,15 +23,18 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | Path | What |
 | --- | --- |
 | `src/core/time.ts` | `Time = { day, sec }` from 2000-01-01 00:00 UTC; civil dates, formatting. |
-| `src/core/camera.ts`, `ticks.ts` | Calendar camera (time ↔ x), time ticks and the space grid (arcs of the galactic circle). |
+| `src/core/camera.ts`, `ticks.ts` | Calendar camera (time ↔ x), time ticks and the space grid (km along the Sun's path; `formatKm`). |
 | `src/core/geometry.ts`, `planets.ts`, `models.ts` | Frames (ecliptic, galactic, travel, view), Keplerian orbits, accuracy tiers, Moon phase. |
-| `src/core/render.ts` | The calendar renderer: `drawFrame(ctx, input)`. Pure apart from the canvas context. |
+| `src/core/render.ts` | The calendar renderer: `drawFrame(ctx, input)` → labels, strobe poses, Sun position, space-grid scale. Geocentric mode, strobe, edge pointers. Pure apart from the canvas context. |
+| `src/core/galacticOrbit.ts`, `bob.ts` | The Sun's whole-life galactic orbit (epicycle) and vertical bob, for the galaxy view. |
+| `src/core/skyfigures.ts`, `colour.ts` | Zodiac signs, constellation and galaxy-mark data shared by both views; colour helpers. |
 | `src/core/bodies.ts` | True positions and orientations of every body (astronomy-engine), radii, flattening. |
 | `src/core/spheres.ts` | Nested spheres, arc positions, DMS formatting, ray–sphere hits. |
 | `src/core/paths3d.ts`, `skymap.ts` | Fly-mode spirals and grid marks; the calendar sky's perspective lens. |
 | `src/core/constants.ts` | Physical constants, each with its published range. |
-| `src/app/` | React UI: `App.tsx` (corners, settings, mode switch), `GalacticCanvas.tsx` (gestures, frame loop), `skyBackdrop.ts`, `settings.ts` (localStorage). |
-| `src/fly/` | `FlyView.tsx` (loop, input, HUD), `scene.ts`, `flight.ts` (poses, destinations), `overlays.ts`, `sky.ts`, `galaxy.ts`. |
+| `src/app/` | React UI. `App.tsx`: the page (shared clock with speed and pause, theme, space-bar state, top-right box, eye and Capture). `Pane.tsx`: the window (calendar ↔ 3D, its settings, the top-left, bottom-left and bottom-right boxes, portalled into the page, ? How to text and credits, scale bar). `GalacticCanvas.tsx` (gestures, frame loop, label and pose clicks), `skyBackdrop.ts` (sky, figures, names), `settings.ts` (localStorage), `ElementsPicker`, `PlanetPicker`, `HelpButton` (centred pop-up), `CaptureMenu` + `capture.ts` (screen capture) + `gif.ts` (our GIF encoder). |
+| `src/fly/` | The 3D view (Fly and the galaxy), no controls of its own: `FlyView.tsx` (loop, Minecraft-style input, journeys to bodies, labels with signs, HUD), `scene.ts` (renderer keeps its frame for capture), `flight.ts` (poses, destinations, warps, speed), `overlays.ts` (spirals sampled to the vanishing point, orbits, ruler grids, scale bar), `sky.ts`, `galaxy.ts` (stars, haze, bubbles, the Sun's path and whole-life orbit), `localGroup.ts` (Sgr A*, neighbour galaxies). |
+| `src/core/skyfigures.ts` | Constellation, zodiac and galaxy-mark definitions shared by both views. |
 | `content/themes/*.json` | Themes as data, validated by `parseTheme`. |
 | `public/sky`, `public/textures` | Star catalogue, Milky Way, galaxy model, Earth and Moon maps, with licences and credits. |
 
@@ -41,13 +45,16 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 3. **Never use JavaScript `Date` for model time.** It only covers ±273,000 years. `Date` is allowed only at the edges: reading the clock (`fromUnixMs`) and astronomy-engine inside the ephemeris tier.
 4. **Every frame is a pure function of (camera, theme, now, view offsets).** No accumulated animation state in renderers. Rotation, positions and labels derive from time.
 5. **Be honest about accuracy.** Beyond the ephemeris tier, say "modelled" or "schematic" on screen. Models (the whole galaxy) are labelled as models. Never invent surface detail; never hide science behind Pro.
-6. **Themes are data.** A theme never changes where things are, only how they look. Fly mode always uses a dark theme.
+6. **Themes are data.** A theme never changes where things are, only how they look. The three themes (Dark, Bright, Colour) apply equally to the calendar, Fly mode and the whole galaxy; each has a `sky` block (`SkyStyle` in `src/core/theme.ts`). Bright's sky is a negative (dark ink on paper).
 7. **Test the maths hardest.** New core code comes with tests; prefer property tests across the full ±5 Gyr range.
 8. **Few dependencies.** Adding one needs a line in an ADR saying why. Current runtime deps: react, astronomy-engine, three.
 9. **Small commits to `main`, always deployable.** CI runs typecheck, test, build and gzipped JS budgets: 150 KB calendar, 200 KB Fly chunk.
 10. **Fly mode precision:** positions are computed in double precision relative to the camera (floating origin) before reaching the GPU; keep huge objects' on-GPU coordinates small (the sky is a 10⁵ km sphere drawn first with depth off; the galaxy is drawn shrunk toward the camera). Near plane scales with distance.
 11. **Measure in arcs.** New distance read-outs use arcs on a sphere (°′″) plus radii, via `spheres.ts`, not raw km.
-12. **Every default view: in front of the body, north up, the Sun in view** (`frontView` in `flight.ts`).
+12. **Every default view: in front of the body, north up, the Sun in view** (`frontView` in `flight.ts`). Clicking a body's name is the exception: above its north pole (`aboveNorth`).
+13. **Three views, one set of controls** (ADR-0013). Calendar first; ✦ Fly and ◎ Galaxy buttons; clicking a name flies just above that body; in Fly, zooming out warps to the galaxy and zooming in on it warps back. New controls go in the boxes (`Pane.tsx`, or `App.tsx` if shared) and must mean something in every view.
+14. **One scale: true** (ADR-0016). No compressed scales; they change directions, so planets would sit in the wrong sign.
+15. **Capture records what is on screen** and never the capture controls: mark any control that must stay out with `data-no-capture`; keep the WebGL renderer's `preserveDrawingBuffer`.
 
 ## Conventions
 
@@ -56,12 +63,14 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - Constants with published uncertainty go in `src/core/constants.ts` with the range in a comment.
 - Keep `aria-label`s and keyboard controls working. Respect `prefers-reduced-motion`.
 - UI text and docs in plain language; Canadian/British spelling is fine.
-- Each version: bump `package.json`, add a CHANGELOG entry written for the user, update or add an ADR for architectural changes.
+- Each version: bump `package.json` (0.x.y until the public launch, which is 1.0), add a CHANGELOG entry written for the user, update or add an ADR for architectural changes, tag `v0.x.y`.
 
 ## Working with the owner
 
 - They describe what they want to see, often visually ("like a planetarium", "like a video game character"). Build it, show screenshots, then ask. Their stated preferences are in DECISIONS.md §4; keep them unless told otherwise.
-- They work on a Mac in `~/sp4cetime` and run `npm run dev` themselves. If you work from a Linux sandbox linked to that folder: **never run `npm install`/`npm ci` in their folder from Linux** (it breaks native binaries on the Mac). Verify in a copy elsewhere; tell them to run `npm install` when dependencies change.
+- They work on a Mac in `~/sp4cetime` and run `npm run dev` themselves (often in their own browser; which one matters for capture). If you work from a Linux sandbox linked to that folder: **never run `npm install`/`npm ci` in their folder from Linux** (it breaks native binaries on the Mac). Verify in a copy elsewhere (e.g. `rsync -a --exclude node_modules --exclude dist --exclude .git ~/mnt/sp4cetime/ ~/work/sp/` with its own `npm install`); tell them to run `npm install` when dependencies change.
+- Big patches are easiest written in the cloud workspace and sent to the Mac's Linux shell as gzip + base64 Python scripts that assert each replacement matches exactly once.
+- They ask in short bursts, often several changes at once, and change their minds after trying things (dials, play/pause placement, scales). Do what was asked, say plainly what you could not verify, and keep DECISIONS §4 current.
 - Verify visual work with real screenshots (Playwright + Chromium) before saying it works. Headless software WebGL is slow; judge looks there, not speed.
 - When a source image or dataset is needed, prefer public-domain or permissive licences, record the source and licence in `public/**/CREDITS.md` or a LICENSE file, and build it with a script in `scripts/`.
 
@@ -85,9 +94,13 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 > In sp4cetime (read CLAUDE.md and DECISIONS.md, especially §1 "Library"), start the Library: the `.sp4ce.json` schema for events, stops and stories (schema-versioned, validated like themes), adding an event by tapping the Sun line, event pins and spans on the calendar, and saving to IndexedDB with file export/import. Pure schema and maths in `src/core` with tests; UI in `src/app`.
 
-**v2: GitHub and public beta**
+**0.3.0: GitHub and public beta**
 
-> In sp4cetime (read CLAUDE.md, then the "Goal for v2" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+> In sp4cetime (read CLAUDE.md, then the "Next goal" section of README.md), help me release to GitHub and then launch the public beta. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
+
+**Check capture on my Mac**
+
+> In sp4cetime (read CLAUDE.md and DECISIONS §6), capture recorded only the boxes on my Mac in [browser]. Open the app in the Claude app's built-in browser (http://localhost:5173, I'll approve it), test drawing each view canvas into another canvas, find why it comes out empty, fix it, and verify a screenshot, a GIF and a video.
 
 **Release**
 

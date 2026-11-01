@@ -17,13 +17,13 @@ export class FlyBoundary extends Component<Props, { error: string | null }> {
     if (!this.state.error) return this.props.children;
     return (
       <div className="fly-error" role="alert">
-        <p>Fly mode couldn’t start: {this.state.error}</p>
+        <p>The 3D view couldn’t start: {this.state.error}</p>
         <p>
           <button type="button" onClick={() => location.reload()}>
             Reload
           </button>{' '}
           <button type="button" onClick={this.props.onExit}>
-            ← Calendar
+            ← Default view
           </button>
         </p>
       </div>

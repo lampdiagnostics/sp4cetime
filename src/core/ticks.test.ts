@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { Camera } from './camera';
 import { MIN_SECONDS_PER_PIXEL } from './constants';
-import { chooseMinor, distanceGrid, formatDistanceStep, generateTicks, nests, stepSeconds, TICK_STEPS } from './ticks';
+import { chooseMinor, distanceGrid, formatDistanceStep, formatKm, generateTicks, nests, stepSeconds, TICK_STEPS } from './ticks';
 import { addSeconds, fromCivil, fromYearsApprox } from './time';
 
 const cam = (yearsFromNow: number, secondsPerPixel: number): Camera => ({
@@ -99,24 +99,23 @@ describe('Distance grid', () => {
     }
   });
 
-  it('uses degrees of the galactic circle when zoomed out', () => {
-    const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1e5, width: 1200, height: 800 };
-    expect(distanceGrid(c).step.unit).toBe('deg');
-    expect(distanceGrid(c).major.length).toBeGreaterThan(2);
+  it('steps in km, 1, 2 and 5 × a power of ten, and says so once', () => {
+    const c: Camera = { center: now, secondsPerPixel: 3600, width: 1200, height: 800 };
+    const g = distanceGrid(c);
+    expect(g.step.unit).toBe('km');
+    expect(String(g.step.km)).toMatch(/^[125]0*$/);
+    expect(g.major.length).toBeGreaterThan(2);
+    expect(formatDistanceStep(g.step)).toMatch(/ km$/);
   });
 
-  it('spaces 1° of the Sun\'s galactic circle ≈ 607,000 years of travel', () => {
-    const c: Camera = { center: now, secondsPerPixel: 3.15576e7 * 1000, width: 30_000, height: 800 };
-    const g = distanceGrid(c, 600);
-    expect(formatDistanceStep(g.step)).toBe('1°');
-    const years = (8.178 * 3.085_677_581_491_367e16 * (Math.PI / 180)) / 230 / 3.15576e7;
-    expect(years).toBeCloseTo(606_700, -3);
-    expect((g.major[1] ?? 0) - (g.major[0] ?? 0)).toBeCloseTo(years / 1000, 3);
-  });
-
-  it('labels arcseconds with grouped decimals', () => {
-    expect(formatDistanceStep({ unit: 'arcsec', n: 0.000_002, rad: 0, km: 0 })).toBe('0.000\u20090002″'.replace('0.000\u20090002', '0.000\u2009002'));
-    expect(formatDistanceStep({ unit: 'arcmin', n: 5, rad: 0, km: 0 })).toBe('5′');
+  it('reads distances as people say them', () => {
+    expect(formatKm(500)).toBe('500 km');
+    expect(formatKm(20_000)).toBe('20,000 km');
+    expect(formatKm(2e6)).toBe('2 million km');
+    expect(formatKm(5e9)).toBe('5 billion km');
+    expect(formatKm(1e12)).toBe('1 trillion km');
+    expect(formatKm(2e15)).toBe('2 × 10¹⁵ km');
+    expect(formatKm(1e18)).toBe('10¹⁸ km');
   });
 
   it('never draws lines finer than double precision allows in deep time', () => {

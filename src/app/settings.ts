@@ -1,7 +1,11 @@
 import type { ScaleMode } from '../core/geometry';
 import { PLANET_IDS, type PlanetId } from '../core/planets';
 
-/** Per-viewer preferences, remembered in this browser only. */
+/**
+ * Per-viewer preferences, remembered in this browser only. Every visit (and every reload)
+ * still opens the same way: the calendar, round window, Dark Mode, the Sun in the centre.
+ * What is drawn (planets, overlays, scale) is remembered.
+ */
 export interface Settings {
   readonly themeId: string;
   readonly planets: readonly PlanetId[];
@@ -17,12 +21,15 @@ export interface Settings {
   readonly zodiac: boolean;
   /** The galactic equator, centre, anticentre and the halfway points. */
   readonly galactic: boolean;
+  /** Strobe: the solar system's frozen poses behind the present, and how many a year. */
+  readonly strobe: boolean;
+  readonly strobeSteps: number;
   readonly scale: ScaleMode;
   readonly focus: 'sun' | PlanetId;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  themeId: 'scientific',
+  themeId: 'dark',
   planets: ['mercury', 'venus', 'earth', 'mars'],
   moon: true,
   rings: true,
@@ -34,11 +41,18 @@ export const DEFAULT_SETTINGS: Settings = {
   constellations: true,
   zodiac: true,
   galactic: true,
+  strobe: false,
+  strobeSteps: 5.2,
   scale: 'fit',
   focus: 'sun',
 };
 
 const KEY = 'sp4cetime.settings.v1';
+
+/** The strobe's range of steps (poses) a year. */
+export const STROBE_MIN = 1;
+export const STROBE_MAX = 24;
+
 
 export function loadSettings(): Settings {
   try {
@@ -49,20 +63,25 @@ export function loadSettings(): Settings {
       ? PLANET_IDS.filter((id) => (data.planets as unknown[]).includes(id))
       : DEFAULT_SETTINGS.planets;
     return {
-      themeId: typeof data.themeId === 'string' ? data.themeId : DEFAULT_SETTINGS.themeId,
+      themeId: DEFAULT_SETTINGS.themeId,
       planets,
       moon: typeof data.moon === 'boolean' ? data.moon : DEFAULT_SETTINGS.moon,
       rings: typeof data.rings === 'boolean' ? data.rings : DEFAULT_SETTINGS.rings,
       labels: typeof data.labels === 'boolean' ? data.labels : DEFAULT_SETTINGS.labels,
-      round: typeof data.round === 'boolean' ? data.round : DEFAULT_SETTINGS.round,
+      round: DEFAULT_SETTINGS.round,
       spirals: typeof data.spirals === 'boolean' ? data.spirals : DEFAULT_SETTINGS.spirals,
       timeGrid: typeof data.timeGrid === 'boolean' ? data.timeGrid : DEFAULT_SETTINGS.timeGrid,
       distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
       constellations: typeof data.constellations === 'boolean' ? data.constellations : DEFAULT_SETTINGS.constellations,
       zodiac: typeof data.zodiac === 'boolean' ? data.zodiac : DEFAULT_SETTINGS.zodiac,
       galactic: typeof data.galactic === 'boolean' ? data.galactic : DEFAULT_SETTINGS.galactic,
+      strobe: typeof data.strobe === 'boolean' ? data.strobe : DEFAULT_SETTINGS.strobe,
+      strobeSteps:
+        typeof data.strobeSteps === 'number' && data.strobeSteps >= STROBE_MIN && data.strobeSteps <= STROBE_MAX
+          ? data.strobeSteps
+          : DEFAULT_SETTINGS.strobeSteps,
       scale: data.scale === 'linear' || data.scale === 'true' ? data.scale : 'fit',
-      focus: PLANET_IDS.includes(data.focus as PlanetId) ? (data.focus as PlanetId) : 'sun',
+      focus: 'sun',
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -1,6 +1,6 @@
 {
-  "id": "scientific",
-  "name": "Scientific",
+  "id": "dark",
+  "name": "Dark Mode",
   "background": "#03050b",
   "grid": "rgba(120, 150, 210, 0.07)",
   "gridMajor": "rgba(140, 170, 230, 0.16)",
@@ -10,7 +10,7 @@
   "galaxy": "#c9d6ff",
   "galaxyAlpha": 0.5,
   "sunLine": "#ffb347",
-  "sunLineWidth": 2,
+  "sunLineWidth": 3,
   "sun": "#ffd27a",
   "planets": {
     "mercury": "#b8b3ad",
@@ -35,5 +35,25 @@
   "bezel": "rgba(150, 175, 230, 0.35)",
   "glow": 8,
   "font": "500 12px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-  "ui": "dark"
+  "ui": "dark",
+  "sky": {
+    "background": "#000000",
+    "ink": false,
+    "starTint": "#ffffff",
+    "starTintMix": 0,
+    "starStrength": 1,
+    "milkyWayFaint": "#8c9ed8",
+    "milkyWayBright": "#f2e1c7",
+    "milkyWayStrength": 0.55,
+    "figures": "#7f9bd6",
+    "zodiac": "#f0c674",
+    "galactic": "#b9a7ff",
+    "path": "#ffb347",
+    "bubbles": "#e06cff",
+    "label": "rgba(150, 175, 230, 0.75)",
+    "labelStar": "rgba(225, 230, 245, 0.8)",
+    "labelZodiac": "rgba(240, 198, 116, 0.85)",
+    "labelGalactic": "rgba(205, 192, 255, 0.92)",
+    "labelHalo": "rgba(0, 0, 0, 0.9)"
+  }
 }

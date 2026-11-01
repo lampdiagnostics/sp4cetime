@@ -1,7 +1,8 @@
 import { parseTheme, type Theme } from '../../src/core/theme';
-import minimal from './minimal.json';
-import scientific from './scientific.json';
-import synthwave from './synthwave.json';
+import bright from './bright.json';
+import colour from './colour.json';
+import dark from './dark.json';
 
 /** Built-in themes, validated at startup. The first is the default. */
-export const THEMES: readonly Theme[] = [scientific, minimal, synthwave].map(parseTheme);
+export const THEMES: readonly Theme[] = [dark, bright, colour].map(parseTheme);
+

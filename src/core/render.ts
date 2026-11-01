@@ -23,13 +23,19 @@ import {
   type ScaleMode,
   type Track,
   viewMatrix,
+  type Vec3,
+  DEFAULT_ROLL,
+  matMul,
 } from './geometry';
 import { galacticAngle, moonPhase } from './models';
+import { keplerKm } from './paths3d';
+import { moonGeocentric } from './bodies';
+import { SIGNS } from './skyfigures';
 import { orbitalPeriod, planetById, type PlanetId } from './planets';
-import type { Theme } from './theme';
+import type { SkyStyle, Theme } from './theme';
 import { focalFor } from './skymap';
 import { distanceGrid, formatDistanceStep, generateTicks } from './ticks';
-import { diffSeconds, fromYearsApprox, type Time } from './time';
+import { diffSeconds, fromYearsApprox, SECONDS_PER_DAY, SECONDS_PER_YEAR, type Time } from './time';
 
 export interface ViewOptions {
   /** Rotation about the line of travel, radians. */
@@ -53,6 +59,23 @@ export interface ViewOptions {
   readonly focus: 'sun' | PlanetId;
   /** Vertical position of the Sun's line, px from its default (the Sun can be dragged). */
   readonly panY: number;
+  /** On the sky behind: constellation figures and names, the zodiac, the galaxy marks. */
+  readonly constellations: boolean;
+  readonly zodiac: boolean;
+  readonly galactic: boolean;
+  /** False: draw no text at all (names, time and space labels, the sky's names). */
+  readonly text: boolean;
+  /** Strobe: freeze the whole solar system's pose this many times a year (0 or absent: off). */
+  readonly strobe?: number;
+}
+
+/** What the sky shows, for the backdrop. */
+export interface SkyOptions {
+  readonly constellations: boolean;
+  readonly zodiac: boolean;
+  readonly galactic: boolean;
+  /** Where the Sun and Moon are on the sky seen from Earth now, and which sign each is in. */
+  readonly bodies?: ReadonlyArray<{ readonly dir: Vec3; readonly text: string; readonly glyph: string }>;
 }
 
 export interface FrameInput {
@@ -76,13 +99,40 @@ export interface SkyBackdrop {
     cy: number,
     focal: number,
     box: { x: number; y: number; w: number; h: number },
-    ink: 'light' | 'dark',
-    strength: number,
+    style: SkyStyle,
+    options: SkyOptions,
   ): void;
 }
 
 /** What the canvas needs back from a frame: where the Sun was drawn, for grabbing it. */
+/** Bodies whose names can be clicked: the Sun, the planets, the Moon. */
+export type LabelId = PlanetId | 'sun' | 'moon';
+
+/** A body's name on screen, for clicking. */
+export interface LabelBox {
+  readonly id: LabelId;
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
+/** A frozen pose's body on screen, and how long ago (seconds, negative) it was. */
+export interface PoseHit {
+  readonly x: number;
+  readonly y: number;
+  readonly dt: number;
+}
+
 export interface FrameResult {
+  readonly labels: readonly LabelBox[];
+  /** The strobe's frozen poses, for clicking: each body of each pose. */
+  readonly poses: readonly PoseHit[];
+  /** What the space grid says about itself ("Space grid · 2 million km between lines"), or ''. */
+  readonly space: string;
+  /** For the scale bar: the main lines' spacing, km (0: no grid), and how far apart they are, px. */
+  readonly spaceKm: number;
+  readonly spacePx: number;
   readonly sunX: number;
   readonly sunY: number;
 }
@@ -289,8 +339,28 @@ function walk(kFrom: number, kTo: number, point: (k: number) => [number, number,
  * Samples are close enough everywhere (≤ ~2 px along time, ≤ ~4 px around the orbit),
  * so the coil looks the same at every zoom and runs from edge to edge.
  */
-function drawCoil(track: Track, pxPerTurn: number, ax: number, ay: number, x0: number, x1: number, W: number, H: number): DepthPath {
+/**
+ * Seen from Earth (Centre: Earth): Earth's offset from the Sun at a base x, px, which every
+ * path subtracts so that Earth's path is the straight line. Heliocentric: always zero.
+ */
+type Geo = (xBase: number) => readonly [number, number];
+const HELIO: Geo = () => [0, 0];
+
+function drawCoil(
+  track: Track,
+  pxPerTurn: number,
+  ax: number,
+  ay: number,
+  x0: number,
+  x1: number,
+  W: number,
+  H: number,
+  geo: Geo = HELIO,
+  /** Samples needed per turn of this path to follow Earth's yearly wiggle (geocentric). */
+  geoSamples = 0,
+): DepthPath {
   let N = samplesPerTurn(pxPerTurn, track.extent, 64, Infinity);
+  while (N < geoSamples && N < 1 << 16) N *= 2;
   const toM = (x: number): number => track.M0 + (TWO_PI * (x - ax)) / pxPerTurn;
   const span = toM(x1) - toM(x0);
   while ((span / TWO_PI) * N > MAX_POINTS && N > 64) N /= 2;
@@ -310,12 +380,16 @@ function drawCoil(track: Track, pxPerTurn: number, ax: number, ay: number, x0: n
     }
     return walk(kFrom, kTo, (k) => {
       const i = (((k % N) + N) % N) * 3;
-      return [ax + (k * dM - track.M0) * scale + (table[i] as number), ay - (table[i + 1] as number), (table[i + 2] as number) >= 0];
+      const xb = ax + (k * dM - track.M0) * scale;
+      const g = geo(xb);
+      return [xb + (table[i] as number) - g[0], ay - (table[i + 1] as number) + g[1], (table[i + 2] as number) >= 0];
     }, W, H);
   }
   return walk(kFrom, kTo, (k) => {
     track.atMean(k * dM, s);
-    return [ax + (k * dM - track.M0) * scale + s.sx, ay - s.sy, s.depth >= 0];
+    const xb = ax + (k * dM - track.M0) * scale;
+    const g = geo(xb);
+    return [xb + s.sx - g[0], ay - s.sy + g[1], s.depth >= 0];
   }, W, H);
 }
 
@@ -337,6 +411,7 @@ function drawMoonCoil(
   x1: number,
   W: number,
   H: number,
+  geo: Geo = HELIO,
 ): DepthPath {
   let N = samplesPerTurn(moon.pxPerTurn, moon.radiusPx, 32, Infinity);
   const toP = (x: number): number => moon.phase0 + (TWO_PI * (x - ax)) / moon.pxPerTurn;
@@ -350,7 +425,8 @@ function drawMoonCoil(
     const xBase = ax + ((phase - moon.phase0) * moon.pxPerTurn) / TWO_PI;
     earth.atMean(earth.M0 + (TWO_PI * (xBase - ax)) / earthPx, s);
     moonOffset(s.lon + Math.PI + phase, moon.radiusPx, vm, m);
-    return [xBase + s.sx + m.sx, ay - s.sy - m.sy, s.depth + m.depth * 0.02 >= 0];
+    const g = geo(xBase);
+    return [xBase + s.sx + m.sx - g[0], ay - s.sy - m.sy + g[1], s.depth + m.depth * 0.02 >= 0];
   }, W, H);
 }
 
@@ -366,6 +442,8 @@ function drawBand(
   x1: number,
   color: string,
   alpha: number,
+  /** Mirror it about the line (the Sun's band, seen from Earth). */
+  flip = false,
 ): void {
   if (x1 <= x0 || alpha <= 0) return;
   const BINS = 48;
@@ -375,11 +453,24 @@ function drawBand(
   const ys = new Float64Array(SAMPLES);
   for (let i = 0; i < SAMPLES; i++) {
     track.atMean((i / SAMPLES) * TWO_PI, s);
-    ys[i] = s.sy;
-    lo = Math.min(lo, s.sy);
-    hi = Math.max(hi, s.sy);
+    const y = flip ? -s.sy : s.sy;
+    ys[i] = y;
+    lo = Math.min(lo, y);
+    hi = Math.max(hi, y);
   }
-  if (hi - lo < 1) return;
+  if (hi - lo < 1) {
+    // Seen edge-on, the band is a line: still drawn, never dropped.
+    ctx.save();
+    ctx.globalAlpha = 0.8 * alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, ay - (hi + lo) / 2);
+    ctx.lineTo(x1, ay - (hi + lo) / 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   const hist = new Float64Array(BINS);
   for (const y of ys) hist[Math.min(BINS - 1, Math.floor(((y - lo) / (hi - lo)) * BINS))]! += 1;
   const peak = Math.max(...hist);
@@ -395,6 +486,67 @@ function drawBand(
   g.addColorStop(1, withAlpha(color, 0));
   ctx.fillStyle = g;
   ctx.fillRect(x0, top, x1 - x0, bottom - top);
+}
+
+/**
+ * A body beyond the window: a small arrow on the window's edge, on the line from the Sun
+ * toward it, with its name. (At true scale and a close time zoom the orbits, drawn at the
+ * path's km per pixel, reach far beyond any screen.)
+ */
+function drawEdgePointers(
+  ctx: CanvasRenderingContext2D,
+  list: ReadonlyArray<{ x: number; y: number; color: string; name: string; id: LabelId }>,
+  ax: number,
+  ay: number,
+  L: Layout,
+  W: number,
+  H: number,
+  font: string,
+  labels: boolean,
+  boxes: LabelBox[],
+): void {
+  ctx.save();
+  ctx.font = font;
+  ctx.textBaseline = 'middle';
+  const used: Array<[number, number]> = [];
+  for (const b of list) {
+    let dx = b.x - ax, dy = b.y - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) continue;
+    dx /= len;
+    dy /= len;
+    // Where the line from the Sun leaves the window, 16 px inside its edge.
+    let t: number;
+    if (L.clipR) {
+      const ox = ax - L.cx, oy = ay - L.clipY, R = L.clipR - 16;
+      const bq = ox * dx + oy * dy;
+      t = -bq + Math.sqrt(Math.max(0, bq * bq - (ox * ox + oy * oy - R * R)));
+    } else {
+      const tx = dx > 0 ? (W - 16 - ax) / dx : dx < 0 ? (16 - ax) / dx : Infinity;
+      const ty = dy > 0 ? (H - 16 - ay) / dy : dy < 0 ? (16 - ay) / dy : Infinity;
+      t = Math.min(tx, ty);
+    }
+    if (!(t > 0)) continue;
+    const px = ax + dx * t, py = ay + dy * t;
+    if (used.some(([x, y]) => Math.hypot(x - px, y - py) < 14)) continue;
+    used.push([px, py]);
+    ctx.fillStyle = b.color;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(px + dx * 7, py + dy * 7);
+    ctx.lineTo(px - dx * 4 - dy * 5, py - dy * 4 + dx * 5);
+    ctx.lineTo(px - dx * 4 + dy * 5, py - dy * 4 - dx * 5);
+    ctx.closePath();
+    ctx.fill();
+    if (!labels) continue;
+    const w = ctx.measureText(b.name).width;
+    // The name sits on the window side of the arrow.
+    const lx = px - dx * 14 - (dx > 0 ? w : 0), ly = py - dy * 14;
+    ctx.textAlign = 'left';
+    ctx.fillText(b.name, lx, ly);
+    boxes.push({ id: b.id, x0: Math.min(lx, px) - 6, y0: Math.min(ly, py) - 10, x1: Math.max(lx + w, px) + 6, y1: Math.max(ly, py) + 10 });
+  }
+  ctx.restore();
 }
 
 /** A theme colour (#rrggbb or rgba()) at a given opacity. */
@@ -414,6 +566,115 @@ function withAlpha(color: string, a: number): string {
 const trailLength = (pxPerTurn: number): number => Math.min(0.33 * pxPerTurn, 170);
 
 /** Points of a trail from oldest to newest, at fixed fractions of its length. */
+/** At most this many poses are kept behind the present. */
+const MAX_POSES = 720;
+
+/**
+ * Strobe: the solar system's worldline as a row of frozen poses, after Techartist's dancer
+ * whose every held pose stays behind her as a sculpture. A pose is taken at fixed moments
+ * (whole steps of the calendar, so poses stay put while time runs and new ones appear at
+ * the present). Each pose is drawn as its bodies joined from the Sun outward; each body's
+ * frozen positions are joined by straight lines. Those lines are what make the polygons:
+ * at 5 steps a year, the Sun (seen from Earth) draws pentagons, each one turned a little
+ * from the last when the count isn't whole, as a film's wagon wheel seems to turn.
+ */
+function drawStrobe(
+  ctx: CanvasRenderingContext2D,
+  o: {
+    steps: number; now: Time; spp: number; ax: number; ay: number; left: number; W: number; H: number;
+    geo: Geo; theme: Theme; pxPerTurn: ReadonlyMap<PlanetId, number>; tracks: readonly Track[];
+  },
+): PoseHit[] {
+  const stepS = SECONDS_PER_YEAR / o.steps;
+  const stepPx = stepS / o.spp;
+  const nowS = o.now.day * SECONDS_PER_DAY + o.now.sec;
+  const since = ((nowS % stepS) + stepS) % stepS; // seconds since the last pose
+  const x0 = o.ax - since / o.spp;
+  const K = Math.min(MAX_POSES, Math.floor((x0 - o.left) / stepPx) + 1);
+  if (K < 1) return [];
+  const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
+  // The bodies, the Sun first, then outward.
+  const bodies: Array<{ color: string; width: number; r: number; at: (xb: number) => readonly [number, number] }> = [
+    {
+      color: o.theme.sun, width: o.theme.sunLineWidth, r: 3.2,
+      at: (xb) => { const g = o.geo(xb); return [xb - g[0], o.ay + g[1]]; },
+    },
+    ...o.tracks.map((t) => {
+      const px = o.pxPerTurn.get(t.planet.id) ?? t.period / o.spp;
+      return {
+        color: o.theme.planets[t.planet.id], width: o.theme.trailWidth * 1.3, r: 2.4,
+        at: (xb: number): readonly [number, number] => {
+          t.atMean(t.M0 + (TWO_PI * (xb - o.ax)) / px, s);
+          const g = o.geo(xb);
+          return [xb + s.sx - g[0], o.ay - s.sy + g[1]];
+        },
+      };
+    }),
+  ];
+  const B = bodies.length;
+  const xy = new Float64Array(B * K * 2);
+  for (let k = 0; k < K; k++) {
+    const xb = x0 - k * stepPx;
+    for (let b = 0; b < B; b++) {
+      const [x, y] = (bodies[b] as (typeof bodies)[number]).at(xb);
+      xy[(k * B + b) * 2] = x;
+      xy[(k * B + b) * 2 + 1] = y;
+    }
+  }
+  const X = (k: number, b: number): number => xy[(k * B + b) * 2] as number;
+  const Y = (k: number, b: number): number => xy[(k * B + b) * 2 + 1] as number;
+  // Older poses fade, in a few steps (one stroke per step, not one per segment).
+  const BUCKETS = 12;
+  const fade = (c: number): number => 1 - 0.85 * (c / BUCKETS);
+  const range = (c: number): [number, number] => [Math.floor((c * K) / BUCKETS), Math.floor(((c + 1) * K) / BUCKETS)];
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (let c = BUCKETS - 1; c >= 0; c--) {
+    const [k0, k1] = range(c);
+    if (k1 <= k0) continue;
+    const a = fade(c);
+    // The sculptures: each pose's bodies joined, Sun outward.
+    if (B > 1) {
+      ctx.globalAlpha = 0.28 * a;
+      ctx.strokeStyle = o.theme.sun;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      for (let k = k0; k < k1; k++) {
+        ctx.moveTo(X(k, 0), Y(k, 0));
+        for (let b = 1; b < B; b++) ctx.lineTo(X(k, b), Y(k, b));
+      }
+      ctx.stroke();
+    }
+    // The worldlines: each body's poses joined by straight lines.
+    for (let b = 0; b < B; b++) {
+      const body = bodies[b] as (typeof bodies)[number];
+      ctx.globalAlpha = 0.9 * a;
+      ctx.strokeStyle = body.color;
+      ctx.lineWidth = body.width;
+      ctx.beginPath();
+      ctx.moveTo(X(k0, b), Y(k0, b));
+      for (let k = k0 + 1; k <= Math.min(k1, K - 1); k++) ctx.lineTo(X(k, b), Y(k, b));
+      ctx.stroke();
+      ctx.fillStyle = body.color;
+      ctx.beginPath();
+      for (let k = k0; k < k1; k++) {
+        ctx.moveTo(X(k, b) + body.r, Y(k, b));
+        ctx.arc(X(k, b), Y(k, b), body.r, 0, TWO_PI);
+      }
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  const hits: PoseHit[] = [];
+  for (let k = 0; k < K; k++)
+    for (let b = 0; b < B; b++) {
+      const x = X(k, b), y = Y(k, b);
+      if (x >= 0 && x <= o.W && y >= 0 && y <= o.H) hits.push({ x, y, dt: -since - k * stepS });
+    }
+  return hits;
+}
+
 function trailPoints(x1: number, len: number, steps: number, at: (xBase: number) => [number, number]): Float64Array {
   const pts = new Float64Array(steps * 2);
   for (let i = 0; i < steps; i++) {
@@ -497,7 +758,8 @@ export function buildScene(f: FrameInput, L: Layout, anchor: Time): Scene {
   const { cam, view } = f;
   const chosen = view.planets.map(planetById);
   const fitAU = Math.max(0.5, ...chosen.map((p) => p.el.a * (1 + p.el.e)));
-  const z = Math.max(1, view.spaceZoom);
+  // Scroll or pinch shrinks the solar system as well as enlarging it; it always zooms about the Sun.
+  const z = Math.max(0.05, view.spaceZoom);
   const scale = makeScale(view.scale, L.fitR * z, fitAU, cam.secondsPerPixel / z, SUN_GALACTIC_SPEED_KM_S);
   const vm = viewMatrix(view.roll, view.yaw);
   const tracks = chosen.map((p) => makeTrack(p, anchor, vm, scale));
@@ -514,7 +776,65 @@ export function buildScene(f: FrameInput, L: Layout, anchor: Time): Scene {
   return { tracks, moonPx, focus };
 }
 
+/**
+ * How the sky behind the calendar is turned. The zodiac is painted on the inside of the
+ * sky sphere and never moves; the calendar's window onto it turns as the view turns.
+ * In the default view it looks the way you see the Sun from Earth now, so the Sun's
+ * current zodiac sign is behind it (ecliptic north up); turning the solar system turns
+ * the sky with it from there.
+ */
+export function skyMatrix(roll: number, yaw: number, now: Time): Mat3 {
+  const e = keplerKm('earth', now);
+  const n = Math.hypot(e[0], e[1]) || 1;
+  // Toward the viewer: from the Sun toward Earth, in the ecliptic; up: ecliptic north.
+  const z: Vec3 = [e[0] / n, e[1] / n, 0];
+  const y: Vec3 = [0, 0, 1];
+  const x: Vec3 = [y[1] * z[2] - y[2] * z[1], y[2] * z[0] - y[0] * z[2], y[0] * z[1] - y[1] * z[0]];
+  const home: Mat3 = [x, y, z];
+  // The turn from the default view to this one, applied to the sky's home.
+  const v0 = viewMatrix(DEFAULT_ROLL);
+  const v = viewMatrix(roll, yaw);
+  const t = (m: Mat3): Mat3 => [
+    [m[0][0], m[1][0], m[2][0]],
+    [m[0][1], m[1][1], m[2][1]],
+    [m[0][2], m[1][2], m[2][2]],
+  ];
+  return matMul(matMul(v, t(v0)), home);
+}
+
+/** The Sun and the Moon on the sky as seen from Earth now, with the zodiac sign each is in. */
+export function skyBodies(now: Time): Array<{ dir: Vec3; text: string; glyph: string }> {
+  const sign = (d: Vec3): string => {
+    const lon = ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
+    const [g, n] = SIGNS[Math.floor(lon / 30) % 12]!;
+    return `${g} ${n}`;
+  };
+  const e = keplerKm('earth', now);
+  const sun: Vec3 = [-e[0], -e[1], -e[2]];
+  const m = moonGeocentric(now);
+  const unitV = (v: Vec3): Vec3 => {
+    const l = Math.hypot(...v) || 1;
+    return [v[0] / l, v[1] / l, v[2] / l];
+  };
+  return [
+    { dir: unitV(sun), text: `Sun in ${sign(sun)}`, glyph: '☉' },
+    { dir: unitV(m), text: `Moon in ${sign(m)}`, glyph: '☾' },
+  ];
+}
+
 export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
+  if (f.view.text) return drawScene(ctx, f);
+  // No text: every fillText (here and in the sky behind) does nothing for this frame.
+  const silent = ctx as CanvasRenderingContext2D & { fillText: CanvasRenderingContext2D['fillText'] };
+  silent.fillText = () => {};
+  try {
+    return { ...drawScene(ctx, f), labels: [] };
+  } finally {
+    delete (silent as { fillText?: unknown }).fillText;
+  }
+}
+
+function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
   const { theme, view } = f;
   // Turning the system sideways (yaw) foreshortens the line of travel, and with it
   // the time axis: one screen pixel then spans more time.
@@ -532,16 +852,42 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   const ax0 = nowInView ? xNow : L.cx;
   const scene = buildScene(f, L, anchorTime);
 
-  // Centring on a planet shifts everything in space so it sits where the Sun was.
-  let ox = 0, oy = 0;
-  if (scene.focus) {
-    const fs: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
-    scene.focus.at(0, fs);
-    ox = -fs.sx;
-    oy = fs.sy;
+  // Centre: Earth. The view is geocentric: Earth sits where the Sun was and its path is the
+  // straight line; every other path (the Sun's included) has Earth's offset taken away at
+  // each moment, so the Sun coils around Earth and the planets loop back (retrograde).
+  const ox = 0;
+  const ax = ax0; // the centre's x: the Sun's, or (geocentric) Earth's
+  const ay = L.cy; // the straight line's y
+  const earthTrack = view.focus === 'earth' ? scene.focus : null;
+  let geo: Geo = HELIO;
+  /** Earth's offset followed at any zoom (for the strobe, whose few samples must stay true). */
+  let geoTrue: Geo = HELIO;
+  let earthPx = Infinity;
+  if (earthTrack) {
+    earthPx = earthTrack.period / cam.secondsPerPixel;
+    const NE = 1024;
+    const tab = new Float64Array(NE * 2);
+    const es: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
+    for (let i = 0; i < NE; i++) {
+      earthTrack.atMean((i / NE) * TWO_PI, es);
+      tab[i * 2] = es.sx;
+      tab[i * 2 + 1] = es.sy;
+    }
+    const at = (M: number): readonly [number, number] => {
+      const u = ((((M / TWO_PI) % 1) + 1) % 1) * NE;
+      const i0 = Math.floor(u) % NE, i1 = (i0 + 1) % NE, t = u - Math.floor(u);
+      return [tab[i0 * 2]! + (tab[i1 * 2]! - tab[i0 * 2]!) * t, tab[i0 * 2 + 1]! + (tab[i1 * 2 + 1]! - tab[i0 * 2 + 1]!) * t];
+    };
+    const e0 = at(earthTrack.M0);
+    // Earth's yearly wiggle can only be followed while a year spans several pixels; beyond
+    // that the view just keeps Earth at the centre.
+    geoTrue = (xb) => at(earthTrack.M0 + (TWO_PI * (xb - ax)) / earthPx);
+    geo = earthPx >= 8 ? geoTrue : () => e0;
   }
-  const ax = ax0 + ox; // the Sun's x
-  const ay = L.cy + oy; // the Sun line's y
+  const geocentric = earthTrack !== null;
+  const g0 = geo(ax);
+  /** Where the Sun is now on screen (geocentric: off Earth's line). */
+  const sunX = ax - g0[0], sunY = ay + g0[1];
 
   ctx.fillStyle = theme.background;
   ctx.fillRect(0, 0, W, H);
@@ -559,13 +905,18 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
     const box = L.clipR ? { x: L.cx - L.clipR, y: L.clipY - L.clipR, w: 2 * L.clipR, h: 2 * L.clipR } : { x: 0, y: 0, w: W, h: H };
     f.backdrop.draw(
       ctx,
-      viewMatrix(view.roll, view.yaw),
+      skyMatrix(view.roll, view.yaw, f.now),
       L.cx,
       L.clipY,
       focalFor(half),
       box,
-      theme.ui === 'dark' ? 'dark' : 'light',
-      Math.min(1, theme.galaxyAlpha * 2),
+      theme.sky,
+      {
+        constellations: view.constellations,
+        zodiac: view.zodiac,
+        galactic: view.galactic,
+        ...(view.zodiac && { bodies: skyBodies(f.now) }),
+      },
     );
   } else {
     drawGalaxy(ctx, f, L);
@@ -615,15 +966,20 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   for (const track of scene.tracks) {
     const px = track.period / cam.secondsPerPixel;
     pxPerTurn.set(track.planet.id, px);
-    if (!view.spirals || track.extent < 0.5 || track.extent > maxExtent || formRaw >= endRaw) continue;
-    const w = coilWeight(px);
+    if (!view.spirals || track.extent > maxExtent || formRaw >= endRaw) continue;
+    // Seen from Earth, Earth's own path is the straight line.
+    if (geocentric && track.planet.id === 'earth') continue;
+    // Seen from Earth, while Earth's yearly wiggle is followed, a band (which can't follow it)
+    // would sit off the planet; there every path stays a coil.
+    const w = geocentric && earthPx >= 8 ? 1 : coilWeight(px);
     if (w < 1) {
       drawBand(ctx, track, ay, Math.max(0, bodiesFromX), Math.min(W, sunEndX), theme.planets[track.planet.id], 1 - w);
     }
     if (w > 0) {
       // A point sits up to `extent` px sideways of its base x, so sample that much beyond each edge.
-      const reach = track.extent + KEEP;
-      const path = drawCoil(track, px, ax, ay, Math.max(formRaw, -reach), Math.min(endRaw, W + reach), W, H);
+      const reach = track.extent + (geocentric ? (earthTrack as Track).extent : 0) + KEEP;
+      const need = geocentric && earthPx >= 8 ? 48 * (track.period / (earthTrack as Track).period) : 0;
+      const path = drawCoil(track, px, ax, ay, Math.max(formRaw, -reach), Math.min(endRaw, W + reach), W, H, geo, need);
       coils.push({ id: track.planet.id, path, alpha: w });
     }
   }
@@ -651,6 +1007,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
         Math.min(endRaw, W + reach),
         W,
         H,
+        geo,
       );
     }
   }
@@ -662,7 +1019,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPath(t, ax, ay, maxExtent)) : [];
+  // Orbit circles are around the Sun, wherever it is on screen.
+  const rings = view.rings && nowBorn ? scene.tracks.map((t) => ringPath(t, sunX, sunY, maxExtent)) : [];
   ctx.lineWidth = crisp(1);
   for (const r of rings) {
     if (!r) continue;
@@ -684,19 +1042,45 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   }
   ctx.restore();
 
-  // The Sun's line, then its fuse.
+  // The Sun's line, then its fuse. Seen from Earth, the straight line is Earth's path and
+  // the Sun's path coils around it.
   if (sunStartX < sunEndX) {
-    ctx.strokeStyle = theme.sunLine;
-    ctx.lineWidth = crisp(theme.sunLineWidth);
+    ctx.strokeStyle = geocentric ? theme.planets.earth : theme.sunLine;
+    ctx.lineWidth = crisp(geocentric ? Math.max(theme.trailWidth * 1.6, theme.sunLineWidth * 0.8) : theme.sunLineWidth);
     ctx.globalAlpha = 0.75;
     ctx.beginPath();
     ctx.moveTo(sunStartX, ay);
     ctx.lineTo(sunEndX, ay);
     ctx.stroke();
+    if (geocentric && view.spirals) {
+      const e = earthTrack as Track;
+      if (earthPx >= 8) {
+        // The Sun's path from Earth: Earth's coil turned inside out.
+        ctx.strokeStyle = theme.sunLine;
+        ctx.lineWidth = crisp(theme.sunLineWidth);
+        const step = Math.max(1, Math.min(4, earthPx / 64));
+        const x0 = Math.max(sunStartX, -e.extent - KEEP), x1 = Math.min(sunEndX, W + e.extent + KEEP);
+        ctx.beginPath();
+        for (let x = x0, first = true; x <= x1 + step; x += step, first = false) {
+          const xx = Math.min(x, x1), g = geo(xx);
+          if (first) ctx.moveTo(xx - g[0], ay + g[1]);
+          else ctx.lineTo(xx - g[0], ay + g[1]);
+        }
+        ctx.stroke();
+      } else {
+        drawBand(ctx, e, ay, Math.max(0, sunStartX), Math.min(W, sunEndX), theme.sun, 1 - coilWeight(earthPx), true);
+      }
+    }
     ctx.globalAlpha = 1;
     if (nowInView && sunStartX <= ax && ax <= sunEndX) {
       const len = Math.min(ax - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
-      const pts = trailPoints(ax, len, 24, (x) => [x, ay]);
+      // Enough points to follow the Sun around Earth (geocentric) at any zoom; the polygons
+      // too few points made are now the Strobe's, on purpose.
+      const n = geocentric && earthPx >= 8 ? Math.min(2000, Math.max(24, Math.ceil((len / earthPx) * 48))) : 24;
+      const pts = trailPoints(ax, len, n, (x) => {
+        const g = geo(x);
+        return [x - g[0], ay + g[1]];
+      });
       strokeFuse(ctx, pts, theme.sun, theme.sunLineWidth * 1.6, additive);
     }
   }
@@ -705,10 +1089,19 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   const s: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
   const m: Sample = { sx: 0, sy: 0, depth: 0, lon: 0 };
   const vm = viewMatrix(view.roll, view.yaw);
-  const tips: Array<{ x: number; y: number; r: number; color: string; name: string }> = [];
+  const tips: Array<{ x: number; y: number; r: number; color: string; name: string; id?: LabelId }> = [];
+  const labelBoxes: LabelBox[] = [];
+  /** Bodies beyond the window: shown as a pointer at its edge, with their name. */
+  const offscreen: Array<{ x: number; y: number; color: string; name: string; id: LabelId }> = [];
   if (nowBorn) {
     for (const track of scene.tracks) {
-      if (track.extent > maxExtent) continue;
+      if (track.extent > maxExtent) {
+        // Too far out to draw at this zoom (true scale, zoomed into time): point to it instead.
+        track.at(0, s);
+        if (!(geocentric && track.planet.id === 'earth'))
+          offscreen.push({ x: ax + s.sx - g0[0], y: ay - s.sy + g0[1], color: theme.planets[track.planet.id], name: track.planet.name, id: track.planet.id });
+        continue;
+      }
       const px = pxPerTurn.get(track.planet.id) as number;
       const color = theme.planets[track.planet.id];
       const len = Math.min(trailLength(px), ax - bodiesFromX);
@@ -716,12 +1109,14 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
         const steps = Math.min(400, Math.max(24, Math.ceil(((len / px) * TWO_PI * track.extent) / 3)));
         const pts = trailPoints(ax, len, steps, (xBase) => {
           track.atMean(track.M0 + (TWO_PI * (xBase - ax)) / px, s);
-          return [xBase + s.sx, ay - s.sy];
+          const g = geo(xBase);
+          return [xBase + s.sx - g[0], ay - s.sy + g[1]];
         });
-        strokeFuse(ctx, pts, color, theme.trailWidth * 1.4, additive);
+        if (!(geocentric && track.planet.id === 'earth')) strokeFuse(ctx, pts, color, theme.trailWidth * 1.4, additive);
       }
       track.at(0, s);
-      tips.push({ x: ax + s.sx, y: ay - s.sy, r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name });
+      const here = geocentric && track.planet.id === 'earth';
+      tips.push({ x: here ? ax : ax + s.sx - g0[0], y: here ? ay : ay - s.sy + g0[1], r: track.planet.id === 'earth' ? 3.6 : 3, color, name: track.planet.name, id: track.planet.id });
 
       if (track === earth && moonCoil) {
         const mc = moonCoil;
@@ -729,16 +1124,27 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
         const at = (xBase: number): [number, number] => {
           earth.atMean(earth.M0 + (TWO_PI * (xBase - ax)) / px, s);
           moonOffset(s.lon + Math.PI + mc.phase0 + (TWO_PI * (xBase - ax)) / mc.pxPerTurn, mc.radiusPx, vm, m);
-          return [xBase + s.sx + m.sx, ay - s.sy - m.sy];
+          const g = geo(xBase);
+          return [xBase + s.sx + m.sx - g[0], ay - s.sy - m.sy + g[1]];
         };
         if (mlen > 2) strokeFuse(ctx, trailPoints(ax, mlen, 48, at), theme.moon, 1.2, additive);
         const [mx, my] = at(ax);
-        tips.push({ x: mx, y: my, r: 2, color: theme.moon, name: '' });
+        tips.push({ x: mx, y: my, r: 2, color: theme.moon, name: 'Moon', id: 'moon' });
       }
     }
   }
-  if (nowInView && sunStartX <= ax && ax <= sunEndX) spark(ctx, ax, ay, 5.5, theme.sun, pulse, additive);
+  const poses = view.strobe && view.strobe > 0 && nowBorn
+    ? drawStrobe(ctx, {
+        steps: view.strobe, now: f.now, spp: cam.secondsPerPixel, ax, ay, left: Math.max(bodiesFromX, -W), W, H,
+        geo: geoTrue, theme, pxPerTurn, tracks: scene.tracks.filter((t) => t.extent <= maxExtent),
+      })
+    : [];
+  if (nowInView && sunStartX <= ax && ax <= sunEndX) spark(ctx, sunX, sunY, 5.5, theme.sun, pulse, additive);
   for (const t of tips) spark(ctx, t.x, t.y, t.r, t.color, pulse, additive);
+  // Anything outside the window (round, or the whole screen) gets a pointer at the edge.
+  const inside = (x: number, y: number): boolean =>
+    L.clipR ? Math.hypot(x - L.cx, y - L.clipY) <= L.clipR - 4 : x >= 0 && x <= W && y >= 0 && y <= H;
+  for (const t of tips) if (t.id && t.id !== 'moon' && !inside(t.x, t.y)) offscreen.push({ x: t.x, y: t.y, color: t.color, name: t.name, id: t.id });
 
   // Names, Earth first so it wins when labels would overlap.
   if (view.labels) {
@@ -746,7 +1152,9 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const placed: Array<[number, number, number]> = [];
-    const ordered = tips.filter((t) => t.name).sort((a, b) => Number(b.name === 'Earth') - Number(a.name === 'Earth'));
+    // The Sun first, then Earth, so they win when names would overlap.
+    const sunTip = nowInView && sunStartX <= ax && ax <= sunEndX ? [{ x: sunX, y: sunY, r: 5.5, color: theme.sun, name: 'Sun', id: 'sun' as const }] : [];
+    const ordered = [...sunTip, ...tips.filter((t) => t.name).sort((a, b) => Number(b.name === 'Earth') - Number(a.name === 'Earth'))];
     for (const t of ordered) {
       const w = ctx.measureText(t.name).width;
       const lx = t.x + 9, ly = t.y - 10;
@@ -754,8 +1162,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
       ctx.fillStyle = t.color;
       ctx.fillText(t.name, lx, ly);
       placed.push([lx, ly, w]);
+      if (t.id) labelBoxes.push({ id: t.id, x0: lx - 4, y0: ly - 10, x1: lx + w + 4, y1: ly + 10 });
     }
   }
+  if (nowBorn && offscreen.length > 0) drawEdgePointers(ctx, offscreen, ax, ay, L, W, H, theme.font, view.labels, labelBoxes);
 
   // Start and end of the Sun's main-sequence life.
   ctx.font = theme.font;
@@ -802,14 +1212,21 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameRe
   }
   if (space) {
     ctx.fillStyle = theme.distanceText;
-    ctx.fillText(`Space grid · ${formatDistanceStep(space.step)} between lines`, L.cx, L.topY);
   }
 
   if (L.clipR) {
     ctx.restore();
     drawBezel(ctx, f, L);
   }
-  return { sunX: nowInView ? ax : NaN, sunY: ay };
+  return {
+    labels: labelBoxes,
+    poses,
+    sunX: nowInView ? ax : NaN,
+    sunY: ay,
+    space: space ? `Space grid · ${formatDistanceStep(space.step)} between lines` : '',
+    spaceKm: space ? space.step.km : 0,
+    spacePx: space ? space.step.km / (SUN_GALACTIC_SPEED_KM_S * gridCam.secondsPerPixel) : 0,
+  };
 }
 
 function ringPath(track: Track, cx: number, cy: number, maxExtent: number): { id: PlanetId; path: DepthPath } | null {

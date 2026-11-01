@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { type Camera, clampZoom, pan, zoomAt } from '../core/camera';
 import { DEFAULT_ROLL, MAX_YAW } from '../core/geometry';
-import { drawFrame, layout, type SkyBackdrop, type ViewOptions } from '../core/render';
+import { drawFrame, type LabelBox, type LabelId, layout, type SkyBackdrop, type ViewOptions, type PoseHit } from '../core/render';
 import { loadBackdrop } from './skyBackdrop';
 import type { Theme } from '../core/theme';
 import { MAX_TIME, MIN_TIME } from '../core/constants';
@@ -22,10 +22,15 @@ export interface CanvasHandle {
   /** Magnify space (orbit sizes) by a factor, independent of the time zoom. */
   spaceZoomBy(factor: number): void;
   resetSpaceZoom(): void;
+  /** The calendar's current turn (roll about the line of travel, yaw), for Fly mode to match. */
+  rotation(): { roll: number; yaw: number };
 }
+
 
 /** Space zoom range: from fitting the chosen orbits to well inside the Moon's orbit. */
 export const MAX_SPACE_ZOOM = 500;
+/** …and out to a tenth of the fit, so the solar system can be made smaller too. */
+export const MIN_SPACE_ZOOM = 0.1;
 
 type CanvasView = Omit<ViewOptions, 'roll' | 'yaw' | 'spaceZoom' | 'panY'>;
 
@@ -38,6 +43,16 @@ interface Props {
   onCameraChange: (cam: Camera) => void;
   onSpaceZoomChange: (zoom: number) => void;
   handleRef: Ref<CanvasHandle>;
+  /** The simulated present (it can run faster than real time, or be paused). */
+  clock: () => Time;
+  /** False while another view (Fly, the galaxy) is showing: the camera keeps time but nothing is drawn. */
+  active: boolean;
+  /** What the space grid says about itself, when it changes. */
+  onSpaceStatement?: (text: string, bar: { km: number; px: number }) => void;
+  /** A name (the Sun, a planet, the Moon) was clicked. */
+  onBodyClick: (id: LabelId) => void;
+  /** A frozen strobe pose was clicked: go back to that moment (seconds from the present, negative). */
+  onPoseClick?: (dt: number) => void;
 }
 
 interface Flight {
@@ -48,7 +63,7 @@ interface Flight {
 }
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const nowTime = (): Time => fromUnixMs(Date.now());
+const realNow = (): Time => fromUnixMs(Date.now());
 const ROLL_PER_PX = 0.008;
 
 /** Width the zoom presets fit to: the round window's diameter, or the whole screen. */
@@ -56,9 +71,23 @@ function viewWidth(cam: Camera, round: boolean): number {
   return round ? 2 * (layout(cam, true).clipR ?? cam.width / 2) : cam.width;
 }
 
-export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, onSpaceZoomChange, handleRef }: Props) {
+export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, onSpaceZoomChange, handleRef, clock, active, onBodyClick, onSpaceStatement, onPoseClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const camRef = useRef<Camera>({ center: nowTime(), secondsPerPixel: 1, width: 0, height: 0 });
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
+  const nowTime = (): Time => clockRef.current();
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const onSpaceRef2 = useRef(onSpaceStatement);
+  onSpaceRef2.current = onSpaceStatement;
+  const spaceTextRef = useRef('');
+  const onBodyRef = useRef(onBodyClick);
+  onBodyRef.current = onBodyClick;
+  const onPoseRef = useRef(onPoseClick);
+  onPoseRef.current = onPoseClick;
+  const posesRef = useRef<readonly PoseHit[]>([]);
+  const labelsRef = useRef<readonly LabelBox[]>([]);
+  const camRef = useRef<Camera>({ center: realNow(), secondsPerPixel: 1, width: 0, height: 0 });
   const rollRef = useRef(DEFAULT_ROLL);
   const yawRef = useRef(0);
   const turnYaw = (d: number): void => {
@@ -86,7 +115,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
   const onSpaceRef = useRef(onSpaceZoomChange);
   onSpaceRef.current = onSpaceZoomChange;
   const setSpaceZoom = (z: number): void => {
-    spaceZoomRef.current = Math.min(MAX_SPACE_ZOOM, Math.max(1, z));
+    spaceZoomRef.current = Math.min(MAX_SPACE_ZOOM, Math.max(MIN_SPACE_ZOOM, z));
     onSpaceRef.current(spaceZoomRef.current);
   };
   const themeRef = useRef(theme);
@@ -133,6 +162,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     moveTo(zoomAt(cam, sunAnchorX(cam), factor));
   };
 
+
   useImperativeHandle(handleRef, () => ({
     flyTo(spanSeconds) {
       const cam = camRef.current;
@@ -177,6 +207,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     resetSpaceZoom() {
       setSpaceZoom(1);
     },
+    rotation() {
+      return { roll: rollRef.current, yaw: yawRef.current };
+    },
   }));
 
   useEffect(() => {
@@ -211,7 +244,19 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     // Two pointers: pinch zoom.
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
-    let gesture: { kind: 'sun' | 'line' | 'rotate'; x0: number; y0: number; axis: 'x' | 'y' | null } | null = null;
+    let gesture: { kind: 'sun' | 'line' | 'rotate' | 'label'; x0: number; y0: number; axis: 'x' | 'y' | null; id?: LabelId; dt?: number } | null = null;
+    const labelAt = (p: { x: number; y: number }): LabelBox | undefined =>
+      labelsRef.current.find((b) => p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1);
+    /** The nearest frozen strobe pose within a few pixels (not the present one, which is the Sun). */
+    const poseAt = (p: { x: number; y: number }): PoseHit | undefined => {
+      let best: PoseHit | undefined;
+      let bd = 7;
+      for (const h of posesRef.current) {
+        const d = Math.hypot(h.x - p.x, h.y - p.y);
+        if (d < bd && h.dt < -1) (best = h), (bd = d);
+      }
+      return best;
+    };
     /** Pixels of movement before a rotation locks to turning (sideways) or rolling (up/down). */
     const AXIS_LOCK_PX = 6;
     /** Grab radius around the Sun, and half-height of the grabbable line, px. */
@@ -229,12 +274,18 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     };
     const CURSORS = { sun: 'move', line: 'ew-resize', rotate: 'grab' } as const;
     const onDown = (e: PointerEvent): void => {
+      e.preventDefault(); // no text selection while dragging
       canvas.setPointerCapture(e.pointerId);
       const p = local(e);
       pointers.set(e.pointerId, p);
       flightRef.current = null;
-      const kind = hit(p);
-      gesture = pointers.size === 1 ? { kind, x0: p.x, y0: p.y, axis: null } : null;
+      const label = labelAt(p);
+      const pose = label ? undefined : poseAt(p);
+      const kind = label || pose ? 'rotate' : hit(p);
+      gesture =
+        pointers.size === 1
+          ? { kind: label || pose ? 'label' : kind, x0: p.x, y0: p.y, axis: null, ...(label && { id: label.id }), ...(pose && { dt: pose.dt }) }
+          : null;
       canvas.style.cursor = kind === 'rotate' ? 'grabbing' : CURSORS[kind];
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -248,6 +299,11 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       pointers.set(e.pointerId, p);
       if (pointers.size === 1 && gesture) {
         const dx = p.x - prev.x, dy = p.y - prev.y;
+        // A press on a name that turns into a drag rotates instead.
+        if (gesture.kind === 'label') {
+          if (Math.hypot(p.x - gesture.x0, p.y - gesture.y0) < 5) return;
+          gesture = { kind: 'rotate', x0: gesture.x0, y0: gesture.y0, axis: null };
+        }
         if (gesture.kind === 'sun') {
           moveTo(pan(camRef.current, dx));
           const H = camRef.current.height;
@@ -268,15 +324,19 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinchDist > 0 && dist > 0) zoom(pinchDist / dist);
+        // Pinching resizes the solar system, as scrolling does.
+        if (pinchDist > 0 && dist > 0) setSpaceZoom(spaceZoomRef.current * (dist / pinchDist));
         pinchDist = dist;
       }
     };
     const onHover = (e: PointerEvent): void => {
       if (pointers.size > 0) return;
-      canvas.style.cursor = CURSORS[hit(local(e))];
+      const p = local(e);
+      canvas.style.cursor = labelAt(p) || poseAt(p) ? 'pointer' : CURSORS[hit(p)];
     };
     const onUp = (e: PointerEvent): void => {
+      if (gesture?.kind === 'label' && gesture.id) onBodyRef.current(gesture.id);
+      else if (gesture?.kind === 'label' && gesture.dt !== undefined) onPoseRef.current?.(gesture.dt);
       pointers.delete(e.pointerId);
       pinchDist = 0;
       gesture = null;
@@ -285,7 +345,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     // Trackpad and mouse-wheel gestures do one thing at a time. The first event of a
     // gesture picks the action; it stays locked until the wheel has been still for a
     // moment, so a two-finger swipe that drifts diagonally never mixes zoom and time.
-    type WheelAction = 'zoom' | 'time' | 'space' | 'turn' | 'roll';
+    type WheelAction = 'zoom' | 'time' | 'space';
     let wheelAction: WheelAction | null = null;
     let wheelTimer = 0;
     const WHEEL_IDLE_MS = 220;
@@ -295,11 +355,13 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       flightRef.current = null;
       const scale = e.deltaMode === 1 ? 16 : 1;
       const dx = e.deltaX * scale, dy = e.deltaY * scale;
+      // Scroll or pinch: the size of the solar system. Shift + scroll or pinch: time.
+      // Sideways scroll: along the line through time. Turning is by dragging.
+      // (ctrlKey marks a trackpad pinch.)
       if (wheelAction === null) {
-        if (e.ctrlKey) wheelAction = 'zoom'; // trackpad pinch
-        else if (e.altKey) wheelAction = 'space';
-        else if (e.shiftKey) wheelAction = Math.abs(dx) > Math.abs(dy) ? 'turn' : 'roll';
-        else wheelAction = Math.abs(dx) > Math.abs(dy) ? 'time' : 'zoom';
+        if (e.shiftKey) wheelAction = 'zoom';
+        else if (e.ctrlKey) wheelAction = 'space';
+        else wheelAction = Math.abs(dx) > Math.abs(dy) ? 'time' : 'space';
       }
       window.clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => {
@@ -307,20 +369,15 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       }, WHEEL_IDLE_MS);
       switch (wheelAction) {
         case 'zoom':
-          // Pinch deltas are small; scroll deltas are large.
-          zoom(Math.exp(dy * (e.ctrlKey ? 0.01 : 0.0015)));
+          // Pinch deltas are small; scroll deltas are large. With Shift held, browsers
+          // may report a vertical scroll as sideways, so either counts.
+          zoom(Math.exp((dy || dx) * (e.ctrlKey ? 0.01 : 0.0015)));
           break;
         case 'space':
-          setSpaceZoom(spaceZoomRef.current * Math.exp(-dy * 0.002));
+          setSpaceZoom(spaceZoomRef.current * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.002)));
           break;
         case 'time':
           moveTo(pan(camRef.current, -dx));
-          break;
-        case 'turn':
-          turnYaw((dx || dy) * ROLL_PER_PX * 0.5);
-          break;
-        case 'roll':
-          rollRef.current += dy * ROLL_PER_PX * 0.5;
           break;
       }
     };
@@ -347,7 +404,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       // The view flows with real time at its chosen offset from the present.
       setCam({ ...camRef.current, center: clampTime(timeAdd(now, offsetRef.current), MIN_TIME, MAX_TIME) });
       const cam = camRef.current;
-      if (cam.width > 0) {
+      if (cam.width > 0 && activeRef.current) {
         const r = drawFrame(ctx, {
           cam,
           theme: themeRef.current,
@@ -356,6 +413,14 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
           backdrop: skyRef.current,
         });
         sunRef.current = { x: r.sunX, y: r.sunY };
+        labelsRef.current = r.labels;
+        posesRef.current = r.poses;
+        // The scale bar changes with the grid's spacing (and its length, to the pixel).
+        const key = `${r.spaceKm}|${Math.round(r.spacePx)}`;
+        if (key !== spaceTextRef.current) {
+          spaceTextRef.current = key;
+          onSpaceRef2.current?.(r.space, { km: r.spaceKm, px: r.spacePx });
+        }
       }
       raf = requestAnimationFrame(frame);
     };

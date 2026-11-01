@@ -6,10 +6,15 @@
  *
  * It has no depth: it turns with your view but never comes closer, however far
  * you fly (at these distances the stars do not visibly shift).
+ * Its look comes from the theme's sky style: light on black (Dark), neon (Colour), or a
+ * negative in dark ink on paper (Bright), where brighter means darker.
  * Data: d3-celestial (BSD-3-Clause), built by scripts/build_sky.py.
  */
 import * as THREE from 'three';
 import { ECL_TO_EQ, ECL_TO_GAL, type Vec3 } from '../core/geometry';
+import { parseColour } from '../core/colour';
+import { eclDir, eqDir, GALACTIC_MARKS, SIGNS, toEcl } from '../core/skyfigures';
+import type { SkyStyle } from '../core/theme';
 
 export interface SkyData {
   readonly stars: readonly number[]; // ra, dec, mag, b−v, …
@@ -30,13 +35,7 @@ export interface SkyOptions {
   readonly galactic: boolean;
 }
 
-/** Galactic longitudes marked on the sky, with their names. */
-export const GALACTIC_MARKS: ReadonlyArray<readonly [number, string]> = [
-  [0, 'Galactic Centre · Sgr A*'],
-  [90, 'l 90° · the Sun’s direction of travel'],
-  [180, 'Galactic Anticentre'],
-  [270, 'l 270° · behind the Sun'],
-];
+export { GALACTIC_MARKS, SIGNS } from '../core/skyfigures';
 
 export interface SkyLabel {
   /** Direction, ecliptic frame (unit vector). */
@@ -51,38 +50,36 @@ export interface SkyLabel {
 const SKY_KM = 1e5;
 const DEG = Math.PI / 180;
 
-/** The twelve signs of the (tropical) zodiac, from the March equinox, 30° each. */
-export const SIGNS = [
-  ['♈︎', 'Aries'],
-  ['♉︎', 'Taurus'],
-  ['♊︎', 'Gemini'],
-  ['♋︎', 'Cancer'],
-  ['♌︎', 'Leo'],
-  ['♍︎', 'Virgo'],
-  ['♎︎', 'Libra'],
-  ['♏︎', 'Scorpio'],
-  ['♐︎', 'Sagittarius'],
-  ['♑︎', 'Capricorn'],
-  ['♒︎', 'Aquarius'],
-  ['♓︎', 'Pisces'],
-] as const;
+export { eqDir, toEcl } from '../core/skyfigures';
 
-/** Equatorial right ascension / declination (degrees) → unit vector, equatorial frame. */
-export const eqDir = (ra: number, dec: number): Vec3 => {
-  const a = ra * DEG, d = dec * DEG;
-  return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
-};
-/** Equatorial → ecliptic (J2000). */
-export const toEcl = (v: Vec3): Vec3 => [
-  ECL_TO_EQ[0][0] * v[0] + ECL_TO_EQ[1][0] * v[1] + ECL_TO_EQ[2][0] * v[2],
-  ECL_TO_EQ[0][1] * v[0] + ECL_TO_EQ[1][1] * v[1] + ECL_TO_EQ[2][1] * v[2],
-  ECL_TO_EQ[0][2] * v[0] + ECL_TO_EQ[1][2] * v[1] + ECL_TO_EQ[2][2] * v[2],
-];
-/** Ecliptic longitude / latitude (degrees) → unit vector, ecliptic frame. */
-const eclDir = (lon: number, lat: number): Vec3 => {
-  const a = lon * DEG, b = lat * DEG;
-  return [Math.cos(b) * Math.cos(a), Math.cos(b) * Math.sin(a), Math.sin(b)];
-};
+/**
+ * A theme colour as a Three.js colour (alpha dropped). For our own shaders (`raw`, the
+ * default) the numbers go to the screen as they are, as in the calendar's canvas; for
+ * Three's built-in materials and the background (`raw` false) they are read as sRGB, which
+ * those convert back on output. Either way the screen shows the theme's exact colour.
+ */
+export function threeColour(c: string, raw = true): THREE.Color {
+  const { rgb } = parseColour(c);
+  return new THREE.Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, raw ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace);
+}
+
+/**
+ * Blending for things drawn behind the bodies. Light on a dark sky adds; ink on a light
+ * sky is laid over it by its alpha. Either way it stays in the opaque pass (transparent
+ * false), drawn first, so the bodies always cover it.
+ */
+export function skyBlending(m: THREE.Material, ink: boolean): void {
+  if (ink) {
+    m.blending = THREE.CustomBlending;
+    m.blendEquation = THREE.AddEquation;
+    m.blendSrc = THREE.SrcAlphaFactor;
+    m.blendDst = THREE.OneMinusSrcAlphaFactor;
+  } else {
+    m.blending = THREE.AdditiveBlending;
+  }
+  m.transparent = false;
+  m.needsUpdate = true;
+}
 
 /** Star colour from its B−V index (blue-white hot stars to orange cool ones), softened toward white. */
 function starColour(bv: number): THREE.Color {
@@ -118,10 +115,12 @@ export async function loadSky(base: string): Promise<{ data: SkyData; milkyWay: 
   return { data, milkyWay };
 }
 
-export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Texture, pixelRatio: number) {
+export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Texture, pixelRatio: number, style: SkyStyle) {
   const disposables: Array<{ dispose(): void }> = [];
   /** 1 near the Sun; fades to 0 far away, where this sky (seen from here) no longer applies. */
   const fadeU = { value: 1 };
+  const inkU = { value: style.ink ? 1 : 0 };
+  let current = style;
   const eq = new THREE.Group(); // equatorial frame, turned into the ecliptic frame
   eq.matrixAutoUpdate = false;
   eq.matrix.makeBasis(
@@ -147,8 +146,16 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   };
 
   // Milky Way: a photographic map in galactic coordinates, looked up by direction.
+  const mwU = {
+    map: { value: milkyWay },
+    fade: fadeU,
+    ink: inkU,
+    faint: { value: threeColour(style.milkyWayFaint) },
+    bright: { value: threeColour(style.milkyWayBright) },
+    strength: { value: style.milkyWayStrength },
+  };
   const mwMat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: milkyWay }, fade: fadeU },
+    uniforms: mwU,
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -158,6 +165,10 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
       uniform float fade;
+      uniform float ink;
+      uniform vec3 faint;
+      uniform vec3 bright;
+      uniform float strength;
       varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir);
@@ -166,16 +177,20 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
         // Galactic centre in the middle of the map, longitude increasing to the left.
         vec2 uv = vec2(fract(0.5 - l / 6.28318530718), 0.5 + b / 3.14159265359);
         float v = texture2D(map, uv).r;
-        // Warmer toward the bright bulge, cooler in the faint arms.
-        vec3 tint = mix(vec3(0.55, 0.62, 0.85), vec3(0.95, 0.88, 0.78), smoothstep(0.35, 0.9, v));
-        gl_FragColor = vec4(tint * v * 0.5 * fade, 1.0);
+        // The theme's faint colour in the thin arms, its bright colour toward the bulge.
+        vec3 tint = mix(faint, bright, smoothstep(0.35, 0.9, v));
+        if (ink > 0.5) {
+          // A negative: ink laid on the paper, darker where the sky is brighter.
+          gl_FragColor = vec4(tint, clamp(pow(v, 0.75) * strength * fade, 0.0, 1.0));
+        } else {
+          gl_FragColor = vec4(tint * v * strength * fade, 1.0);
+        }
       }`,
     side: THREE.BackSide,
     depthTest: false,
     depthWrite: false,
-    // Drawn first, in the opaque pass, so bodies always cover it.
-    blending: THREE.AdditiveBlending,
   });
+  skyBlending(mwMat, style.ink);
   const mwGeo = new THREE.SphereGeometry(1, 96, 48);
   const mw = new THREE.Mesh(mwGeo, mwMat);
   behind(mw, -20);
@@ -184,64 +199,113 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
 
   // Stars: size and brightness from magnitude, colour from B−V.
   const n = data.stars.length / 4;
-  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n);
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), lightA = new Float32Array(n);
+  // In ink (Bright) stars are drawn exactly as in the calendar's sky (src/app/skyBackdrop.ts):
+  // solid dots of the same size and strength, not glows, which vanish on paper.
+  const inkSize = new Float32Array(n), inkLight = new Float32Array(n);
+  const bright: Vec3[] = [];
   for (let i = 0; i < n; i++) {
     const [ra, dec, mag, bv] = [data.stars[i * 4]!, data.stars[i * 4 + 1]!, data.stars[i * 4 + 2]!, data.stars[i * 4 + 3]!];
     const d = eqDir(ra, dec);
     pos.set(d, i * 3);
     const c = starColour(bv);
     // Brighter stars are larger and brighter, with a wider gap between bright and faint.
-    const light = Math.min(1, 0.3 + 1.5 * 10 ** (-0.3 * mag));
-    col.set([c.r * light, c.g * light, c.b * light], i * 3);
+    lightA[i] = Math.min(1, 0.3 + 1.5 * 10 ** (-0.3 * mag));
+    col.set([c.r, c.g, c.b], i * 3);
     size[i] = 2.0 + 12 * 10 ** (-0.3 * (mag + 1.5));
+    inkSize[i] = 1.1 * 1.25 * (1.1 + 7 * 10 ** (-0.3 * (mag + 1.5)));
+    inkLight[i] = mag > 5.5 ? 0 : Math.min(1, 0.45 + 1.5 * 10 ** (-0.3 * mag));
+    if (mag < 3.2) bright.push(toEcl(d));
   }
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   starGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   starGeo.setAttribute('size', new THREE.BufferAttribute(size, 1));
+  starGeo.setAttribute('light', new THREE.BufferAttribute(lightA, 1));
+  starGeo.setAttribute('inkSize', new THREE.BufferAttribute(inkSize, 1));
+  starGeo.setAttribute('inkLight', new THREE.BufferAttribute(inkLight, 1));
+  const starU = {
+    pixelRatio: { value: pixelRatio },
+    fade: fadeU,
+    ink: inkU,
+    tint: { value: threeColour(style.starTint) },
+    tintMix: { value: style.starTintMix },
+    strength: { value: style.starStrength },
+  };
   const starMat = new THREE.ShaderMaterial({
-    uniforms: { pixelRatio: { value: pixelRatio }, fade: fadeU },
+    uniforms: starU,
     vertexShader: /* glsl */ `
       attribute float size;
+      attribute float light;
+      attribute float inkSize;
+      attribute float inkLight;
       attribute vec3 color;
       uniform float pixelRatio;
+      uniform float ink;
       varying vec3 vColor;
+      varying float vLight;
+      varying float vPx;
       void main() {
         vColor = color;
+        vLight = ink > 0.5 ? inkLight : light;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * pixelRatio;
+        vPx = max(1.0, (ink > 0.5 ? inkSize : size) * pixelRatio);
+        gl_PointSize = vPx;
       }`,
     fragmentShader: /* glsl */ `
       varying vec3 vColor;
+      varying float vLight;
+      varying float vPx;
       uniform float fade;
+      uniform float ink;
+      uniform vec3 tint;
+      uniform float tintMix;
+      uniform float strength;
       void main() {
         float r = length(gl_PointCoord - 0.5) * 2.0;
-        // A bright core and a soft halo.
-        float a = (1.0 - smoothstep(0.15, 0.55, r)) + 0.35 * (1.0 - smoothstep(0.3, 1.0, r));
-        gl_FragColor = vec4(vColor * a * fade, 1.0);
+        vec3 c = mix(vColor, tint, tintMix);
+        if (ink > 0.5) {
+          // A solid dot with an antialiased edge, as the calendar draws them.
+          float a = 1.0 - smoothstep(1.0 - 2.0 / vPx, 1.0, r);
+          gl_FragColor = vec4(c, clamp(a * vLight * strength * fade, 0.0, 1.0));
+        } else {
+          // A bright core and a soft halo.
+          float a = (1.0 - smoothstep(0.15, 0.55, r)) + 0.35 * (1.0 - smoothstep(0.3, 1.0, r));
+          gl_FragColor = vec4(c * a * vLight * strength * fade, 1.0);
+        }
       }`,
     depthTest: false,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    transparent: false,
   });
+  skyBlending(starMat, style.ink);
   const starPoints = new THREE.Points(starGeo, starMat);
   behind(starPoints, -19);
   eq.add(starPoints);
   disposables.push(starGeo, starMat);
 
-  const lineMats: Array<{ m: THREE.LineBasicMaterial; base: THREE.Color }> = [];
-  const lineSet = (pts: number[], colour: number, opacity: number, parent: THREE.Group): THREE.LineSegments => {
+  type LineKind = 'figures' | 'zodiac' | 'galactic';
+  const lineMats: Array<{ m: THREE.LineBasicMaterial; kind: LineKind; opacity: number }> = [];
+  const styleLine = (l: (typeof lineMats)[number]): void => {
+    const base = threeColour(current[l.kind], false);
+    const f = fadeU.value;
+    if (current.ink) {
+      // Ink is a little stronger, as dark lines on paper read fainter.
+      l.m.color.copy(base);
+      l.m.opacity = Math.min(1, l.opacity * 1.3 * f);
+    } else {
+      // Additive with the colour pre-dimmed, so it stays in the opaque pass behind the bodies.
+      l.m.color.copy(base).multiplyScalar(l.opacity * f);
+      l.m.opacity = 1;
+    }
+  };
+  const lineSet = (pts: number[], kind: LineKind, opacity: number, parent: THREE.Group): THREE.LineSegments => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    // Additive with the colour pre-dimmed, so it stays in the opaque pass behind the bodies.
-    const m = new THREE.LineBasicMaterial({
-      color: new THREE.Color(colour).multiplyScalar(opacity),
-      blending: THREE.AdditiveBlending,
-      depthTest: false,
-      depthWrite: false,
-    });
-    lineMats.push({ m, base: m.color.clone() });
+    const m = new THREE.LineBasicMaterial({ depthTest: false, depthWrite: false });
+    skyBlending(m, current.ink);
+    const entry = { m, kind, opacity };
+    lineMats.push(entry);
+    styleLine(entry);
     const l = new THREE.LineSegments(g, m);
     behind(l, -18);
     parent.add(l);
@@ -263,8 +327,8 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     }
     return pts;
   };
-  const figures = lineSet(figure(false), 0x7f9bd6, 0.32, eq);
-  const zodiacFigures = lineSet(figure(true), 0xf0c674, 0.6, eq);
+  const figures = lineSet(figure(false), 'figures', 0.32, eq);
+  const zodiacFigures = lineSet(figure(true), 'zodiac', 0.6, eq);
 
   // The zodiac: the ecliptic, the band 8° either side, and the twelve 30° signs.
   const band: number[] = [];
@@ -275,8 +339,8 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   const edges: number[] = [];
   for (let l = 0; l < 360; l += 2) edges.push(...eclDir(l, 8), ...eclDir(l + 2, 8), ...eclDir(l, -8), ...eclDir(l + 2, -8));
   for (let k = 0; k < 12; k++) for (let b = -8; b < 8; b += 2) edges.push(...eclDir(k * 30, b), ...eclDir(k * 30, b + 2));
-  const ecliptic = lineSet(band, 0xf0c674, 0.55, ecl);
-  const signs = lineSet(edges, 0xf0c674, 0.22, ecl);
+  const ecliptic = lineSet(band, 'zodiac', 0.55, ecl);
+  const signs = lineSet(edges, 'zodiac', 0.22, ecl);
 
   // The galaxy: its equator (b = 0) and four marks around it: the centre (Sgr A*),
   // the anticentre, and the two points halfway between, 90° either side, one of
@@ -297,7 +361,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     ring(l, 1.6);
     ring(l, l === 0 ? 3.2 : 0.6);
   }
-  const galLines = lineSet(galPts, 0xb9a7ff, 0.5, gal);
+  const galLines = lineSet(galPts, 'galactic', 0.5, gal);
   const toEclFromGal = (v: Vec3): Vec3 => [
     ECL_TO_GAL[0][0] * v[0] + ECL_TO_GAL[1][0] * v[1] + ECL_TO_GAL[2][0] * v[2],
     ECL_TO_GAL[0][1] * v[0] + ECL_TO_GAL[1][1] * v[1] + ECL_TO_GAL[2][1] * v[2],
@@ -315,14 +379,33 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   const signLabels: SkyLabel[] = SIGNS.map(([glyph, name], k) => ({ dir: eclDir(k * 30 + 15, 9.5), text: `${glyph} ${name}`, kind: 'sign' }));
 
   return {
-    /** Show or hide parts; returns the labels to place. */
+    /** Directions (ecliptic) of the brighter stars, which labels keep clear of. */
+    brightStars: bright as readonly Vec3[],
+    /** Restyle for another theme; nothing moves. */
+    setStyle(s: SkyStyle): void {
+      current = s;
+      inkU.value = s.ink ? 1 : 0;
+      mwU.faint.value = threeColour(s.milkyWayFaint);
+      mwU.bright.value = threeColour(s.milkyWayBright);
+      mwU.strength.value = s.milkyWayStrength;
+      starU.tint.value = threeColour(s.starTint);
+      starU.tintMix.value = s.starTintMix;
+      starU.strength.value = s.starStrength;
+      skyBlending(mwMat, s.ink);
+      skyBlending(starMat, s.ink);
+      for (const l of lineMats) {
+        skyBlending(l.m, s.ink);
+        styleLine(l);
+      }
+    },
     /** How much of this sky to show (0–1): it is the sky as seen from the solar system. */
     setFade(f: number): void {
       if (f === fadeU.value) return;
       fadeU.value = f;
-      for (const { m, base } of lineMats) m.color.copy(base).multiplyScalar(f);
+      lineMats.forEach(styleLine);
       eq.visible = ecl.visible = gal.visible = f > 0.002;
     },
+    /** Show or hide parts; returns the labels to place. */
     update(o: SkyOptions): SkyLabel[] {
       if (fadeU.value < 0.3) return [];
       figures.visible = o.constellations;

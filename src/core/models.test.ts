@@ -63,3 +63,15 @@ describe('Themes', () => {
     expect(() => parseTheme({ ...THEMES[0], glow: -1 })).toThrow(/glow/);
   });
 });
+
+describe('themes: Dark, Bright and Colour', () => {
+  it('are named as modes, and Bright draws a negative sky', () => {
+    expect(THEMES.map((t) => t.name)).toEqual(['Dark Mode', 'Bright Mode', 'Colour Mode']);
+    expect(THEMES.map((t) => t.sky.ink)).toEqual([false, true, false]);
+  });
+  it('rejects a theme without a valid sky', () => {
+    const { sky: _sky, ...noSky } = THEMES[0]!;
+    expect(() => parseTheme(noSky)).toThrow(/"sky"/);
+    expect(() => parseTheme({ ...THEMES[0], sky: { ...THEMES[0]!.sky, ink: 'yes' } })).toThrow(/sky.ink/);
+  });
+});

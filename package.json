@@ -1,7 +1,7 @@
 {
   "name": "sp4cetime",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Galactic Calendar: map any timeline on the path the solar system is already traveling.",
   "type": "module",
   "engines": {

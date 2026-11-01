@@ -21,5 +21,10 @@ The helix should be geometrically honest (wireframe, real orbital elements, real
 ## Consequences
 
 - Geometry is testable without a browser (`geometry.test.ts`).
-- The galactic "direction of travel" uses circular rotation only; the Sun's ~20 km/s peculiar motion and its bobbing through the galactic plane are not yet modelled.
+- The galactic "direction of travel" uses circular rotation only; the Sun's in-plane peculiar motion is not modelled. Its bobbing through the galactic plane is modelled since v1.1 (ADR-0014).
 - Adding a body is one row of elements plus a theme colour.
+
+
+## Update (0.2.0)
+
+The calendar's √ fit and linear scale modes, and Fly mode's √ fit, were removed: one scale, true (see ADR-0016). The calendar draws orbits in true proportion, sized by the space zoom.

@@ -188,14 +188,14 @@ export function timeTicks(start: Time, end: Time, step: TickStep, labels: boolea
 // ---------------------------------------------------------------------------
 
 /**
- * Space-grid steps are arcs of the Sun's circle around the galactic centre
- * (docs/adr/0010-spheres.md): seconds, minutes and degrees of arc, with the
- * length in km that each spans at the Sun's distance from Sgr A*.
+ * Space-grid steps: distances along the Sun's path, 1, 2 and 5 × a power of ten km,
+ * from 1 km to 10²¹ km (beyond the galaxy). `rad` is the same length as an arc of the
+ * Sun's circle around Sgr A*.
  */
 export interface DistanceStep {
-  readonly unit: 'arcsec' | 'arcmin' | 'deg';
+  readonly unit: 'km';
   readonly n: number;
-  /** The arc, radians. */
+  /** The same length as an arc of the Sun's galactic circle, radians. */
   readonly rad: number;
   /** Its length along the Sun's path, km. */
   readonly km: number;
@@ -203,14 +203,12 @@ export interface DistanceStep {
 
 function buildDistanceSteps(): DistanceStep[] {
   const steps: DistanceStep[] = [];
-  const add = (unit: DistanceStep['unit'], n: number, perUnitRad: number): void => {
-    const rad = n * perUnitRad;
-    steps.push({ unit, n, rad, km: rad * SUN_GALACTOCENTRIC_KM });
-  };
-  const ARCSEC = Math.PI / 180 / 3600;
-  for (let exp = -9; exp <= 1; exp++) for (const m of [1, 2, 5]) add('arcsec', Number((m * 10 ** exp).toPrecision(1)), ARCSEC);
-  for (const n of [1, 2, 5, 10, 15, 30]) add('arcmin', n, ARCSEC * 60);
-  for (const n of [1, 2, 5, 10, 15, 30, 45, 90, 180, 360, 720, 1800, 3600, 7200, 18_000, 36_000]) add('deg', n, Math.PI / 180);
+  for (let exp = 0; exp <= 21; exp++) {
+    for (const m of [1, 2, 5]) {
+      const km = Number((m * 10 ** exp).toPrecision(1));
+      steps.push({ unit: 'km', n: km, rad: km / SUN_GALACTOCENTRIC_KM, km });
+    }
+  }
   return steps;
 }
 
@@ -279,8 +277,21 @@ export function formatArcseconds(n: number, decimals = Math.max(0, Math.ceil(-Ma
 
 /** "0.001″", "5′", "2°" of the Sun's galactic circle. */
 export function formatDistanceStep(step: DistanceStep): string {
-  if (step.unit === 'arcsec') return `${formatArcseconds(step.n)}″`;
-  return step.unit === 'arcmin' ? `${step.n}′` : `${step.n.toLocaleString('en-US')}°`;
+  return formatKm(step.km);
+}
+
+const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+/** A distance as people say it: "500 km", "2 million km", "5 trillion km", "2 × 10¹⁵ km". */
+export function formatKm(km: number): string {
+  const trim = (x: number): string => String(Number(x.toPrecision(3)));
+  if (km < 1e6) return `${Number(km.toPrecision(3)).toLocaleString('en-US')} km`;
+  for (const [v, w] of [[1e12, 'trillion'], [1e9, 'billion'], [1e6, 'million']] as const) {
+    if (km >= v && km < 1e15) return `${trim(km / v)} ${w} km`;
+  }
+  const e = Math.floor(Math.log10(km));
+  const m = Number((km / 10 ** e).toPrecision(3));
+  const sup = String(e).split('').map((d) => SUPERSCRIPT[Number(d)]).join('');
+  return `${m === 1 ? '' : `${m} × `}10${sup} km`;
 }
 
 // ---------------------------------------------------------------------------

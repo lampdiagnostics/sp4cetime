@@ -1,6 +1,6 @@
 {
-  "id": "synthwave",
-  "name": "Synthwave Neon",
+  "id": "colour",
+  "name": "Colour Mode",
   "background": "#120020",
   "grid": "rgba(255, 60, 200, 0.09)",
   "gridMajor": "rgba(255, 80, 210, 0.24)",
@@ -10,7 +10,7 @@
   "galaxy": "#ff9df5",
   "galaxyAlpha": 0.3,
   "sunLine": "#ff8a3d",
-  "sunLineWidth": 2.5,
+  "sunLineWidth": 3.6,
   "sun": "#ffcf5c",
   "planets": {
     "mercury": "#d6d6ff",
@@ -35,5 +35,25 @@
   "bezel": "rgba(255, 90, 220, 0.55)",
   "glow": 14,
   "font": "600 12px ui-monospace, 'SF Mono', Menlo, monospace",
-  "ui": "dark"
+  "ui": "dark",
+  "sky": {
+    "background": "#0d0018",
+    "ink": false,
+    "starTint": "#9ffcff",
+    "starTintMix": 0.35,
+    "starStrength": 1.1,
+    "milkyWayFaint": "#6a3cff",
+    "milkyWayBright": "#ff6fd8",
+    "milkyWayStrength": 0.6,
+    "figures": "#29f3ff",
+    "zodiac": "#fff07a",
+    "galactic": "#ff6fd8",
+    "path": "#ffcf5c",
+    "bubbles": "#ff5fd8",
+    "label": "rgba(120, 240, 255, 0.8)",
+    "labelStar": "rgba(255, 214, 246, 0.85)",
+    "labelZodiac": "rgba(255, 240, 122, 0.9)",
+    "labelGalactic": "rgba(255, 140, 225, 0.95)",
+    "labelHalo": "rgba(18, 0, 32, 0.95)"
+  }
 }

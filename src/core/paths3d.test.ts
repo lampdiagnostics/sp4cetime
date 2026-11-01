@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SUN_GALACTIC_SPEED_KM_S as V } from './constants';
 import { KM_PER_AU, type Vec3 } from './geometry';
-import { formatDMS } from './spheres';
-import { galacticArc, helix, keplerKm, orbitLoop, pathSpan, spaceMarks, timeMarks, TRAVEL } from './paths3d';
+import { helix, keplerKm, orbitLoop, pathSpan, spaceMarks, timeMarks, TRAVEL } from './paths3d';
 import { addSeconds, fromCivil } from './time';
 
 const now = fromCivil(2026, 10, 30, 12 * 3600);
@@ -54,17 +53,51 @@ describe('3D grid marks', () => {
     const a = spaceMarks(now, 0, 1e8);
     const later = addSeconds(now, 3600);
     const b = spaceMarks(later, -V * 3600, 1e8);
-    const m = a.marks[12]!;
-    const same = b.marks.find((x) => x.label === m.label)!;
-    expect(same.s).toBeCloseTo(m.s - V * 3600, 0);
+    const step = a.step.km;
+    expect(a.step.unit).toBe('km');
+    // Every mark of the earlier set, moved back by an hour of travel, is a mark of the later set.
+    for (const m of a.marks.slice(4, -4)) {
+      const moved = m.s - V * 3600;
+      expect(b.marks.some((x) => Math.abs(x.s - moved) < 1e-3 * step)).toBe(true);
+    }
+    expect(a.marks.every((m) => m.label === '')).toBe(true);
   });
+});
 
-  it('space mark labels are arc positions on the Sun\'s galactic circle, seen from Sgr A*', () => {
-    const { step, marks } = spaceMarks(now, 0, 1e8);
-    expect(step.unit).toBe('arcsec');
-    // The mark nearest the Sun carries (almost) the Sun's own arc position.
-    const nearest = marks.reduce((a, b) => (Math.abs(b.s) < Math.abs(a.s) ? b : a));
-    expect(nearest.label.startsWith(formatDMS(galacticArc(now), 0).slice(0, 8))).toBe(true);
-    expect(nearest.label).toMatch(/^179°56′/);
+describe('Reshaped and shortened paths', () => {
+  it('a shape moves the coil around the Sun but not along the line of travel; a span limit shortens it', async () => {
+    const { solarSystemAt } = await import('./bodies');
+    const t = fromCivil(2026, 10, 30);
+    const mars = solarSystemAt(t).find((b) => b.info.id === 'mars')!.pos;
+    const plain = helix('mars', t, mars, 50);
+    const half = helix('mars', t, mars, 50, undefined, (o) => [o[0] / 2, o[1] / 2, o[2] / 2]);
+    // The middle point (now) is halved; the ends differ only by their halved offsets.
+    expect(half[50 * 3]).toBeCloseTo(plain[50 * 3]! / 2, 3);
+    const short = helix('mars', t, mars, 50, undefined, undefined, 86_400);
+    const even = helix('mars', t, mars, 50, undefined, undefined, 86_400 * 10, 1);
+    // Evenly spaced: equal steps along the line of travel.
+    const along = (j: number): number => even[j * 3]! * TRAVEL[0] + even[j * 3 + 1]! * TRAVEL[1] + even[j * 3 + 2]! * TRAVEL[2];
+    expect(Math.abs(along(60) - along(59) - (along(90) - along(89)))).toBeLessThan(2 * 86_400 * 10 / 50 * 230 * 0.2 + 3e5);
+    const ends = Math.hypot(short[0]! - short[100 * 3]!, short[1]! - short[100 * 3 + 1]!, short[2]! - short[100 * 3 + 2]!);
+    expect(ends).toBeLessThan(2 * 86_400 * 230 + 2 * 3e6);
+  });
+});
+
+describe('Fly mode’s ruler along the Sun’s line', () => {
+  it('divides into the zoom’s units (10 s at a minute) at a spacing you can see, and drifts with time', async () => {
+    const { rulerTimeMarks, rulerScale } = await import('./paths3d');
+    const t = fromCivil(2026, 10, 31, 12 * 3600);
+    const gap = 5e7; // km on the ruler
+    const r = rulerScale(gap, 10);
+    expect(r.kmPerSecond * 10).toBeCloseTo(gap, 3);
+    const m = rulerTimeMarks(t, 0, gap, 10, 12);
+    const gaps = m.slice(1).map((x, i) => x.s - m[i]!.s);
+    for (const g of gaps) expect(g).toBeCloseTo(gap, 0);
+    // One second later every line is one second's worth of ruler closer to (or past) the Sun.
+    const later = rulerTimeMarks(addSeconds(t, 1), 0, gap, 10, 12);
+    const same = later.find((x) => x.label === m[6]!.label)!;
+    expect(m[6]!.s - same.s).toBeCloseTo(r.kmPerSecond, 0);
+    // A day's zoom: steps of hours, drifting far more slowly.
+    expect(rulerScale(gap, 86_400 / 6).kmPerSecond).toBeLessThan(r.kmPerSecond / 1000);
   });
 });

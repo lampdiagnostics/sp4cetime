@@ -4,6 +4,39 @@
  */
 import { PLANET_IDS, type PlanetId } from './planets';
 
+/**
+ * How the real sky (stars, Milky Way, constellations, the whole galaxy) looks in this
+ * theme, the same in the calendar and in Fly mode. Only the look changes, never where
+ * anything is.
+ */
+export interface SkyStyle {
+  /** Space behind everything in Fly mode. */
+  readonly background: string;
+  /** A negative sky: stars and the Milky Way as dark ink on a light background (brighter = darker). */
+  readonly ink: boolean;
+  /** Star colours are mixed this far (0–1) toward `starTint`; 0 keeps their true colours. */
+  readonly starTint: string;
+  readonly starTintMix: number;
+  readonly starStrength: number;
+  /** Milky Way colour from its faintest to its brightest parts. */
+  readonly milkyWayFaint: string;
+  readonly milkyWayBright: string;
+  readonly milkyWayStrength: number;
+  /** Line colours: constellation figures, zodiac, galactic equator and marks, the Sun's path around the galaxy. */
+  readonly figures: string;
+  readonly zodiac: string;
+  readonly galactic: string;
+  readonly path: string;
+  /** The Fermi bubbles, the gamma-ray lobes above and below the galaxy's centre. */
+  readonly bubbles: string;
+  /** Label colours on the sky, and the halo that keeps them readable. */
+  readonly label: string;
+  readonly labelStar: string;
+  readonly labelZodiac: string;
+  readonly labelGalactic: string;
+  readonly labelHalo: string;
+}
+
 export interface Theme {
   readonly id: string;
   readonly name: string;
@@ -43,6 +76,28 @@ export interface Theme {
   readonly font: string;
   /** UI chrome: "dark" or "light". */
   readonly ui: 'dark' | 'light';
+  readonly sky: SkyStyle;
+}
+
+const SKY_STRING_KEYS = [
+  'background', 'starTint', 'milkyWayFaint', 'milkyWayBright', 'figures', 'zodiac', 'galactic', 'path', 'bubbles',
+  'label', 'labelStar', 'labelZodiac', 'labelGalactic', 'labelHalo',
+] as const;
+const SKY_NUMBER_KEYS = ['starTintMix', 'starStrength', 'milkyWayStrength'] as const;
+
+function parseSky(data: unknown, where: string): SkyStyle {
+  if (typeof data !== 'object' || data === null) throw new Error(`${where}: "sky" must be an object`);
+  const rec = data as Record<string, unknown>;
+  for (const key of SKY_STRING_KEYS) {
+    if (typeof rec[key] !== 'string' || rec[key] === '') throw new Error(`${where}: "sky.${key}" must be a non-empty string`);
+  }
+  for (const key of SKY_NUMBER_KEYS) {
+    const v = rec[key];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 2) throw new Error(`${where}: "sky.${key}" must be a number from 0 to 2`);
+  }
+  if ((rec.starTintMix as number) > 1) throw new Error(`${where}: "sky.starTintMix" must be between 0 and 1`);
+  if (typeof rec.ink !== 'boolean') throw new Error(`${where}: "sky.ink" must be true or false`);
+  return rec as unknown as SkyStyle;
 }
 
 const STRING_KEYS = [
@@ -78,5 +133,6 @@ export function parseTheme(data: unknown): Theme {
   }
   if (rec.ui !== 'dark' && rec.ui !== 'light') throw new Error(`${where}: "ui" must be "dark" or "light"`);
   if ((rec.gridSpacingPx as number) < 8) throw new Error(`${where}: "gridSpacingPx" must be at least 8`);
+  parseSky(rec.sky, where);
   return rec as unknown as Theme;
 }

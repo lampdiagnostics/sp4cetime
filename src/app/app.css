@@ -53,12 +53,57 @@ body {
 .app {
   position: fixed;
   inset: 0;
+  /* An instrument, not a page: dragging and double-clicking never select text. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app input,
+.app textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* While dragging, names don't catch the pointer. */
+.fly-labels.dragging * {
+  pointer-events: none !important;
 }
 
 .stage {
   position: absolute;
   inset: 0;
   outline: none;
+}
+
+/* The calendar and the 3D view are stacked; moving between them is a short cross-fade. */
+.view {
+  transition: opacity 0.45s ease;
+}
+
+.view:not(.on) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.view-3d {
+  position: absolute;
+  inset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view {
+    transition: none;
+  }
+}
+
+.clock .rate {
+  color: var(--accent);
+}
+
+.corner .toggles {
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .stage:focus-visible {
@@ -221,6 +266,116 @@ body {
   max-width: 300px;
 }
 
+/* The show/hide toggle (space bar): controls, then all text, then everything back. */
+.chrome-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.chrome-toggle:hover,
+.chrome-toggle:focus-visible {
+  opacity: 1;
+}
+
+.chrome-1 .float-tools > *,
+.chrome-2 .float-tools > * {
+  opacity: 0.35;
+}
+
+.chrome-1 .float-tools > *:hover,
+.chrome-2 .float-tools > *:hover,
+.float-tools > .capture:focus-within {
+  opacity: 1;
+}
+
+/* The eye and Capture: bottom centre, always on screen (dimmed when the rest is hidden), never captured. */
+.float-tools {
+  position: absolute;
+  bottom: var(--gap);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.float-tools .pause-now,
+.float-tools .capture > button {
+  height: 32px;
+  border-radius: 16px;
+  padding: 0 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.chrome-1 .corner,
+.chrome-2 .corner,
+.chrome-2 .fly-labels,
+.chrome-2 .fly-tip,
+.chrome-2 .fly-warp span,
+.chrome-2 .fly-statement {
+  display: none;
+}
+
+/* "Space grid · 2 million km between lines", as the calendar says it, near the top. */
+.fly-statement {
+  position: absolute;
+  top: calc(var(--gap) + 44px);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sky-galactic, var(--text-dim));
+  text-shadow: 0 0 4px var(--label-halo, #000);
+}
+
+.fly-statement:empty {
+  display: none;
+}
+
+/* SPACE, TIME and SPEED: drop-down menus with a small heading above each. */
+.corner .select.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.br .select.menu {
+  align-items: flex-end;
+}
+
+/* SPACE (places), TIME (zoom) and SPEED (rate): small headings over their buttons. */
+.corner .heading {
+  margin: 4px 0 -2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.bl .heading,
+.bl .presets {
+  align-self: flex-start;
+  text-align: left;
+  justify-content: flex-start;
+}
+
 .note {
   margin: 0;
   font-size: 11px;
@@ -313,6 +468,65 @@ select option {
 }
 
 /* --- Planet picker ------------------------------------------------------- */
+
+.view-row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The help opens in the middle of the screen, never off it. */
+.popover.help-popover {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 16px 20px;
+  text-align: left;
+  z-index: 50;
+}
+
+.help-popover h3 {
+  margin: 10px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.strobe-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 22px;
+}
+
+.strobe-steps input[type='range'] {
+  width: 120px;
+}
+
+.strobe-steps input[type='number'] {
+  width: 58px;
+}
+
+.help-popover ul {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.picker.menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
 
 .picker {
   position: relative;
@@ -450,9 +664,15 @@ select option {
 /* --- Fly mode ---------------------------------------------------------------- */
 
 .fly {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fly-warp {
+    display: none;
+  }
 }
 
 .fly-canvas {
@@ -467,7 +687,7 @@ select option {
   cursor: grabbing;
 }
 
-/* Fly mode is always a dark sky, whatever the calendar theme: light text, clear states. */
+/* Fly mode follows the theme. Dark and Colour: light text on dark panels; Bright: dark text on light panels. */
 .fly {
   --panel: rgba(4, 7, 16, 0.74);
   --panel-border: rgba(200, 215, 255, 0.22);
@@ -479,6 +699,18 @@ select option {
   --pressed: rgba(255, 220, 160, 0.26);
   --focus: #7cc4ff;
   color: var(--text);
+}
+
+.fly[data-ui='light'] {
+  --panel: rgba(255, 253, 248, 0.86);
+  --panel-border: rgba(30, 30, 30, 0.16);
+  --text: #1d1d1f;
+  --text-dim: rgba(29, 29, 31, 0.72);
+  --accent: #c2410c;
+  --button: rgba(0, 0, 0, 0.04);
+  --button-hover: rgba(0, 0, 0, 0.09);
+  --pressed: rgba(194, 65, 12, 0.14);
+  --focus: #c2410c;
 }
 
 .fly .corner {
@@ -505,6 +737,20 @@ select option {
   color: rgba(232, 238, 255, 0.7);
 }
 
+.fly[data-ui='light'] button,
+.fly[data-ui='light'] select {
+  border-color: rgba(30, 30, 30, 0.22);
+}
+
+.fly[data-ui='light'] button[aria-pressed='true'] {
+  border-color: rgba(194, 65, 12, 0.7);
+  color: #1d1d1f;
+}
+
+.fly[data-ui='light'] button[aria-pressed='false'] {
+  color: rgba(29, 29, 31, 0.62);
+}
+
 .fly button.ghost {
   color: var(--text-dim);
 }
@@ -525,20 +771,37 @@ select option {
   overflow: hidden;
 }
 
+.fly-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* A dot on a body too small to see, centred on it, in the colour of its path. */
+.fly-marker {
+  position: absolute;
+  top: -3.5px;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
 .fly-label {
   position: absolute;
   top: 0;
   left: 0;
   font-size: 11px;
-  color: rgba(225, 232, 250, 0.85);
+  color: var(--text);
   white-space: nowrap;
-  text-shadow: 0 0 4px #000;
+  text-shadow: 0 0 4px var(--label-halo, #000);
   pointer-events: auto;
   cursor: pointer;
 }
 
 .fly-label:hover {
-  color: #fff;
+  color: var(--accent);
 }
 
 .fly-time {
@@ -573,8 +836,53 @@ select option {
   left: 0;
   font-size: 10.5px;
   white-space: nowrap;
-  text-shadow: 0 0 4px #000;
+  text-shadow: 0 0 4px var(--label-halo, #000);
   pointer-events: none;
+}
+
+/* Labels on the Sun's galactic path: on a backing, in the path's colour, so they read over the stars. */
+.fly-grid-label[data-kind='galaxy'] {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--label-halo, #000) 80%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+  text-shadow: none;
+}
+
+.fly-grid-label[data-action='sun'],
+.fly-grid-label[data-action^='goto'] {
+  pointer-events: auto;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline dotted;
+}
+
+/* The warp: a vignette closing in from the edges, and the speed in light speeds. */
+.fly-warp {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 38%, var(--label-halo, #000) 100%);
+  display: grid;
+  place-items: end center;
+  padding-bottom: 18vh;
+}
+
+.fly-warp span {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-shadow: 0 0 6px var(--label-halo, #000);
+}
+
+.fly-hint {
+  color: var(--accent) !important;
+  max-width: 300px;
 }
 
 .fly .toggles {
@@ -620,23 +928,24 @@ select option {
   white-space: nowrap;
   font-size: 10.5px;
   letter-spacing: 0.02em;
-  color: rgba(150, 175, 230, 0.6);
-  text-shadow: 0 0 3px #000;
+  color: var(--sky-label, rgba(150, 175, 230, 0.6));
+  text-shadow: 0 0 3px var(--label-halo, #000);
 }
 
 .fly-sky-label[data-kind='star'] {
-  color: rgba(225, 230, 245, 0.7);
+  color: var(--sky-star, rgba(225, 230, 245, 0.7));
 }
 
 .fly-sky-label[data-kind='zodiacFigure'] {
-  color: rgba(240, 198, 116, 0.8);
+  color: var(--sky-zodiac, rgba(240, 198, 116, 0.8));
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.12em;
 }
 
 .fly-sky-label[data-kind='sign'] {
-  color: rgba(240, 198, 116, 0.55);
+  color: var(--sky-zodiac, rgba(240, 198, 116, 0.55));
+  opacity: 0.7;
   font-size: 11px;
 }
 
@@ -647,6 +956,114 @@ select option {
 }
 
 .fly-sky-label[data-kind='galactic'] {
-  color: rgba(195, 180, 255, 0.85);
+  color: var(--sky-galactic, rgba(195, 180, 255, 0.85));
   font-size: 11px;
+}
+
+.help-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.help-popover .credits a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Capture opens upward, over its button. */
+.popover.capture-popover {
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 280px;
+}
+
+.capture-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.capture-popover kbd {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.picker.capture {
+  position: relative;
+}
+
+/* While recording: always on screen (even with the boxes hidden), never in the recording. */
+.rec-badge-unused {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 80, 80, 0.6);
+  background: rgba(40, 0, 0, 0.6);
+  color: #ff6b6b;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Windows: one fills the screen; several are round dials, each cut to its circle. */
+.pane {
+  position: absolute;
+  overflow: hidden;
+}
+
+.boxes {
+  display: contents;
+}
+
+
+/* ▶ Play · speed · ❚❚ Pause, in the bottom-right box. */
+.play-row {
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.play-row button {
+  white-space: nowrap;
+}
+
+.play-row button.on {
+  background: var(--pressed);
+}
+
+.capture-popover > button {
+  justify-content: space-between;
+}
+
+.float-tools .capture > button.recording {
+  color: #ff6b6b;
+  border-color: rgba(255, 80, 80, 0.6);
+}
+
+/* The space grid's scale bar, in the bottom-right box. */
+.scale-bar {
+  display: block;
+  align-self: flex-end;
+  overflow: visible;
+}
+
+.scale-bar text {
+  font-size: 11.5px;
+  fill: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }

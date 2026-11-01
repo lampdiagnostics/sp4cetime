@@ -1,136 +1,200 @@
 /**
- * Fly mode: you are in the solar system. Loaded on demand (with Three.js) so the
- * calendar stays light. See docs/adr/0009-fly-mode.md.
+ * Fly mode, and the whole galaxy: the 3D view. It has no controls of its own: the
+ * app's shared controls drive it (through `command` and its props), the same controls
+ * as the calendar's. Loaded on demand with Three.js so the calendar stays light.
+ * See docs/adr/0009-fly-mode.md, 0012 and 0013.
+ *
+ * Drag to turn around what you are looking at (as dragging turns the calendar). Trackpad:
+ * scroll to look around, pinch to widen or narrow the view (you stay put),
+ * Shift + scroll or pinch to space the time and space grids. W A S D move you. Backing
+ * away past 1,000 AU from the Sun warps you out to the whole galaxy; flying in on the
+ * galaxy (or at the Sun from out there, or clicking it) warps you back.
  */
-import { useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { BODIES, type BodyId, litFraction, solarSystemAt } from '../core/bodies';
-import type { Vec3 } from '../core/geometry';
-import { moonPhase } from '../core/models';
-import { addSeconds, formatTime, fromUnixMs, type Time } from '../core/time';
-import { MoonIcon, moonPhaseName } from '../app/MoonIcon';
+import { BODIES, type BodyId, solarSystemAt } from '../core/bodies';
+import type { ScaleMode, Vec3 } from '../core/geometry';
+import type { Time } from '../core/time';
 import {
+  aboveNorth,
+  arrivalView,
   cruiseSpeed,
-  DESTINATIONS,
   type Destination,
   find,
+  isWarp,
   lookAt,
-  type Frame,
   nearest,
+  overviewView,
   type Pose,
   poseFrom,
   pushOut,
+  scaleBodies,
+  shapeFor,
   vantage,
+  WARP_HINT_KM,
+  WARP_IN_ANGLE,
+  WARP_OUT_KM,
+  warpPoint,
   worldOf,
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
 import { createSky, loadSky, type SkyLabel } from './sky';
-import { createGalaxy, galaxyFade, loadGalaxyMap } from './galaxy';
+import { createGalaxy, galaxyFade, GAL_NORTH, loadGalaxyMap, RULER_STATEMENT, warpOutVantage } from './galaxy';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
 import type { Theme } from '../core/theme';
+import type { PlanetId } from '../core/planets';
+import { CALENDAR_AXES } from '../core/paths3d';
+import { SIGNS } from '../core/skyfigures';
 
-interface Props {
-  onExit: () => void;
-  theme: Theme;
-  overlays: OverlayOptions;
-  onOverlays: (change: Partial<OverlayOptions>) => void;
-  /** Where to start (default: the Solar system view, like the calendar). */
-  start?: Destination;
+/** What the shared controls ask of the 3D view. `seq` makes each request a new one. */
+export type FlyCommand = { readonly seq: number } & (
+  | {
+      /** Arrive from the calendar: stand at its view in 3D (turned as it is), then optionally go on. */
+      readonly kind: 'enter';
+      readonly axes: readonly [Vec3, Vec3, Vec3];
+      readonly then?: { readonly go: Destination } | { readonly above: BodyId } | { readonly warpOut: true };
+    }
+  | { readonly kind: 'go'; readonly dest: Destination }
+  | { readonly kind: 'above'; readonly id: BodyId }
+  | { readonly kind: 'face'; readonly id: BodyId }
+  | { readonly kind: 'dolly'; readonly amount: number }
+  | { readonly kind: 'level' }
+);
+
+export type Measure = 'near' | 'sun' | 'galaxy';
+
+/** What the shared readout shows while in 3D. */
+export interface FlyHud {
+  readonly nearName: string;
+  readonly sphereName: string;
+  readonly arc: ArcPosition;
+  readonly decimals: number;
+  readonly flattening: number;
+  readonly speedRadii: number;
+  readonly inGalaxy: boolean;
+  readonly hint: string;
+  /** "Space grid · 2 million km between lines", or the galaxy's light-year ruler. */
+  readonly statement: string;
+  /** The space grid's scale bar: its spacing, km (0 when there is none, as out in the galaxy), and on screen, px. */
+  readonly bar: { readonly km: number; readonly px: number };
 }
 
-const RATES: ReadonlyArray<{ label: string; rate: number }> = [
-  { label: 'Pause', rate: 0 },
-  { label: 'Live', rate: 1 },
-  { label: '1 min/s', rate: 60 },
-  { label: '1 h/s', rate: 3600 },
-  { label: '1 day/s', rate: 86_400 },
-];
-
-/** Lenses: from the naked-eye wide view to a telescope. Narrower = bigger. */
-const LENSES: ReadonlyArray<{ label: string; fov: number }> = [
-  { label: 'Wide', fov: 60 },
-  { label: '×3', fov: 20 },
-  { label: '×12', fov: 5 },
-  { label: '×60', fov: 1 },
-];
-
-type Measure = 'near' | 'sun' | 'galaxy';
-
-interface Hud {
-  time: Time;
-  nearName: string;
-  /** The camera's arc position on the chosen sphere. */
-  sphereName: string;
-  arc: ArcPosition;
-  decimals: number;
-  flattening: number;
-  speedRadii: number;
-  moonLit: number;
-  moonPhase: number;
-  frame: Frame;
-  anchorName: string;
+interface Props {
+  /** Showing now (the calendar is hidden). While not, nothing is drawn and keys are ignored. */
+  active: boolean;
+  /** This window is the chosen one (of several): only it takes the keyboard. */
+  focused?: boolean;
+  theme: Theme;
+  overlays: OverlayOptions;
+  /** The simulated present, shared with the calendar. */
+  clock: () => Time;
+  scale: ScaleMode;
+  /** The zoom preset's span (seconds across): paths reach half of it into past and future. */
+  spanSeconds: number;
+  measure: Measure;
+  command: FlyCommand | null;
+  /** Shift + scroll or pinch: zoom time, as in the calendar (the grids' units follow it). */
+  onTimeZoom: (factor: number) => void;
+  onHud: (h: FlyHud) => void;
 }
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+/** Speed of light, km/s. */
+const C_KM_S = 299_792.458;
+const WARP_MS = 3600;
+/** Field of view, degrees (vertical). */
+const FOV = 60;
+const sub3 = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const len3 = (a: Vec3): number => Math.hypot(a[0], a[1], a[2]);
+const unit3 = (a: Vec3): Vec3 => {
+  const l = len3(a) || 1;
+  return [a[0] / l, a[1] / l, a[2] / l];
+};
 const NAME = (id: BodyId): string => BODIES.find((b) => b.id === id)?.name ?? id;
 
-/** One of x, y, z in radii of the sphere, rounded to what matters. */
-function radii(a: ArcPosition, i: 0 | 1 | 2): string {
-  const v = a.r === 0 ? 0 : (a.xyz[i] / a.r) * a.radii;
-  if (Math.abs(v) < 5e-5 * Math.max(1, a.radii)) return '0';
-  return Math.abs(v) >= 1e4 ? Math.round(v).toLocaleString('en-US') : v.toPrecision(4);
+/** A body's outline on screen, for keeping labels from showing through it. */
+interface Disc {
+  x: number;
+  y: number;
+  r: number;
+  /** Distance from the camera, km. */
+  d: number;
+  id: BodyId;
+  /** Rings, as an ellipse: semi-axes and the major axis's screen direction. */
+  ring?: { a: number; b: number; ux: number; uy: number };
+}
+interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+function discCovers(c: Disc, r: Rect): boolean {
+  const cx = Math.max(r.x0, Math.min(c.x, r.x1)), cy = Math.max(r.y0, Math.min(c.y, r.y1));
+  if (Math.hypot(cx - c.x, cy - c.y) <= c.r) return true;
+  if (!c.ring) return false;
+  const { a, b, ux, uy } = c.ring;
+  for (const fx of [0, 0.5, 1]) {
+    for (const fy of [0, 0.5, 1]) {
+      const px = r.x0 + (r.x1 - r.x0) * fx - c.x, py = r.y0 + (r.y1 - r.y0) * fy - c.y;
+      const along = px * ux + py * uy, across = -px * uy + py * ux;
+      if ((along / a) ** 2 + (across / Math.max(0.5, b)) ** 2 <= 1) return true;
+    }
+  }
+  return false;
+}
+/**
+ * Which way is level ahead: where you look, flattened onto the plane square to "up". Looking
+ * straight up or down, it is the way the top (or bottom) of the view points.
+ */
+function levelHeading(fwd: THREE.Vector3, quat: THREE.Quaternion, up: THREE.Vector3): THREE.Vector3 {
+  const flat = fwd.clone().addScaledVector(up, -fwd.dot(up));
+  if (flat.lengthSq() > 1e-10) return flat.normalize();
+  const top = new THREE.Vector3(0, 1, 0).applyQuaternion(quat).multiplyScalar(-Math.sign(fwd.dot(up)) || 1);
+  const f2 = top.addScaledVector(up, -top.dot(up));
+  return f2.lengthSq() > 1e-10 ? f2.normalize() : new THREE.Vector3(1, 0, 0);
 }
 
+/** Roughly how wide a label is on screen, px (no layout needed). */
+function labelWidth(text: string, kind: string): number {
+  return text.length * (kind === 'constellation' || kind === 'zodiacFigure' ? 7.6 : 6.3) + 4;
+}
 /** Apparent size, compact: "17°16′", "31′05″", "2.1″". */
 function formatSize(rad: number): string {
   const sec = (rad * 180 * 3600) / Math.PI;
   return formatDMS(rad, sec < 10 ? 2 : sec < 600 ? 1 : 0, true);
 }
 
-function clock(t: Time): string {
-  const p = (n: number): string => String(Math.floor(n)).padStart(2, '0');
-  return `${formatTime(t, 3600)} · ${p(t.sec / 3600)}:${p((t.sec % 3600) / 60)}:${p(t.sec % 60)} GMT`;
+interface Flight {
+  fromPos: Vec3;
+  fromQuat: THREE.Quaternion;
+  to: Pose;
+  start: number;
+  ms: number;
+  /** A warp changes distance from the Sun by equal factors (warpPoint) and can't be interrupted. */
+  warp: boolean;
+  /** Fly toward this point by equal factors of distance from it (closing in on a galaxy or the black hole). */
+  toward?: Vec3;
+  /**
+   * A journey to a body: distance from it falls by equal factors (as fast between the
+   * planets as it is slow at the end), following the body as it moves. You first turn to
+   * face it, fly at it, and only at the end turn to the view on arrival.
+   */
+  body?: { id: BodyId; fromRel: Vec3; up: Vec3 };
 }
 
-export default function FlyView({ onExit, theme, overlays, onOverlays, start = 'overview' }: Props) {
-  const overlaysRef = useRef(overlays);
-  overlaysRef.current = overlays;
+export default function FlyView({ active, focused = true, theme, overlays, clock, scale, spanSeconds, measure, command, onTimeZoom, onHud }: Props) {
+  const live = useRef({ active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud });
+  live.current = { active, focused, theme, overlays, clock, scale, spanSeconds, measure, onTimeZoom, onHud };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
-  const [hud, setHud] = useState<Hud | null>(null);
-  const [rate, setRate] = useState(1);
-  const [fov, setFov] = useState(60);
-  const [measure, setMeasure] = useState<Measure>('near');
-  const measureRef = useRef<Measure>('near');
-  measureRef.current = measure;
+  const markersRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
-  const fovRef = useRef(60);
-  const chooseLens = (f: number): void => {
-    fovRef.current = f;
-    setFov(f);
-  };
-  const [error, setError] = useState<string | null>(null);
-
-  // Mutable state the render loop reads.
-  const poseRef = useRef<Pose | null>(null);
-  const flightRef = useRef<{ fromPos: Vec3; fromQuat: THREE.Quaternion; to: Pose; start: number; ms: number } | null>(null);
-  const timeRef = useRef({ baseReal: Date.now(), baseSim: fromUnixMs(Date.now()), rate: 1 });
-  const goRef = useRef<(d: Destination) => void>(() => {});
-  const frameRef = useRef<(f: Frame) => void>(() => {});
-
-  const simNow = (): Time => {
-    const t = timeRef.current;
-    return addSeconds(t.baseSim, ((Date.now() - t.baseReal) / 1000) * t.rate);
-  };
-  const changeRate = (r: number): void => {
-    timeRef.current = { baseReal: Date.now(), baseSim: simNow(), rate: r };
-    setRate(r);
-  };
-  const backToNow = (): void => {
-    timeRef.current = { baseReal: Date.now(), baseSim: fromUnixMs(Date.now()), rate: 1 };
-    setRate(1);
-  };
+  const warpRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const styleRef = useRef<(t: Theme) => void>(() => {});
+  const runRef = useRef<(c: FlyCommand) => void>(() => {});
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -140,35 +204,172 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
     try {
       scene = createScene(canvas);
     } catch {
-      setError('3D needs WebGL, which this browser or device does not provide.');
+      if (errorRef.current) errorRef.current.textContent = '3D needs WebGL, which this browser or device does not provide. The calendar still works.';
       return;
     }
     const resize = (): void => {
       const r = canvas.getBoundingClientRect();
-      scene.resize(r.width, r.height);
+      if (r.width > 0) scene.resize(r.width, r.height);
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
-    // Start at geostationary orbit, with Earth and the Moon in view.
-    // Start like the calendar: the Sun in the centre, its paths flowing past.
+    const now0 = (): Time => live.current.clock();
+    const bodiesAt = (t: Time) => {
+      const trueBodies = solarSystemAt(t);
+      return { trueBodies, bodies: scaleBodies(trueBodies, live.current.scale) };
+    };
     const aspect = (): number => canvas.clientWidth / Math.max(1, canvas.clientHeight);
-    poseRef.current = vantage(start, solarSystemAt(simNow()), aspect(), simNow()).pose;
-    const paths = createOverlays(scene.scene, theme);
+    let axes: readonly [Vec3, Vec3, Vec3] = CALENDAR_AXES;
+    let pose: Pose = vantage('overview', bodiesAt(now0()).bodies, aspect(), now0()).pose;
+    let flight: Flight | null = null;
+
+    scene.setStyle(live.current.theme.sky);
+    let paths = createOverlays(scene.scene, live.current.theme);
     let sky: ReturnType<typeof createSky> | null = null;
-    let disposed = false;
     let galaxy: ReturnType<typeof createGalaxy> | null = null;
+    let disposed = false;
     loadGalaxyMap(import.meta.env.BASE_URL)
       .then((map) => {
-        if (!disposed) galaxy = createGalaxy(scene.scene, map);
+        if (!disposed) galaxy = createGalaxy(scene.scene, map, live.current.theme.sky);
       })
       .catch((e: unknown) => console.warn('Galaxy map not loaded:', e));
     loadSky(import.meta.env.BASE_URL)
       .then(({ data, milkyWay }) => {
-        if (!disposed) sky = createSky(scene.scene, data, milkyWay, scene.renderer.getPixelRatio());
+        if (!disposed) sky = createSky(scene.scene, data, milkyWay, scene.renderer.getPixelRatio(), live.current.theme.sky);
       })
       .catch((e: unknown) => console.warn('Sky not loaded:', e));
+
+    styleRef.current = (t) => {
+      scene.setStyle(t.sky);
+      sky?.setStyle(t.sky);
+      galaxy?.setStyle(t.sky);
+      paths.dispose();
+      paths = createOverlays(scene.scene, t);
+    };
+
+    const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const here = (): { pos: Vec3; quat: THREE.Quaternion } => worldOf(pose, bodiesAt(now0()).bodies);
+    const fly = (to: Pose, warp: boolean, ms?: number): void => {
+      const from = here();
+      flight = { fromPos: from.pos, fromQuat: from.quat, to, start: performance.now(), ms: reduced() ? 0 : (ms ?? (warp ? WARP_MS : 2200)), warp };
+    };
+    /** A flight between two places, as a warp when the scale changes enormously. */
+    const flyTo = (to: Pose): void => {
+      const { bodies } = bodiesAt(now0());
+      const sun = find(bodies, 'sun').pos;
+      fly(to, isWarp(len3(sub3(here().pos, sun)), len3(sub3(worldOf(to, bodies).pos, sun))));
+    };
+    /** Out to the whole galaxy, along a heading (from the Sun). */
+    const warpOut = (heading: Vec3): void => {
+      const { bodies } = bodiesAt(now0());
+      const v = warpOutVantage(now0(), heading);
+      fly(poseFrom(v.pos, lookAt(v.pos, v.target, v.up), 'sun', 'inertial', bodies), true);
+    };
+    /** Back into the solar system, arriving along a heading, in front of the Sun. */
+    const warpIn = (heading: Vec3): void => {
+      const { bodies } = bodiesAt(now0());
+      const a = arrivalView(find(bodies, 'sun').pos, heading);
+      fly(poseFrom(a.pos, a.quat, 'sun', 'inertial', bodies), true);
+    };
+    /** The calendar's view in 3D (the Solar system destination). */
+    const home = (): void => {
+      const { bodies } = bodiesAt(now0());
+      const v = overviewView(find(bodies, 'sun').pos, axes);
+      flyTo(poseFrom(v.pos, v.quat, 'sun', 'inertial', bodies));
+    };
+    const go = (d: Destination): void => {
+      const { bodies } = bodiesAt(now0());
+      const sun = find(bodies, 'sun').pos;
+      if (d === 'overview') return home();
+      if (d === 'galaxy' && len3(sub3(here().pos, sun)) < WARP_OUT_KM) {
+        // From the solar system: back away from where you are looking, and keep going.
+        const back = new THREE.Vector3(0, 0, 1).applyQuaternion(here().quat);
+        return warpOut([back.x, back.y, back.z]);
+      }
+      flyTo(vantage(d, bodies, aspect(), now0(), axes).pose);
+    };
+    const above = (id: BodyId): void => {
+      const { bodies } = bodiesAt(now0());
+      const to = aboveNorth(id, bodies).pose;
+      const sun = find(bodies, 'sun').pos;
+      const from = here();
+      const dest = worldOf(to, bodies).pos;
+      if (isWarp(len3(sub3(from.pos, sun)), len3(sub3(dest, sun)))) return flyTo(to);
+      const c = find(bodies, id).pos;
+      const fromRel = sub3(from.pos, c);
+      // Longer journeys take longer: a second and a half, plus about one second for every
+      // tenfold of distance closed.
+      const ratio = Math.max(1, len3(fromRel) / Math.max(1, len3(sub3(dest, c))));
+      const ms = Math.min(7000, Math.max(1800, 1500 + 900 * Math.log10(ratio)));
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(from.quat);
+      flight = {
+        fromPos: from.pos, fromQuat: from.quat, to, start: performance.now(), ms: reduced() ? 0 : ms, warp: false,
+        body: { id, fromRel, up: [up.x, up.y, up.z] },
+      };
+    };
+    const face = (id: BodyId): void => {
+      const { bodies } = bodiesAt(now0());
+      const w = here();
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(w.quat);
+      fly(poseFrom(w.pos, lookAt(w.pos, find(bodies, id).pos, [up.x, up.y, up.z]), pose.anchor, pose.frame, bodies), false, 900);
+    };
+    let dolly = 0;
+    /** The view's width (pinch), degrees. */
+    let fov = FOV;
+    const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
+    runRef.current = (c) => {
+      switch (c.kind) {
+        case 'enter': {
+          axes = c.axes;
+          fov = FOV;
+          const { bodies } = bodiesAt(now0());
+          const v = overviewView(find(bodies, 'sun').pos, axes);
+          pose = poseFrom(v.pos, v.quat, 'sun', 'inertial', bodies);
+          flight = null;
+          const t = c.then;
+          if (!t) break;
+          if ('go' in t) go(t.go);
+          else if ('above' in t) above(t.above);
+          else warpOut([axes[2][0], axes[2][1], axes[2][2]]);
+          break;
+        }
+        case 'go':
+          go(c.dest);
+          break;
+        case 'above':
+          above(c.id);
+          break;
+        case 'face':
+          face(c.id);
+          break;
+        case 'dolly':
+          if (!flight?.warp) {
+            flight = null;
+            dolly += c.amount;
+          }
+          break;
+        case 'level': {
+          fov = FOV;
+          // North up, keeping the way you look: far out the galaxy's north, near a body its
+          // north, otherwise ecliptic north. That becomes your "up" for flying.
+          const { bodies } = bodiesAt(now0());
+          const w = here();
+          const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(w.quat);
+          const near = nearest(w.pos, bodies);
+          const nb = find(bodies, near.id);
+          const up: Vec3 =
+            galaxyFade(len3(w.pos)) > 0.5 ? GAL_NORTH : near.altitude < 10 * nb.info.radiusKm ? nb.axes[2] : [0, 0, 1];
+          upRef.set(up[0], up[1], up[2]).normalize();
+          const target: Vec3 = [w.pos[0] + fwd.x, w.pos[1] + fwd.y, w.pos[2] + fwd.z];
+          fly(poseFrom(w.pos, lookAt(w.pos, target, up), pose.anchor, pose.frame, bodies), false, 600);
+          break;
+        }
+      }
+    };
+
+    // Labels: sky names, grid and galaxy names, one element per body.
     const skyLabels: HTMLDivElement[] = [];
     for (let i = 0; i < 140; i++) {
       const el = document.createElement('div');
@@ -177,61 +378,94 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
       labelHost.appendChild(el);
       skyLabels.push(el);
     }
-
-    goRef.current = (d) => {
-      const bodies = solarSystemAt(simNow());
-      const cur = poseRef.current ? worldOf(poseRef.current, bodies) : vantage(d, bodies, aspect());
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      flightRef.current = { fromPos: cur.pos, fromQuat: cur.quat, to: vantage(d, bodies, aspect(), simNow()).pose, start: performance.now(), ms: reduced ? 0 : 2200 };
-    };
-    // Turn smoothly to face a body, staying where you are.
-    const aim = (id: BodyId): void => {
-      const p = poseRef.current;
-      if (!p) return;
-      const bodies = solarSystemAt(simNow());
-      const w = worldOf(p, bodies);
-      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(w.quat);
-      const q = lookAt(w.pos, find(bodies, id).pos, [up.x, up.y, up.z]);
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      flightRef.current = { fromPos: w.pos, fromQuat: w.quat, to: poseFrom(w.pos, q, p.anchor, p.frame, bodies), start: performance.now(), ms: reduced ? 0 : 900 };
-    };
-    frameRef.current = (f) => {
-      const p = poseRef.current;
-      if (!p) return;
-      const bodies = solarSystemAt(simNow());
-      const w = worldOf(p, bodies);
-      poseRef.current = poseFrom(w.pos, w.quat, p.anchor, f, bodies);
-    };
-
-    // Labels: one element per body, positioned each frame.
     const gridLabels: HTMLDivElement[] = [];
     for (let i = 0; i < 60; i++) {
       const el = document.createElement('div');
       el.className = 'fly-grid-label';
       el.style.display = 'none';
+      el.addEventListener('pointerdown', (e) =>
+        pressLabel(e, () => {
+          const action = el.dataset.action ?? '';
+          if (flight?.warp || !action) return;
+          const { bodies } = bodiesAt(now0());
+          if (action === 'sun') {
+            warpIn(unit3(sub3(find(bodies, 'sun').pos, here().pos)));
+            return;
+          }
+          // A galaxy's or the black hole's name: fly over there and have a look.
+          if (action.startsWith('goto:') && galaxy) {
+            const v = galaxy.vantage(action.slice(5), here().pos, now0());
+            if (!v) return;
+            const to = poseFrom(v.pos, lookAt(v.pos, v.target, v.up), 'sun', 'inertial', bodies);
+            const from = here();
+            flight = { fromPos: from.pos, fromQuat: from.quat, to, start: performance.now(), ms: reduced() ? 0 : 4000, warp: false, toward: v.target };
+          }
+        }),
+      );
       labelHost.appendChild(el);
       gridLabels.push(el);
+    }
+    // A small dot on each body too far away to see, so you can tell where it is.
+    const markers = new Map<BodyId, HTMLDivElement>();
+    const markerHost = markersRef.current;
+    for (const b of BODIES) {
+      const m = document.createElement('div');
+      m.className = 'fly-marker';
+      m.style.display = 'none';
+      markerHost?.appendChild(m);
+      markers.set(b.id, m);
     }
     const labels = new Map<BodyId, HTMLDivElement>();
     for (const b of BODIES) {
       const el = document.createElement('div');
       el.className = 'fly-label';
-      el.title = `Look at ${b.name}`;
-      el.addEventListener('click', () => aim(b.id));
+      el.title = `Float above ${b.name}'s north pole`;
+      el.addEventListener('pointerdown', (e) => pressLabel(e, () => above(b.id)));
       labelHost.appendChild(el);
       labels.set(b.id, el);
     }
 
-    // Input: drag to look, WASD/RF to move, Q/E to roll, scroll or pinch to move forward.
+    /**
+     * Flying is like Minecraft's creative mode: there is an "up" (the up of wherever you
+     * last arrived, or set by Reset view), you never roll, you look up and down at most
+     * straight up or down, and W A S D move you level with it, Space and Shift straight up
+     * and down. Click the view to steer with the mouse (Esc lets go).
+     */
+    const upRef = new THREE.Vector3(0, 1, 0).applyQuaternion(worldOf(pose, bodiesAt(now0()).bodies).quat);
+    let locked = false;
+    const onLockChange = (): void => {
+      locked = document.pointerLockElement === canvas;
+      keys.clear();
+    };
+    const onMouseLook = (e: MouseEvent): void => {
+      if (!locked) return;
+      look.x -= e.movementX * 1.6;
+      look.y -= e.movementY * 1.6;
+    };
+    let downAt: { x: number; y: number; moved: boolean } | null = null;
+    // Input: drag (or scroll, or steer with the mouse) to look around where you stand; W A S D to fly.
     const keys = new Set<string>();
     let look = { x: 0, y: 0 };
-    let dolly = 0;
     const pointers = new Map<number, { x: number; y: number }>();
     let pinch = 0;
+    /**
+     * A press on a name: a click if it is let go where it started, otherwise the start of
+     * a drag like any other. The canvas takes the pointer either way, so dragging across
+     * names never catches on them.
+     */
+    let pressed: { x: number; y: number; act: () => void } | null = null;
+    const pressLabel = (e: PointerEvent, act: () => void): void => {
+      pressed = { x: e.clientX, y: e.clientY, act };
+      onDown(e);
+    };
     const onDown = (e: PointerEvent): void => {
+      e.preventDefault(); // no text selection while dragging
+      if (locked) return;
+      downAt = { x: e.clientX, y: e.clientY, moved: false };
       canvas.setPointerCapture(e.pointerId);
+      labelHost.classList.add('dragging');
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      flightRef.current = null;
+      if (!flight?.warp) flight = null;
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         if (a && b) pinch = Math.hypot(a.x - b.x, a.y - b.y);
@@ -239,51 +473,81 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
     };
     let hover: { x: number; y: number } | null = null;
     const onMove = (e: PointerEvent): void => {
+      if (locked) return;
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) downAt.moved = true;
       const r = canvas.getBoundingClientRect();
       hover = { x: e.clientX - r.left, y: e.clientY - r.top };
       const prev = pointers.get(e.pointerId);
       if (!prev) return;
       hover = null;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pressed && Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) > 5) pressed = null;
+      if (pressed) return;
       if (pointers.size === 1) {
+        // Drag: look around without moving, the whole sky (and every body in it) turning together.
         look.x += e.clientX - prev.x;
         look.y += e.clientY - prev.y;
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch > 0) dolly += (d - pinch) * 0.01;
+        // Pinching widens or narrows the view; you stay where you are.
+        if (pinch > 0 && d > 0) fov = clamp((fov * pinch) / d, 0.5, 100);
         pinch = d;
       }
     };
-    const onLeave = (): void => {
+    const onPointerLeave = (): void => {
       hover = null;
     };
     const onUp = (e: PointerEvent): void => {
       pointers.delete(e.pointerId);
       pinch = 0;
+      if (pointers.size === 0) labelHost.classList.remove('dragging');
+      const p = pressed;
+      pressed = null;
+      const d = downAt;
+      downAt = null;
+      if (p && e.type === 'pointerup') p.act();
+      // A plain click on the view (not a name, not a drag): steer with the mouse, as in Minecraft.
+      else if (!p && d && !d.moved && e.type === 'pointerup' && e.pointerType === 'mouse' && pointers.size === 0 && !flight?.warp) {
+        void canvas.requestPointerLock?.();
+      }
     };
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
-      flightRef.current = null;
-      dolly += -e.deltaY * (e.ctrlKey ? 0.02 : 0.004);
+      if (flight?.warp) return;
+      const k = e.deltaMode === 1 ? 16 : 1;
+      const dx = e.deltaX * k, dy = e.deltaY * k;
+      // Shift + scroll or pinch: zoom time, as in the calendar. In 3D this changes the
+      // grids' units (the ruler along the Sun's line), not the picture.
+      if (e.shiftKey) {
+        live.current.onTimeZoom(Math.exp((dy || dx) * (e.ctrlKey ? 0.01 : 0.0015)));
+        return;
+      }
+      // Pinch (ctrlKey): a wider or narrower view, without moving.
+      if (e.ctrlKey) {
+        fov = clamp(fov * Math.exp(dy * 0.01), 0.5, 100);
+        return;
+      }
+      // Scroll: look around, the sky following your fingers as when dragging.
+      flight = null;
+      look.x -= dx;
+      look.y -= dy;
     };
     const typing = (): boolean => {
       const a = document.activeElement;
       return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
     };
+    const MOVE_KEYS = ['w', 'a', 's', 'd', 'r', 'f', 'shift', 'control', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (typing()) return;
+      if (!live.current.active || !live.current.focused || typing()) return;
       const k = e.key.toLowerCase();
-      if (k === 'z' || k === 'x' || k === '+' || k === '=' || k === '-') {
-        const i = LENSES.findIndex((l) => l.fov === fovRef.current);
-        const j = Math.max(0, Math.min(LENSES.length - 1, i + (k === 'z' || k === '+' || k === '=' ? 1 : -1)));
-        chooseLens(LENSES[j]!.fov);
-        return;
-      }
-      if (['w', 'a', 's', 'd', 'r', 'f', 'q', 'e', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      // Space flies up only while steering with the mouse; otherwise it shows and hides the controls.
+      if (k === ' ' && !locked) return;
+      if (k === ' ') e.preventDefault();
+      if (MOVE_KEYS.includes(k)) {
         keys.add(k);
-        flightRef.current = null;
+        if (!flight?.warp) flight = null;
         if (k.startsWith('arrow')) e.preventDefault();
       }
     };
@@ -294,87 +558,185 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
     canvas.addEventListener('pointercancel', onUp);
-    canvas.addEventListener('pointerleave', onLeave);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    document.addEventListener('pointerlockchange', onLockChange);
+    document.addEventListener('mousemove', onMouseLook);
 
     let raf = 0;
     let last = performance.now();
     let hudAt = 0;
-    const yAxis = new THREE.Vector3(0, 1, 0), xAxis = new THREE.Vector3(1, 0, 0), zAxis = new THREE.Vector3(0, 0, 1);
+    let lastPos: Vec3 | null = null;
     const tick = (ts: number): void => {
+      raf = requestAnimationFrame(tick);
       const dt = Math.min(0.1, (ts - last) / 1000);
       last = ts;
-      const now = simNow();
-      const bodies = solarSystemAt(now);
+      const L = live.current;
+      if (!L.active) {
+        keys.clear();
+        lastPos = null;
+        if (locked) document.exitPointerLock();
+        return;
+      }
+      const now = L.clock();
+      const { trueBodies, bodies } = bodiesAt(now);
+      const sunPos = find(bodies, 'sun').pos;
       let pos: Vec3;
       let quat: THREE.Quaternion;
-      const fl = flightRef.current;
+      const fl = flight;
+      let warpK = -1;
       if (fl) {
         const k = fl.ms === 0 ? 1 : Math.min(1, (ts - fl.start) / fl.ms);
         const e = ease(k);
         const to = worldOf(fl.to, bodies);
-        pos = [0, 1, 2].map((i) => fl.fromPos[i]! + (to.pos[i]! - fl.fromPos[i]!) * e) as unknown as Vec3;
-        quat = fl.fromQuat.clone().slerp(to.quat, e);
+        const jb = fl.body;
+        const c = jb ? find(bodies, jb.id).pos : null;
+        pos = fl.warp
+          ? warpPoint(sunPos, fl.fromPos, to.pos, e)
+          : c && jb
+            ? warpPoint(c, [c[0] + jb.fromRel[0], c[1] + jb.fromRel[1], c[2] + jb.fromRel[2]], to.pos, e)
+          : fl.toward
+            ? warpPoint(fl.toward, fl.fromPos, to.pos, e)
+          : ([0, 1, 2].map((i) => fl.fromPos[i]! + (to.pos[i]! - fl.fromPos[i]!) * e) as unknown as Vec3);
+        if (c && jb) {
+          // Turn to face it, fly at it, and turn to the arrival view only at the end.
+          const face = lookAt(pos, c, jb.up);
+          const sm = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+          quat = k < 0.8 ? fl.fromQuat.clone().slerp(face, sm(k / 0.2)) : face.slerp(to.quat, sm((k - 0.8) / 0.2));
+        } else quat = fl.fromQuat.clone().slerp(to.quat, e);
+        if (fl.warp && k < 1) warpK = k;
         if (k >= 1) {
-          poseRef.current = fl.to;
-          flightRef.current = null;
+          pose = fl.to;
+          flight = null;
+          // Where you arrive sets which way is up for flying.
+          upRef.set(0, 1, 0).applyQuaternion(worldOf(fl.to, bodies).quat);
         }
       } else {
-        const p = poseRef.current as Pose;
-        const w = worldOf(p, bodies);
+        const w = worldOf(pose, bodies);
         pos = w.pos;
         quat = w.quat;
-        // Look: turn about the camera's own up and right axes.
-        const fov = (scene.camera.fov * Math.PI) / 180;
-        const perPx = fov / Math.max(1, canvas.clientHeight);
+        // Look (drag, scroll, mouse while steering, arrows): you stay where you are and turn about "up", tilting up and down at
+        // most to straight up or down, never roll.
+        const fovRad = (scene.camera.fov * Math.PI) / 180;
+        const perPx = fovRad / Math.max(1, canvas.clientHeight);
         const arrows = (keys.has('arrowleft') ? 1 : 0) - (keys.has('arrowright') ? 1 : 0);
         const arrowsY = (keys.has('arrowup') ? 1 : 0) - (keys.has('arrowdown') ? 1 : 0);
-        const yaw = look.x * perPx + arrows * 0.9 * dt * (fovRef.current / 60);
-        const pitch = look.y * perPx + arrowsY * 0.9 * dt * (fovRef.current / 60);
-        const roll = ((keys.has('q') ? 1 : 0) - (keys.has('e') ? 1 : 0)) * 0.9 * dt;
+        const yaw = look.x * perPx + arrows * 0.9 * dt * (fov / 60);
+        const pitch = look.y * perPx + arrowsY * 0.9 * dt * (fov / 60);
         look = { x: 0, y: 0 };
-        quat = quat
-          .multiply(new THREE.Quaternion().setFromAxisAngle(yAxis, yaw))
-          .multiply(new THREE.Quaternion().setFromAxisAngle(xAxis, pitch))
-          .multiply(new THREE.Quaternion().setFromAxisAngle(zAxis, roll));
-        // Move: speed scales with altitude above the nearest surface.
+        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
+        const flat = levelHeading(fwd, quat, upRef);
+        if (yaw !== 0 || pitch !== 0) {
+          flat.applyAxisAngle(upRef, yaw);
+          const MAXP = (89.5 * Math.PI) / 180;
+          const p = Math.max(-MAXP, Math.min(MAXP, Math.asin(Math.max(-1, Math.min(1, fwd.dot(upRef)))) + pitch));
+          const f = flat.clone().multiplyScalar(Math.cos(p)).addScaledVector(upRef, Math.sin(p));
+          quat = lookAt([0, 0, 0], [f.x, f.y, f.z], [upRef.x, upRef.y, upRef.z]);
+        }
+        // Move: W A S D level with "up"; Space or R up, Shift or F down (Space and Shift while
+        // steering with the mouse; otherwise Shift goes faster); Ctrl faster. Speed scales
+        // with the distance to the nearest thing: a body, the black hole, a galaxy.
         const near = nearest(pos, bodies);
-        const v = cruiseSpeed(near.altitude) * (keys.has('shift') ? 5 : 1);
-        const move = new THREE.Vector3(
-          (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0),
-          (keys.has('r') ? 1 : 0) - (keys.has('f') ? 1 : 0),
-          (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0) - dolly * 10,
-        );
+        const clearance = Math.min(near.altitude, galaxy ? galaxy.clearanceKm(pos, now) : Infinity);
+        const sprint = keys.has('control') || (!locked && keys.has('shift'));
+        const v = cruiseSpeed(clearance) * (sprint ? 5 : 1);
+        const right = flat.clone().cross(upRef).normalize();
+        const ahead = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
+        const side = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+        const up1 = keys.has('r') || (locked && keys.has(' ')) ? 1 : 0;
+        const down1 = keys.has('f') || (locked && keys.has('shift')) ? 1 : 0;
+        const look3 = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
+        // W and S fly the way you are looking, so whatever is in the middle of the view is
+        // where you go (and it grows until you arrive); A and D slide sideways, level;
+        // Space and Shift rise and sink along "up".
+        const move = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(quat)
+          .multiplyScalar(ahead)
+          .addScaledVector(right, side)
+          .addScaledVector(upRef, up1 - down1)
+          .addScaledVector(look3, dolly * 10);
         dolly = 0;
+        let moved = false;
         if (move.lengthSq() > 0) {
-          move.multiplyScalar(v * dt).applyQuaternion(quat);
+          const before = pos;
+          move.multiplyScalar(v * dt);
           pos = pushOut([pos[0] + move.x, pos[1] + move.y, pos[2] + move.z], bodies);
+          if (galaxy) pos = galaxy.keepOut(pos, now);
+          const r0 = len3(sub3(before, sunPos)), r1 = len3(sub3(pos, sunPos));
+          const heading = unit3(sub3(pos, before));
+          const toSun = unit3(sub3(sunPos, pos));
+          if (r0 < WARP_OUT_KM && r1 >= WARP_OUT_KM) {
+            // Leaving the solar system: speed up past light and out to the whole galaxy,
+            // along the way you were heading (or straight out, if you were backing away).
+            const out = unit3(sub3(pos, sunPos));
+            pose = poseFrom(pos, quat, 'sun', 'inertial', bodies);
+            warpOut(heading[0] * out[0] + heading[1] * out[1] + heading[2] * out[2] > 0 ? heading : out);
+            moved = true;
+          } else if (r1 > WARP_OUT_KM) {
+            // Out among the stars or beyond, only flying straight at the Sun warps you back
+            // (or clicking it); you can fly anywhere else, the black hole included.
+            const atSun = r1 < r0 && Math.acos(Math.min(1, heading[0] * toSun[0] + heading[1] * toSun[1] + heading[2] * toSun[2])) < WARP_IN_ANGLE;
+            if (atSun) {
+              pose = poseFrom(pos, quat, 'sun', 'inertial', bodies);
+              warpIn(heading);
+              moved = true;
+            }
+          }
         }
-        // Ride with whichever body is clearly closest.
-        let anchor = p.anchor;
-        let frame = p.frame;
-        const anchorAlt = Math.hypot(...pos.map((c, i) => c - find(bodies, anchor).pos[i]!)) - find(bodies, anchor).info.radiusKm;
-        const near2 = nearest(pos, bodies);
-        if (near2.id !== anchor && near2.altitude < anchorAlt * 0.6) {
-          anchor = near2.id;
-          frame = 'inertial';
+        if (!moved) {
+          // Ride with whichever body is clearly closest.
+          let anchor = pose.anchor;
+          let frame = pose.frame;
+          const a = find(bodies, anchor);
+          const anchorAlt = len3(sub3(pos, a.pos)) - a.info.radiusKm;
+          const near2 = nearest(pos, bodies);
+          if (near2.id !== anchor && near2.altitude < anchorAlt * 0.6) {
+            anchor = near2.id;
+            frame = 'inertial';
+          }
+          pose = poseFrom(pos, quat, anchor, frame, bodies);
         }
-        poseRef.current = poseFrom(pos, quat, anchor, frame, bodies);
       }
+
+      const shape = shapeFor(L.scale, find(trueBodies, 'sun').pos);
+
+      // The warp: a slight widening of the view and a vignette, and the speed in light speeds.
+      const warpEl = warpRef.current;
+      const kick = warpK >= 0 ? Math.sin(Math.PI * warpK) : 0;
+      if (warpEl) {
+        if (warpK >= 0 && lastPos && dt > 0) {
+          const c = len3(sub3(pos, lastPos)) / dt / C_KM_S;
+          warpEl.style.opacity = String(Math.min(1, kick * 1.4));
+          const t = warpEl.firstElementChild as HTMLElement | null;
+          if (t) t.textContent = c >= 1 ? `Warp · ${c >= 100 ? Math.round(c).toLocaleString('en-US') : c.toFixed(1)} × light speed` : `${(c * C_KM_S).toLocaleString('en-US', { maximumFractionDigits: 0 })} km/s`;
+        } else warpEl.style.opacity = '0';
+      }
+      lastPos = pos;
 
       // Far out, the outside view of the galaxy takes over from the sky seen from the Sun,
       // and the solar-system paths and grids (too small to see) step aside.
-      const far = galaxyFade(Math.hypot(...pos));
+      const far = galaxyFade(len3(pos));
       sky?.setFade(1 - far);
-      const galaxyLabels = galaxy ? galaxy.update(now, pos) : [];
-      const o = overlaysRef.current;
-      const gl = [
-        ...paths.update(far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o, now, bodies, pos),
+      const lensFov = fov * (1 + 0.28 * kick * kick);
+      const pxAngle = (lensFov * Math.PI) / 180 / Math.max(1, canvas.clientHeight);
+      const galaxyLabels = galaxy ? galaxy.update(now, pos, pxAngle, scene.renderer.getPixelRatio()) : [];
+      const o = L.overlays;
+      const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
+        ...paths.update(
+          far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
+          now,
+          bodies,
+          pos,
+          trueBodies,
+          shape,
+          pxAngle,
+          L.spanSeconds,
+        ),
         ...galaxyLabels.map((g) => ({ ...g, kind: 'galaxy' as const })),
       ];
-      scene.setFov(fovRef.current);
+      scene.setFov(lensFov);
       scene.setNear(Math.min(1000, Math.max(0.01, nearest(pos, bodies).altitude * 1e-4)));
       scene.render(bodies, pos, quat);
 
@@ -382,6 +744,45 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
       const cam = scene.camera;
       const W = canvas.clientWidth, H = canvas.clientHeight;
       const v3 = new THREE.Vector3();
+      const inv = quat.clone().invert();
+      const fovRad = (cam.fov * Math.PI) / 180;
+      // Every body's outline on screen: labels never show through a body or its rings.
+      const discs: Disc[] = [];
+      for (const b of bodies) {
+        const rel = new THREE.Vector3(b.pos[0] - pos[0], b.pos[1] - pos[1], b.pos[2] - pos[2]);
+        const d = rel.length();
+        const relCam = rel.clone().applyQuaternion(inv);
+        if (relCam.z >= 0) continue;
+        v3.copy(rel).project(cam);
+        const r = (Math.asin(Math.min(1, b.info.radiusKm / d)) / fovRad) * H;
+        if (r < 1.5) continue;
+        const disc: Disc = { x: ((v3.x + 1) / 2) * W, y: ((1 - v3.y) / 2) * H, r, d, id: b.info.id };
+        if (b.info.rings) {
+          const a = (Math.asin(Math.min(1, b.info.rings[1] / d)) / fovRad) * H;
+          const n = new THREE.Vector3(...b.axes[2]).applyQuaternion(inv);
+          const minor = Math.abs(n.dot(relCam.clone().normalize()));
+          const sx = n.x, sy = -n.y, sl = Math.hypot(sx, sy) || 1;
+          // The ellipse's minor axis lies along the pole's direction on screen.
+          disc.ring = { a, b: a * minor, ux: -sy / sl, uy: sx / sl };
+        }
+        discs.push(disc);
+      }
+      const hidden = (r: Rect, nearerThan = Infinity, except?: BodyId): boolean =>
+        discs.some((c) => c.d < nearerThan && c.id !== except && discCovers(c, r));
+
+      // Which zodiac sign each body is in, seen from where you are. Directions use true
+      // positions (in √ fit the picture is pulled in, the sky is not): you are where you
+      // are relative to the body nearest you.
+      const nearId = nearest(pos, bodies).id;
+      const nearTrue = find(trueBodies, nearId).pos, nearShown = find(bodies, nearId).pos;
+      const trueCam: Vec3 = [nearTrue[0] + pos[0] - nearShown[0], nearTrue[1] + pos[1] - nearShown[1], nearTrue[2] + pos[2] - nearShown[2]];
+      const signOf = (id: BodyId): string => {
+        const t = find(trueBodies, id).pos;
+        const lon = Math.atan2(t[1] - trueCam[1], t[0] - trueCam[0]);
+        const k = Math.floor((((lon * 180) / Math.PI + 360) % 360) / 30);
+        const [glyph, name] = SIGNS[k]!;
+        return `${glyph} ${name}`;
+      };
       const placed: Array<[number, number]> = [];
       for (const b of bodies) {
         const el = labels.get(b.info.id);
@@ -389,27 +790,63 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
         const rel = new THREE.Vector3(b.pos[0] - pos[0], b.pos[1] - pos[1], b.pos[2] - pos[2]);
         const d = rel.length();
         v3.copy(rel).project(cam);
-        const behind = rel.clone().applyQuaternion(quat.clone().invert()).z > 0;
-        if (behind || far > 0.5 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) {
+        const behind = rel.clone().applyQuaternion(inv).z > 0;
+        const angR = Math.asin(Math.min(1, b.info.radiusKm / d));
+        const pxR = (angR / fovRad) * H;
+        // The dot: wherever the body is in view but smaller than a few pixels, unless a nearer body hides it.
+        const mk = markers.get(b.info.id);
+        if (mk) {
+          const mx = ((v3.x + 1) / 2) * W, my = ((1 - v3.y) / 2) * H;
+          const show = !behind && far <= 0.5 && pxR < 4 && Math.abs(v3.x) <= 1 && Math.abs(v3.y) <= 1 && !hidden({ x0: mx, y0: my, x1: mx, y1: my }, d, b.info.id);
+          mk.style.display = show ? 'block' : 'none';
+          if (show) {
+            mk.style.transform = `translate(${mx}px, ${my}px)`;
+            // The colour of its path (the Sun's line for the Sun).
+            const c = b.info.id === 'sun' ? L.theme.sunLine : b.info.id === 'moon' ? L.theme.moon : L.theme.planets[b.info.id as PlanetId];
+            if (mk.style.background !== c) mk.style.background = c;
+          }
+        }
+        // A body close by can fill the view with its centre off screen: still name it.
+        const big = pxR > 0.4 * H;
+        if (far > 0.5 || behind || (!big && (Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1))) {
           el.style.display = 'none';
           continue;
         }
-        const angR = Math.asin(Math.min(1, b.info.radiusKm / d));
-        const pxR = (angR / ((cam.fov * Math.PI) / 180)) * H;
-        const lx = ((v3.x + 1) / 2) * W + Math.max(6, pxR * 0.72), ly = ((1 - v3.y) / 2) * H - Math.max(6, pxR * 0.72);
+        // Beside the body, kept on screen (when it fills the view, at the top left).
+        const rawX = ((v3.x + 1) / 2) * W + Math.max(6, pxR * 0.72), rawY = ((1 - v3.y) / 2) * H - Math.max(6, pxR * 0.72);
+        const offView = rawX < 0 || rawX > W || rawY < 0 || rawY > H;
+        const lx = big && offView ? 16 : Math.min(Math.max(rawX, 8), W - 180);
+        const ly = big && offView ? H * 0.5 : Math.min(Math.max(rawY, 16), H - 16);
         // Don't stack names: a body right beside one already named (the Moon by Earth, from afar) stays unnamed.
         if (placed.some(([x, y]) => Math.abs(x - lx) < 60 && Math.abs(y - ly) < 12)) {
+          el.style.display = 'none';
+          continue;
+        }
+        const text = `${b.info.name} · ${formatSize(apparentDiameter(b.info.radiusKm, d))}${L.overlays.zodiac && b.info.id !== nearId ? ` · in ${signOf(b.info.id)}` : ''}`;
+        if (hidden({ x0: lx, y0: ly, x1: lx + labelWidth(text, 'body'), y1: ly + 13 }, d, b.info.id)) {
           el.style.display = 'none';
           continue;
         }
         placed.push([lx, ly]);
         el.style.display = 'block';
         el.style.transform = `translate(${lx}px, ${ly}px)`;
-        el.textContent = `${b.info.name} · ${formatSize(apparentDiameter(b.info.radiusKm, d))}`;
+        if (el.textContent !== text) el.textContent = text;
       }
 
-      // Sky labels: directions on the sky sphere.
-      const sl: readonly SkyLabel[] = sky ? sky.update(overlaysRef.current) : [];
+      // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
+      const sl: readonly SkyLabel[] = sky ? sky.update(L.overlays) : [];
+      const starPts: Array<[number, number]> = [];
+      if (sky && sl.length > 0) {
+        for (const d of sky.brightStars) {
+          const rel = new THREE.Vector3(d[0], d[1], d[2]);
+          if (rel.clone().applyQuaternion(inv).z >= 0) continue;
+          v3.copy(rel).project(cam);
+          if (Math.abs(v3.x) > 1.05 || Math.abs(v3.y) > 1.05) continue;
+          starPts.push([((v3.x + 1) / 2) * W, ((1 - v3.y) / 2) * H]);
+        }
+      }
+      const coversStar = (r: Rect, own?: readonly [number, number]): boolean =>
+        starPts.some(([x, y]) => (!own || Math.hypot(x - own[0], y - own[1]) > 2) && x > r.x0 - 4 && x < r.x1 + 4 && y > r.y0 - 4 && y < r.y1 + 4);
       for (let i = 0; i < skyLabels.length; i++) {
         const el = skyLabels[i]!;
         const g = sl[i];
@@ -418,7 +855,7 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
           continue;
         }
         const rel = new THREE.Vector3(g.dir[0] * 1e12, g.dir[1] * 1e12, g.dir[2] * 1e12);
-        if (rel.clone().applyQuaternion(quat.clone().invert()).z > 0) {
+        if (rel.clone().applyQuaternion(inv).z > 0) {
           el.style.display = 'none';
           continue;
         }
@@ -427,14 +864,28 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
           el.style.display = 'none';
           continue;
         }
+        const ax = ((v3.x + 1) / 2) * W, ay = ((1 - v3.y) / 2) * H;
+        const w = labelWidth(g.text, g.kind), h = 13;
+        const base: [number, number] = g.kind === 'star' ? [ax + 6, ay - 6] : [ax, ay];
+        let spot: [number, number] | null = null;
+        for (const [dx, dy] of [[0, 0], [0, -14], [0, 14], [-w - 10, 0]] as const) {
+          const r = { x0: base[0] + dx, y0: base[1] + dy, x1: base[0] + dx + w, y1: base[1] + dy + h };
+          if (!hidden(r) && !coversStar(r, g.kind === 'star' ? [ax, ay] : undefined)) {
+            spot = [r.x0, r.y0];
+            break;
+          }
+        }
+        if (!spot) {
+          el.style.display = 'none';
+          continue;
+        }
         el.style.display = 'block';
         if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
-        el.style.transform = `translate(${((v3.x + 1) / 2) * W + (g.kind === 'star' ? 6 : 0)}px, ${((1 - v3.y) / 2) * H - (g.kind === 'star' ? 6 : 0)}px)`;
+        el.style.transform = `translate(${spot[0]}px, ${spot[1]}px)`;
         if (el.textContent !== g.text) el.textContent = g.text;
       }
 
-      // Grid labels.
-      const inv = quat.clone().invert();
+      // Grid and galaxy labels.
       for (let i = 0; i < gridLabels.length; i++) {
         const el = gridLabels[i]!;
         const g = gl[i];
@@ -445,17 +896,22 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
         const rel = new THREE.Vector3(g.pos[0] - pos[0], g.pos[1] - pos[1], g.pos[2] - pos[2]);
         const z = rel.clone().applyQuaternion(inv).z;
         v3.copy(rel).project(cam);
-        if (z > 0 || Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1) {
+        const gx = ((v3.x + 1) / 2) * W + 4, gy = ((1 - v3.y) / 2) * H + (g.kind === 'time' ? -16 : 2);
+        if (z > 0 || Math.abs(v3.x) > 1 || Math.abs(v3.y) > 1 || hidden({ x0: gx, y0: gy, x1: gx + labelWidth(g.text, g.kind), y1: gy + 13 }, rel.length())) {
           el.style.display = 'none';
           continue;
         }
         el.style.display = 'block';
-        el.style.color = g.kind === 'time' ? theme.tickText : g.kind === 'galaxy' ? 'rgba(225, 215, 255, 0.9)' : theme.distanceText;
-        el.style.transform = `translate(${((v3.x + 1) / 2) * W + 4}px, ${((1 - v3.y) / 2) * H + (g.kind === 'time' ? -16 : 2)}px)`;
+        const th = L.theme;
+        el.style.color = g.kind === 'time' ? th.tickText : g.kind === 'galaxy' ? th.sky.path : th.distanceText;
+        if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
+        if ((el.dataset.action ?? '') !== (g.action ?? '')) el.dataset.action = g.action ?? '';
+        el.title = g.action === 'sun' ? 'Warp back to the solar system' : g.action ? 'Fly over there and have a look' : '';
+        el.style.transform = `translate(${gx}px, ${gy}px)`;
         if (el.textContent !== g.text) el.textContent = g.text;
       }
 
-      // Under the pointer: the arc position on whichever sphere it touches.
+      // Under the pointer: latitude and longitude on whichever body it touches.
       const tip = tipRef.current;
       if (tip) {
         let text = '';
@@ -472,6 +928,14 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
             const a = arcPosition(hit, bodySphere(best.b));
             const where = best.b.info.id === 'sun' ? 'ecliptic' : '';
             text = `${best.b.info.name} · ${formatLat(a.lat, 0)} · ${formatLon(a.lon, 0)}${where ? ` (${where})` : ''}`;
+          } else if (galaxy) {
+            // Out here, the black hole and the neighbour galaxies are named when pointed at.
+            let near: { t: number; text: string } | null = null;
+            for (const h of galaxy.hoverables(now)) {
+              const t = raySphere([0, 0, 0], dv, [h.centre[0] - pos[0], h.centre[1] - pos[1], h.centre[2] - pos[2]], h.radiusKm);
+              if (t !== null && (!near || t < near.t)) near = { t, text: h.text };
+            }
+            if (near) text = near.text;
           }
         }
         tip.style.display = text ? 'block' : 'none';
@@ -484,31 +948,33 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
       if (ts - hudAt > 160) {
         hudAt = ts;
         const near = nearest(pos, bodies);
-        const earth = find(bodies, 'earth'), moon = find(bodies, 'moon');
-        const p = poseRef.current;
-        setHud({
-          time: now,
-          nearName: galaxyFade(Math.hypot(...pos)) > 0.5 ? 'Galaxy' : NAME(near.id),
-          ...(() => {
-            // Far out, "nearest body" means little: measure on the galaxy's sphere instead.
-            const m = measureRef.current === 'near' && galaxyFade(Math.hypot(...pos)) > 0.5 ? 'galaxy' : measureRef.current;
-            const sphere = sphereOf(m === 'near' ? near.id : m, bodies, now);
-            const nearR = find(bodies, near.id).info.radiusKm;
-            return {
-              sphereName: sphere.name,
-              arc: arcPosition(pos, sphere),
-              decimals: m === 'galaxy' ? 6 : m === 'sun' ? 2 : 1,
-              flattening: m === 'galaxy' ? 0 : find(bodies, sphere.id as BodyId).info.flattening,
-              speedRadii: cruiseSpeed(near.altitude) / nearR,
-            };
-          })(),
-          moonLit: litFraction(moon.pos, earth.pos),
-          moonPhase: moonPhase(now),
-          frame: p?.frame ?? 'inertial',
-          anchorName: NAME(p?.anchor ?? near.id),
+        const inGalaxy = far > 0.5;
+        const m = L.measure === 'near' && inGalaxy ? 'galaxy' : L.measure;
+        const sphere = sphereOf(m === 'near' ? near.id : m, bodies, now);
+        const nearR = find(bodies, near.id).info.radiusKm;
+        const r = len3(sub3(pos, sunPos));
+        L.onHud({
+          nearName: inGalaxy ? 'Galaxy' : NAME(near.id),
+          sphereName: sphere.name,
+          arc: arcPosition(pos, sphere),
+          decimals: m === 'galaxy' ? 6 : m === 'sun' ? 2 : 1,
+          flattening: m === 'galaxy' ? 0 : find(bodies, sphere.id as BodyId).info.flattening,
+          speedRadii: cruiseSpeed(near.altitude) / nearR,
+          inGalaxy,
+          // The grid says once how far apart its lines are; far out, the Sun's path in light years.
+          statement: far > 0.5 ? (galaxy ? RULER_STATEMENT : '') : paths.statement(),
+          bar: far > 0.5 ? { km: 0, px: 0 } : paths.bar(),
+          hint: flight?.warp
+            ? ''
+            : r > WARP_OUT_KM
+              ? inGalaxy
+                ? 'Fly anywhere, the black hole at the centre included. Fly straight at the Sun, or click ☉ The Sun now, to warp back.'
+                : ''
+              : r > WARP_HINT_KM
+                ? `${Math.round(r / 149_597_870.7)} AU from the Sun. Keep backing away (S): at 1,000 AU you warp out to the whole galaxy.`
+                : '',
         });
       }
-      raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
 
@@ -519,11 +985,15 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
-      canvas.removeEventListener('pointerleave', onLeave);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('pointerlockchange', onLockChange);
+      document.removeEventListener('mousemove', onMouseLook);
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
       labels.forEach((el) => el.remove());
+      markers.forEach((el) => el.remove());
       gridLabels.forEach((el) => el.remove());
       skyLabels.forEach((el) => el.remove());
       disposed = true;
@@ -536,128 +1006,47 @@ export default function FlyView({ onExit, theme, overlays, onOverlays, start = '
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Restyle in place when the theme changes (Dark, Bright, Colour).
+  useEffect(() => {
+    styleRef.current(theme);
+  }, [theme]);
+
+  // Carry out each new command from the shared controls.
+  const doneSeq = useRef(-1);
+  useEffect(() => {
+    if (command && command.seq !== doneSeq.current) {
+      doneSeq.current = command.seq;
+      runRef.current(command);
+    }
+  }, [command]);
+
   return (
-    <div className="fly">
-      <canvas ref={canvasRef} className="fly-canvas" aria-label="Flying in the solar system. Drag to look around; W A S D to move, R and F up and down, Q and E to roll, Shift to go faster; scroll to move forward; Z and X change the lens." />
+    <div
+      className="fly"
+      data-ui={theme.ui}
+      style={
+        {
+          background: theme.sky.background,
+          '--sky-label': theme.sky.label,
+          '--sky-star': theme.sky.labelStar,
+          '--sky-zodiac': theme.sky.labelZodiac,
+          '--sky-galactic': theme.sky.labelGalactic,
+          '--label-halo': theme.sky.labelHalo,
+        } as CSSProperties
+      }
+    >
+      <canvas
+        ref={canvasRef}
+        className="fly-canvas"
+        aria-label="The solar system in 3D. Click to steer with the mouse, as in Minecraft (Escape lets go): W A S D fly level, Space up, Shift down, Ctrl faster. Drag or scroll to look around where you stand; pinch to widen or narrow the view; Shift with scroll or pinch zooms time; W A S D to move, R and F up and down, Shift to go faster. Click a name to fly just above that body, over its north pole."
+      />
+      <div ref={markersRef} className="fly-markers" aria-hidden="true" />
       <div ref={labelsRef} className="fly-labels" aria-hidden="true" />
       <div ref={tipRef} className="fly-tip" aria-hidden="true" />
-      {error && <p className="fly-error">{error}</p>}
-
-      <header className="corner tl fly-hud">
-        <div className="brand">
-          sp4cetime <span>Fly</span>
-        </div>
-        {hud && (
-          <>
-            <div className="fly-time">{clock(hud.time)}</div>
-            <div className="fly-where" aria-live="off">
-              <label>
-                Position on{' '}
-                <select value={measure} onChange={(e) => setMeasure(e.target.value as Measure)} aria-label="Sphere to measure from">
-                  <option value="near">{hud.nearName} (nearest)</option>
-                  <option value="sun">the Sun</option>
-                  <option value="galaxy">the galaxy (Sgr A*)</option>
-                </select>
-              </label>
-              <div className="dms">
-                {formatLat(hud.arc.lat, hud.decimals)} · {formatLon(hud.arc.lon, hud.decimals)}
-              </div>
-              <div className="facts">
-                <span title={`Distance from the centre of ${hud.sphereName}, in its radii`}>
-                  {hud.arc.radii < 1000 ? hud.arc.radii.toFixed(4) : Math.round(hud.arc.radii).toLocaleString('en-US')} radii out
-                </span>
-                <span title="x, y, z in radii of the sphere: x toward longitude 0, z toward north">
-                  x {radii(hud.arc, 0)} · y {radii(hud.arc, 1)} · z {radii(hud.arc, 2)}
-                </span>
-              </div>
-              <div className="facts">
-                <span>cruise {hud.speedRadii.toPrecision(3)} {hud.nearName} radii/s</span>
-                {hud.flattening > 0 && (
-                  <span title="The model is a perfect sphere; this is how the real body differs">
-                    real shape flattened 1/{Math.round(1 / hud.flattening)}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="facts">
-              <span className="moon" title="The Moon as seen from Earth now">
-                <MoonIcon phase={hud.moonPhase} size={16} />
-                Moon from Earth: {Math.round(hud.moonLit * 100)}% lit, {moonPhaseName(hud.moonPhase).toLowerCase()}
-              </span>
-            </div>
-          </>
-        )}
-      </header>
-
-      <nav className="corner tr" aria-label="Fly mode">
-        <button type="button" className="primary" onClick={onExit}>
-          ← Calendar
-        </button>
-      </nav>
-
-      <nav className="corner bl" aria-label="Go to">
-        <div className="presets">
-          {DESTINATIONS.map((d) => (
-            <button key={d.id} type="button" onClick={() => goRef.current(d.id)}>
-              {d.label}
-            </button>
-          ))}
-        </div>
-        {hud && (
-          <div className="row toggles" role="group" aria-label="Overlays">
-            {([
-              ['spirals', 'Spirals'],
-              ['orbits', 'Orbits'],
-              ['timeGrid', 'Time grid'],
-              ['spaceGrid', 'Space grid'],
-              ['constellations', 'Constellations'],
-              ['zodiac', 'Zodiac'],
-              ['galactic', 'Galaxy marks'],
-            ] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={overlays[k]} onClick={() => onOverlays({ [k]: !overlays[k] })}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-        {hud && (
-          <label
-            className="fly-hold"
-            title={`On: you turn with ${hud.anchorName} as it spins, staying above the same latitude and longitude (at Earth's equator, 42,164 km out, that is geostationary). Off: you hold still against the stars while ${hud.anchorName} turns beneath you.`}
-          >
-            <input
-              type="checkbox"
-              checked={hud.frame === 'body'}
-              onChange={(e) => frameRef.current(e.target.checked ? 'body' : 'inertial')}
-            />
-            Stay over one spot on {hud.anchorName}
-          </label>
-        )}
-      </nav>
-
-      <nav className="corner br" aria-label="Time">
-        <div className="segmented" role="group" aria-label="Time rate">
-          {RATES.map((r) => (
-            <button key={r.label} type="button" aria-pressed={rate === r.rate} onClick={() => changeRate(r.rate)}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-        <div className="segmented" role="group" aria-label="Lens">
-          {LENSES.map((l) => (
-            <button key={l.label} type="button" aria-pressed={fov === l.fov} onClick={() => chooseLens(l.fov)} title={`${l.fov}° field of view`}>
-              {l.label}
-            </button>
-          ))}
-        </div>
-        <div className="row">
-          <button type="button" className="ghost" onClick={backToNow}>
-            Back to now
-          </button>
-        </div>
-        <p className="note">Click a name to face it · Drag to look · W A S D move · R F up/down · Q E roll · Shift faster · scroll forward · Z / X lens</p>
-        <p className="note">True sizes, distances and sunlight. Grid lines mark latitude and longitude.</p>
-      </nav>
+      <div ref={warpRef} className="fly-warp" aria-hidden="true">
+        <span />
+      </div>
+      <p ref={errorRef} className="fly-error" />
     </div>
   );
 }

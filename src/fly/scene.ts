@@ -7,6 +7,8 @@
 import * as THREE from 'three';
 import { BODIES, type BodyId, type BodyInfo, type BodyState } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
+import type { SkyStyle } from '../core/theme';
+import { threeColour } from './sky';
 
 /** Surface colours (approximate true colours; no invented surface detail). */
 export const BODY_COLORS: Record<BodyId, number> = {
@@ -41,6 +43,8 @@ export interface FlyScene {
   /** Lens: vertical field of view in degrees (narrow = telescope). */
   setFov(deg: number): void;
   resize(width: number, height: number): void;
+  /** Space colour and the Sun's glow for a theme (Dark, Bright or Colour). */
+  setStyle(s: SkyStyle): void;
   dispose(): void;
 }
 
@@ -159,7 +163,7 @@ function glowTexture(): THREE.CanvasTexture {
 }
 
 export function createScene(canvas: HTMLCanvasElement): FlyScene {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
@@ -172,11 +176,13 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   // The Sun is the only real light. A faint ambient term stands in for earthshine and scatter.
   const sunLight = new THREE.PointLight(0xffffff, Math.PI, 0, 0);
   scene.add(sunLight);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.035));
+  // A little more than earthshine, so a night side (over a pole in winter, say) still shows as a body.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.09));
 
   const grid = graticule();
   const loader = new THREE.TextureLoader();
   const meshes = new Map<BodyId, THREE.Mesh>();
+  let sunGlow: THREE.SpriteMaterial | null = null;
   let earthAtmosphere: THREE.Mesh | null = null;
   for (const info of BODIES) {
     const geo = new THREE.SphereGeometry(1, 128, 96);
@@ -207,12 +213,13 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
     if (info.id !== 'sun') {
       const lines = new THREE.LineSegments(
         grid,
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: surface ? 0.07 : 0.16, depthWrite: false }),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: surface ? 0.12 : 0.16, depthWrite: false }),
       );
       lines.scale.setScalar(1.002);
       mesh.add(lines);
     } else {
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false }));
+      sunGlow = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false });
+      const glow = new THREE.Sprite(sunGlow);
       glow.scale.setScalar(12);
       mesh.add(glow);
     }
@@ -274,6 +281,15 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
       renderer.setSize(width, height, false);
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
+    },
+    setStyle(s) {
+      scene.background = threeColour(s.background, false);
+      // Light added to a light sky vanishes: on paper the glow is laid over it instead.
+      if (sunGlow) {
+        sunGlow.blending = s.ink ? THREE.NormalBlending : THREE.AdditiveBlending;
+        sunGlow.color.set(s.ink ? 0xffa040 : 0xffffff);
+        sunGlow.needsUpdate = true;
+      }
     },
     dispose() {
       renderer.dispose();

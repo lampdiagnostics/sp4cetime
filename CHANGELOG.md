@@ -1,6 +1,72 @@
 # Changelog
 
-## 1.0.0 — 2026-10-30
+Versions carry a leading zero until the public launch (1.0): the release tagged `v1.0` is now 0.1.0, and earlier 0.N releases are 0.0.N.
+
+## 0.2.0 — 2026-10-31
+
+Three views with one set of controls, three looks everywhere, a galaxy made of stars with its black hole and neighbours, true scale only, and capture.
+
+In short: Calendar first, ✦ Fly and ◎ Galaxy; Dark, Bright and Colour everywhere; click a name to fly there; Minecraft-style flying where W goes where you look; the whole galaxy in 3D with the Fermi bubbles, the Sun's whole-life orbit, Sgr A* and the Local Group; the zodiac behind the Sun and each body's sign; geocentric calendar; strobe; scale bar; ▶ Play · Speed · ❚❚ Pause; Capture (P, G, V) with a watermark; one scale, true. The lines below are newest first; a later line replaces an earlier one where they disagree (several round windows, Play inside Capture, √ fit and the S screenshot key were tried and removed).
+
+- **Space grid scale bar.** “Space grid · 2,000 km between lines” is now drawn as a scale bar in the bottom-right box: two of the grid's brown dashed lines, exactly as far apart as they are on screen, joined by a bar, with the distance written above. In Fly mode the bar is as long as the grid's spacing looks at the Sun's line. (Out in the galaxy, the light-year ruler keeps its sentence.)
+- **One scale: true.** √ Fit and Linear are gone, and so is the Scale menu. Fly mode and the galaxy are at true scale (true distances, sizes and sunlight), so every planet is seen from Earth against the sign and the stars it is really in (√ fit, by pulling the planets in toward the Sun, had shifted them: on 1 November 2026 Neptune, at 2° Aries, was drawn in Pisces). The calendar draws the orbits in their true proportions and orientation, sized by pinch and scroll (tying their size to the 230 km/s path, as its old True scale did, would put them far off screen at most time zooms).
+- **▶ Play · Speed · ❚❚ Pause** sit together in the bottom-right box: the Speed menu (Live by default) chooses speed and direction and holds time still; ▶ Play runs it, ❚❚ Pause stops it.
+- **Capture, simplified**, straight to Downloads: P a screenshot (S stays flying backward in Fly mode); G a 5-second GIF (time plays while it records, then pauses); V a video, until V again or a click on its running time (shown on the button).
+- **Captures read the views back reliably**: each view is tested, and one that draws empty into another canvas (as some browsers do with a 3D or GPU canvas) is read pixel by pixel instead; the boxes are painted in one by one, so nothing but a box can cover the view.
+- **Capture records what is on screen**: the views, every name, and the boxes and window tabs too when they are showing (press the space bar first to leave them out). The page's HTML is painted in from a styled copy, refreshed about once a second while recording. The ◉ Capture button now sits with the eye at the bottom centre, stays on screen (dimmed) when everything else is hidden, and is never in a capture. Every screenshot, GIF and video carries a watermark, “@sp4cetime.org”, bottom right, unless it is turned off in the menu.
+- **◉ Capture** (top right, every view): a screenshot at full resolution (PNG, key P); an animated, looping GIF of 3 to 12 seconds, 480 to 800 px wide, 15 frames a second; or a video at the screen's full resolution (up to 4K wide, 30 or 60 fps, MP4 where the browser can, else WebM) until you stop it (key V), for screen savers. Only the picture and its names are recorded (Fly mode's HTML names and markers are painted in), never the boxes; hide them with the space bar while recording and a red badge stays on screen to stop. The GIF encoder is our own (median-cut palette, LZW), so no dependency was added.
+- **Fly anywhere.** W now flies the way you look (it moved level with "up" before, so anything above or below your horizon, even by a few degrees, was passed by: Venus seen from Mercury never grew). A and D still slide level; Space and Shift rise and sink. Clicking a body's name is now a journey there: you turn to face it, the distance falls by equal factors (fast across the gaps, slow at the end), following the body as it moves, and you arrive just above its north pole; it takes 1.8 to 7 seconds, longer for longer trips.
+- **Every chosen body keeps its spiral while Spirals is on.** Fly: coils were cut after a fixed number of turns (about 250), so fast ones (Mercury, the Moon) stopped in space while slow ones ran on; now each turn gets as many points as it needs where it is on screen, so every coil runs all the way out to the vanishing point. Calendar: tiny paths are no longer skipped; a band seen edge-on is drawn as a line instead of vanishing; Centre: Earth keeps every path a coil while Earth's yearly wiggle is followed (a band can't follow it and sat off the planet), and the Sun's mirrored band is drawn the right way up.
+- **Strobe** (Elements › Strobe, calendar): the whole solar system's pose freezes behind the present so many times a year (1 to 24, slider or exact number; 5.2 to start), after Techartist's dancer worldline. Poses are taken at fixed moments, so they stay put while time runs. Each body's frozen positions are joined by straight lines: whole numbers draw still polygons (5: pentagons), in-between numbers turn a little each lap. Each pose's bodies are joined from the Sun outward, faintly. Older poses fade. Click a frozen pose to go back to that moment; time runs on from there.
+- **How to** opens in the middle of the screen (never off it), with a × to close, and lists all the inspirations and credits.
+- **Calendar, Fly, Galaxy.** The calendar opens first. **✦ Fly** and **◎ Galaxy** (top right) take you into 3D, and so does clicking a name in the calendar (the Sun, a planet or the Moon): you fly to just above that body's north pole (0.4 radii up), standing upright and facing the Sun: the body curves away at your feet at the bottom of the view and the Sun is near the top. (Above the Sun you face Earth.) In Fly mode, back away past 1,000 AU from the Sun and you warp out to the whole galaxy; zoom in on the galaxy (or fly at the Sun, or click it) and you warp back to the solar system. **Calendar** returns to the calendar. "Stay over one spot" is gone; Geostationary orbit is still exactly geostationary.
+- **Galaxy labels**: only the Sun's path is named (the Sun now, −100 / −50 / +50 Myr, the orbit), on a backing in the path's colour so they read over the stars. The arm, Sgr A* and Fermi-bubble labels are gone.
+- **The Sun's line is the thickest line**, in the calendar and in Fly mode (about twice the planets' paths).
+- **Thicker paths in Fly mode**: spirals and orbits are drawn with a width on screen like the calendar's (about 1.5× the theme's trail width; orbits a little thinner, the Moon's spiral thinner still), so they stand apart from the 1 px constellation lines and time and space grids.
+- **Trackpad, calendar**: scroll or pinch now makes the solar system larger or smaller (down to a tenth of the fit); Shift + scroll or pinch zooms time; sideways scroll still moves through time; dragging turns it, as before. On a touch screen, pinching resizes too.
+- **Trackpad and mouse, Fly and Galaxy**: dragging turns you around what you are looking at, as dragging turns the calendar; scroll looks around; pinch widens or narrows the view without moving you; Shift + scroll or pinch zooms time, as in the calendar. The body dragging turns you around is the most prominent one near the middle of the view (else the nearest), kept in place on screen, like turning a globe; far out it is the galaxy's centre. This replaces Q/E roll; the Option key is no longer used. Moving is W A S D (and R/F). Reset view restores the normal 60° view and levels you.
+- Dragging no longer catches on names in Fly mode (a press on a name is a click only if let go in place), and dragging or double-clicking never highlights text on screen.
+- **Every visit opens the same way**: the calendar, in the round window, in Dark Mode, with the Sun in the centre, even after a reload, zoomed to a minute across. TIME now has Hour and Week too (Minute, Hour, Day, Week, Month, Years, Century, Galactic year, Sun's life). The planets, overlays and scale you chose are still remembered.
+- **Centre: Earth is geocentric** (calendar): Earth's path becomes the straight line, the Sun's path coils around it (Earth's coil turned inside out), and every planet's path has Earth's motion taken away, so the planets loop back in retrograde as seen from Earth. Centre now offers only the Sun or Earth. (Fly mode stays as it is: there retrograde loops appear on their own, because your own path feels straight.)
+- **VIEW** heading over the Planets, Scale and Centre menus; the Planets menu no longer has the Orbits and Names boxes (Orbits is under Elements).
+- **The space grid's spacing** ("Space grid · 2 million km between lines", or the galaxy's light-year ruler) is shown in the bottom-right box instead of over the picture, in place of "1 px ≈ …". The Reset view button is gone.
+- **Instructions** are in a "? How to" pop-up instead of always on screen.
+- **Dots mark distant bodies** in Fly mode: a body smaller than a few pixels gets a small filled dot in the colour of its path, centred on where it is, beside its name (hidden when a nearer body is in front).
+- **Looking around in Fly mode stays put**: dragging now turns your view where you stand (as scrolling and steering with the mouse do), so the sky and every body turn together and nothing changes sign; it no longer swings you around the body you were looking at.
+- **Title box**: the title, the date and the time; in Fly and the galaxy also your position (latitude and longitude on a sphere you choose: the nearest body, the Sun or the galaxy; distance in its radii; x, y, z; cruise speed). The calendar's viewing moment, accuracy and Moon phase are gone.
+- **Space bar**: the first press hides every box, the title box included; the second hides all labels too; the third brings everything back.
+- **Elements** drop-down (bottom left): Spirals, Orbits, Time grid, Space grid, Constellations, Zodiac and Galaxy marks, each on or off.
+- **Coils run to the vanishing point** in Fly mode: each body's path is drawn out along the line until, in perspective, it has shrunk below half a pixel, so looking down the line into the past or future they all converge on one point instead of stopping in space.
+- **Shrinking the solar system** in the calendar works again (pinch or scroll out below the fit; it was stuck at the fit size). It always zooms about the Sun; the bodies' dots keep their size.
+- **The Moon's sign**: the calendar's sky marks where the Sun and the Moon are on the zodiac seen from Earth now, with the sign each is in ("☾ Moon in ♋︎ Cancer"), when Zodiac is on.
+- **Bodies don't vanish up close**: a night side (above a pole in winter, say) is faintly lit and its grid shows, and a body that fills the view keeps its name on screen.
+- **SPACE, TIME and SPEED are drop-down menus.** SPEED runs time forward or back at normal speed, or a minute, hour, day, week, month, year, decade or century each second, or pauses it. TIME: Minute, Hour, Day, Week, Month, Year, Decade, Century, Galactic year, Sun's life ("Years" is gone).
+- **True scale no longer loses the planets**: at true scale the orbits are drawn at the same kilometres per pixel as the Sun's path, and the path's kilometres per pixel are set by the time zoom (along the path only, time is distance: 230 km each second). At the new default of a minute across, 1 px is 11.5 km, so the planets were millions of pixels off screen. Choosing True scale now zooms time out until the chosen orbits fill the window, and any body beyond the window, in any scale, gets a small arrow at the window's edge pointing toward it, with its name (click it to fly there).
+- **The zodiac behind the Sun**: the calendar's sky is turned so that the default view shows the Sun's current sign behind it (Scorpio, at the end of October), as seen from Earth; turning the view turns the sky from there. In Fly mode each body's name says which sign it is in, seen from where you are (stand on Earth and look around).
+- **Flying like Minecraft**: click the 3D view to steer with the mouse (Esc lets go). You never roll and look at most straight up or down; W A S D fly level, Space up, Shift down, Ctrl faster (R and F also go up and down). Up is the up of wherever you arrived, or set by Reset view.
+- **The black hole and the neighbours**: Sgr A* at the galaxy's centre (4.15 million suns; a black shadow ringed with light, seen from close by), which you can fly to; flying near the galaxy no longer pulls you back to the Sun (only flying straight at it, or clicking it, does). Andromeda, Triangulum, the Magellanic Clouds, M32 and M110 are placed at their real positions, distances and tilts, their looks modelled. The black hole and each neighbour are labelled (the black hole, far too small to see from afar, is shown as a marker that grows to its true size as you approach); click a name to fly over there and have a look.
+- **The light-year ruler** in the galaxy view now has ticks across the Sun's path and a label at each 10,000 light years.
+- **The Sun's whole life around the galaxy**, in the galaxy view: its path from its birth 4.6 billion years ago to 5 billion years from now, about 42 turns, as thin overlapping loops, with the last 100 million years highlighted. It is not a circle: the Sun bobs up and down through the disc (20.8 pc above the midplane now, rising at 7.25 km/s, an ~85 Myr period, so ±102 pc) and swings in and out between about 8.1 and 9.1 kpc from the centre (it moves 11.1 km/s inward and 12.24 km/s faster than circular), on a ~163 Myr cycle against ~230 Myr per turn, so the loops never close. The disc's midplane is drawn 20.8 pc below the Sun. A model, run unchanged over the Sun's life. The calendar and Fly mode keep the Sun's line straight.
+- **Space grid in km again**: in the calendar the space grid is spaced in kilometres (1, 2 or 5 × a power of ten) and says so once: "Space grid · 2 million km between lines". Fly mode shows it the same way: no labels on the lines, the same statement near the top.
+- **The galaxy's ruler is in light years**: marks every 10,000 light years along the Sun's highlighted path (about 13 million years of travel apart, where time and distance meet), with the statement near the top, replacing the −100 / −50 / +50 Myr labels.
+- **Fly mode's grids are a ruler** along the Sun's line, moving in real time and not to scale with the bodies: its lines stay a visible distance apart wherever you are, and TIME sets their units. At Minute the ruler is marked every 10 seconds and drifts by quickly; at Day it is marked in hours and barely seems to move. Nothing else in the picture changes.
+- **The whole coil is always there** in Fly mode: each body's path is drawn as far into past and future as the window can show from where you are (enough samples for every turn), not by the TIME buttons. Back away and more turns come into view.
+- **Controls grouped as SPACE, TIME and SPEED**: places (Solar system, Earth & Moon, …) under SPACE on the left; zoom presets (Minute … Sun's life) under TIME and rates (Pause … 1 day/s) under SPEED on the right. The Space + / − selector is gone (Option-scroll and [ ] still zoom space in the calendar; Reset view resets it).
+- **The same controls in every view**, in the same corners: Spirals, Orbits, grids, Constellations, Zodiac and Galaxy marks; planet picker; scale; centre; zoom presets; time speed; Go to; theme; round or full window. In the calendar, Constellations, Zodiac and Galaxy marks draw on its sky, and time speed (Pause, Live, 1 min/s … 1 day/s) runs the present faster, with the Sun still marking it. Fly mode's lens selector is gone. In 3D, √ fit pulls the planets in toward the Sun as the calendar does (sizes stay true; linear and true are real distances).
+- **The galaxy is made of stars**: 90,000 points placed by the map, thin in the disc and crowded in the bulge, golden at the centre and blue-white in the arms with red glowing nebulae, over a faint haze and the dust lane. Nothing is drawn outside it: intergalactic space is empty.
+
+- **Dark Mode, Bright Mode, Colour Mode** (formerly Scientific, Minimal Line Art and Synthwave Neon). The same three now apply in the calendar, in Fly mode and in the whole-galaxy view, and you can switch them from Fly mode too. Saved settings carry over.
+- **Bright Mode's sky is a negative**: stars and the Milky Way are dark ink on paper, darker where the sky is brighter, like a printed star chart. They were nearly invisible before; now they read clearly in the calendar, in Fly mode and on the whole galaxy.
+- **Labels no longer show through planets.** Star, constellation, zodiac, galaxy-mark and grid labels hide behind any body (and Saturn's rings) in front of them, and planet names hide behind nearer bodies. Sky labels also step aside rather than sit on a bright star, and hide if there is no room.
+- **The warp.** Back away from the solar system in Fly mode (or press ◎ Galaxy) and, at 1,000 AU from the Sun, you speed up past light speed (the speed is shown, in light speeds) until the whole galaxy lies in front of you, seen from the side you were heading toward (never quite edge-on). Zoom back in toward the galaxy (to within 7 kpc of its disc), fly straight at the Sun, or click "☉ The Sun now", and you warp back to the solar system. Distance changes by equal factors in equal steps, so the sky, the planets' paths and the galaxy cross-fade continuously. With reduced motion the jump is instant.
+- **The Sun's path around the galaxy** is drawn over the whole-galaxy view, highlighted so it can be followed from above, below or any angle: the whole orbit faintly, the last 100 million years brightening toward the Sun, the next 50 million years dashed ahead, marks every 50 Myr. It is a circular model (230 km/s at 8.178 kpc, one orbit ≈ 218 Myr) and says so.
+- **The galaxy is 3D.** Instead of a flat picture it is a volume with a real thickness, as measured for the Milky Way and seen in edge-on spirals: a thin disc (~300 pc scale height) and a thick disc (~900 pc), a puffed-up bulge and bar at the centre, a slight flare at the edge, and a thin dust layer that shows as a dark lane edge-on. Fly round it from any side.
+- **Fermi bubbles**: the two gamma-ray lobes standing ~25,000 light years above and below the centre, drawn as faint shells brighter at their edges, in each theme's colour, and labelled. The look follows NASA's illustrations of the bubbles: glowing magenta lobes with bright rims over a vivid galaxy (golden core, bluer arms) in Dark Mode.
+- The **Whole galaxy** destination now looks from 25° above the plane on the Sun's side (42 kpc out), so the thickness, the bulge and the bubbles show.
+- **Bright Mode in Fly** now draws stars exactly as the calendar does (solid ink dots of the same size and strength), and constellation and zodiac lines show their true theme colours.
+- Fly mode's panels follow the theme: dark panels with light text in Dark and Colour, light panels with dark text in Bright.
+
+## 0.1.0 — 2026-10-30 (tagged `v1.0`)
 
 The instrument is complete: the calendar, Fly mode, the real sky and the galaxy. This release adds no new features; it makes the project self-explaining so work can continue in a fresh conversation, with any AI model or person.
 
@@ -9,19 +75,19 @@ The instrument is complete: the calendar, Fly mode, the real sky and the galaxy.
 - **CLAUDE.md**: model-agnostic working context: code map, rules, conventions, how to work with the owner, ready-to-paste prompts for starting new conversations, and a definition of done. **AGENTS.md** points other tools to it.
 - Tagged `v1.0` in git.
 
-## 0.16.0 — 2026-10-30
+## 0.0.16 — 2026-10-30
 
 - The calendar's sky now matches Fly mode exactly: the same perspective lens (60° top to bottom) looking the same way, instead of a whole-sky disc that bent the Milky Way into a ring. It still turns with the solar system.
 - **Whole galaxy**: a new ◎ Galaxy button in the calendar (and a Fly destination) shows the Milky Way from 40 kpc above, with Sgr A*, the spiral arms and the Sun marked. Scroll or fly in and out continuously from there to the solar system: the outside view fades in beyond ~300 light years from the Sun, and the sky seen from the Sun fades out. The galaxy is a schematic model (no one has photographed it from outside).
 - Stars in the calendar are larger, with more difference between bright and faint, as in Fly mode.
 
-## 0.15.0 — 2026-10-30
+## 0.0.15 — 2026-10-30
 
 - The calendar now has the real sky behind it: the Milky Way and the naked-eye stars on a whole-sky disc. It turns exactly with the solar system when you rotate the view. The direction the Sun is travelling (galactic longitude 90°, in Cygnus) is to the right, like the future.
 - Fly mode's controls are easier to read: bright text on darker panels whatever theme the calendar uses, and buttons that are on are clearly highlighted. Fly mode always draws with a dark theme.
 - On light themes the calendar's sky is drawn as faint ink, like a star chart.
 
-## 0.14.0 — 2026-10-30
+## 0.0.14 — 2026-10-30
 
 A truer sky, and real surfaces.
 
@@ -31,7 +97,7 @@ A truer sky, and real surfaces.
 - Earth and the Moon show their real surfaces (low-resolution NASA-based maps), lit by the Sun, with day and night where they really are. Point at a place to read its latitude and longitude.
 - Image credits in `public/textures/CREDITS.md`.
 
-## 0.13.0 — 2026-10-30
+## 0.0.13 — 2026-10-30
 
 The real sky.
 
@@ -40,7 +106,7 @@ The real sky.
 - "Turn with …" is now "Stay over one spot on …", with an explanation on hover.
 - Sky data: d3-celestial (BSD-3-Clause), built by `scripts/build_sky.py` into `public/sky/` and loaded only in Fly mode.
 
-## 0.12.0 — 2026-10-30
+## 0.0.12 — 2026-10-30
 
 Spheres and arcs.
 
@@ -51,7 +117,7 @@ Spheres and arcs.
 - Every Fly destination now opens in front of the body, its north up, with the Sun in view. Geostationary orbit sits exactly in Earth's equatorial plane; Saturn's view is raised so the rings show.
 - Real shapes are noted as variation from the perfect sphere (Earth flattened 1/298, Saturn 1/10).
 
-## 0.11.0 — 2026-10-30
+## 0.0.11 — 2026-10-30
 
 The calendar, in 3D.
 
@@ -61,12 +127,12 @@ The calendar, in 3D.
 - Spirals and orbits follow your planet choices and the Moon setting from the calendar.
 - Names no longer pile up when bodies are close together on screen.
 
-## 0.10.1 — 2026-10-30
+## 0.0.10.1 — 2026-10-30
 
 - Fix: Fly mode could hang on "Loading the solar system" in the dev server. Three.js is now pre-bundled when the server starts.
 - If Fly mode ever fails to load, it now says why and offers Reload or a way back to the calendar.
 
-## 0.10.0 — 2026-10-30
+## 0.0.10 — 2026-10-30
 
 Fly mode.
 
@@ -77,13 +143,13 @@ Fly mode.
 - Jump to Low Earth orbit, Earth & Moon, the Moon (Earthrise), Mars, Jupiter, Saturn (with its rings) or the Sun.
 - Time runs live, or paused, or at 1 minute, 1 hour or 1 day per second. "Turn with" keeps you over the same spot (geostationary at Earth).
 - Three.js loads only when you open Fly mode; the calendar is as light as before.
-## 0.9.0 — 2026-10-30
+## 0.0.9 — 2026-10-30
 
 Even lines.
 
 - Spirals, the Moon's path and orbit circles are drawn as single, even lines: the same thickness and brightness all the way round, from any view, snapped to whole screen pixels so they render cleanly on Retina displays.
 
-## 0.8.0 — 2026-10-30
+## 0.0.8 — 2026-10-30
 
 One view change at a time.
 
@@ -91,7 +157,7 @@ One view change at a time.
 - Rotation drags lock to turning or rolling.
 - Zooming always holds the Sun where it is on screen, including the zoom presets, so it can no longer leave the screen.
 
-## 0.7.0 — 2026-10-30
+## 0.0.7 — 2026-10-30
 
 Edge to edge, and rotation both ways.
 
@@ -100,7 +166,7 @@ Edge to edge, and rotation both ways.
 - Drag empty space to rotate the solar system in both directions: up/down rolls about the line of travel, sideways turns it (with the time axis foreshortened to match). Grab the Sun to move it, or its line to slide through time.
 - When centred on a planet, the grids are centred on it.
 
-## 0.6.0 — 2026-10-30
+## 0.0.6 — 2026-10-30
 
 Simple, stable paths.
 
@@ -109,7 +175,7 @@ Simple, stable paths.
 - New Orbits button: the orbit circles are optional, like the spirals.
 - Grab the Sun to move it anywhere on the canvas; the grids stay centred on it. Reset view puts it back.
 
-## 0.5.0 — 2026-10-30
+## 0.0.5 — 2026-10-30
 
 Space zoom.
 
@@ -118,7 +184,7 @@ Space zoom.
 - Paths are sampled adaptively: anchored coarse points, refined to ~2.5 px on screen and skipped off screen, so they stay smooth however far you zoom.
 - The Moon moves to its real distance from Earth once zoomed in far enough.
 
-## 0.4.0 — 2026-10-30
+## 0.0.4 — 2026-10-30
 
 The Sun is now.
 
@@ -126,7 +192,7 @@ The Sun is now.
 - Dragging sideways looks ahead or back by an exact offset that keeps flowing with time; a cursor with hollow markers shows each body at the viewed moment. "Back to now" returns.
 - The separate dashed "Now" line is gone. The top-left panel shows the present date and GMT clock, plus "Viewing …" when looking away.
 
-## 0.3.0 — 2026-10-30
+## 0.0.3 — 2026-10-30
 
 Stable spirals, burning fuses, two grids.
 
@@ -136,7 +202,7 @@ Stable spirals, burning fuses, two grids.
 - Opens live at the present moment; clock shown in GMT.
 - 49 tests; clock labels now include the date when a view spans more than a day.
 
-## 0.2.0 — 2026-10-30
+## 0.0.2 — 2026-10-30
 
 Spatial model, live time, round window.
 
@@ -151,7 +217,7 @@ Spatial model, live time, round window.
 - Round window with controls in the four corners (toggle to full screen). Zoom presets fit the window.
 - 41 tests.
 
-## 0.1.0 — 2026-10-30
+## 0.0.1 — 2026-10-30
 
 First prototype (Phase 1 groundwork).
 

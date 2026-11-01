@@ -175,6 +175,8 @@ export function vantage(
   bodies: readonly BodyState[],
   aspect = 1.6,
   now: Time = J2000,
+  /** The calendar's view axes (right, up, toward the viewer), for the overview. */
+  axes: readonly [Vec3, Vec3, Vec3] = CALENDAR_AXES,
 ): { pose: Pose; pos: Vec3; quat: THREE.Quaternion } {
   const sun = find(bodies, 'sun').pos;
   const view = (anchor: BodyId, frame: Frame, v: { pos: Vec3; quat: THREE.Quaternion }) => ({
@@ -188,15 +190,15 @@ export function vantage(
 
   switch (dest) {
     case 'galaxy': {
-      // 40 kpc above the north galactic pole, the whole disc in view, the Sun toward the bottom.
+      // 42 kpc from Sgr A*, 25° above the plane on the Sun's side: the disc, bulge, Fermi bubbles and the Sun's path in view.
       const g = galaxyVantage(now);
       return view('sun', 'inertial', { pos: g.pos, quat: lookAt(g.pos, g.target, g.up) });
     }
     case 'overview': {
       // The calendar's view: the Sun in the centre, the future to the right,
-      // seen from 3.2 AU off the Sun's line of travel, ecliptic north up.
-      const pos = addv(sun, scale(CALENDAR_AXES[2], 3.2 * 149_597_870.7));
-      return view('sun', 'inertial', { pos, quat: lookAt(pos, sun, CALENDAR_AXES[1]) });
+      // seen from 3.2 AU off the Sun's line of travel, turned as the calendar is turned.
+      const v = overviewView(sun, axes);
+      return view('sun', 'inertial', v);
     }
     case 'geo':
       // In Earth's equatorial plane, 42,164 km out, turning with Earth.
@@ -228,4 +230,156 @@ export function vantage(
     default:
       return front(dest, bodyInfo(dest).radiusKm * 4);
   }
+}
+
+/** 1 AU, km. */
+export const AU_KM = 149_597_870.7;
+/** Backing away past this distance from the Sun warps you out to the whole galaxy. */
+export const WARP_OUT_KM = 1000 * AU_KM;
+/** Within this distance of the warp line, the screen says that you are about to leave. */
+export const WARP_HINT_KM = 300 * AU_KM;
+/** Heading at the Sun from outside the solar system (within this angle) warps you back in. */
+export const WARP_IN_ANGLE = (4 * Math.PI) / 180;
+/** Zooming in to within this distance of the galaxy's disc (from outside the solar system) warps you back in. */
+export const WARP_IN_DISC_KM = 7 * 3.085_677_581_491_367e16;
+/** Where a warp back in ends: this far from the Sun, looking at it. */
+export const ARRIVAL_KM = 6 * AU_KM;
+/** Flights whose start and end distances from the Sun differ more than this fly as a warp. */
+export const WARP_RATIO = 1e4;
+
+/**
+ * A point on a warp between `from` and `to` (both relative to `centre`, usually the Sun),
+ * at progress e (0–1): the direction turns smoothly and the distance changes by equal
+ * factors in equal steps, so the speed grows (or falls) exponentially, from a crawl past
+ * the planets to many thousand times the speed of light between the stars.
+ */
+export function warpPoint(centre: Vec3, from: Vec3, to: Vec3, e: number): Vec3 {
+  const a = sub(from, centre), b = sub(to, centre);
+  const ra = Math.max(1, Math.hypot(...a)), rb = Math.max(1, Math.hypot(...b));
+  const r = Math.exp(Math.log(ra) + (Math.log(rb) - Math.log(ra)) * e);
+  const ua = scale(a, 1 / ra), ub = scale(b, 1 / rb);
+  const cos = Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2]));
+  const ang = Math.acos(cos);
+  let dir: Vec3;
+  if (ang < 1e-9) dir = ua;
+  else if (Math.PI - ang < 1e-6) {
+    // Opposite directions: turn through any perpendicular.
+    const p = unit(Math.abs(ua[0]) < 0.9 ? cross(ua, [1, 0, 0]) : cross(ua, [0, 1, 0]));
+    dir = addv(scale(ua, Math.cos(Math.PI * e)), scale(p, Math.sin(Math.PI * e)));
+  } else dir = rotateToward(ua, ub, ang * e);
+  if (e >= 1) return to;
+  if (e <= 0) return from;
+  return addv(centre, scale(dir, r));
+}
+
+/** Does a flight between these two places (km from the Sun) cross scales enough to fly as a warp? */
+export function isWarp(fromKm: number, toKm: number): boolean {
+  const a = Math.max(1, fromKm), b = Math.max(1, toKm);
+  return Math.max(a, b) / Math.min(a, b) > WARP_RATIO;
+}
+
+/** Arriving back in the solar system along `heading`: in front of the Sun, looking at it, ecliptic north up. */
+export function arrivalView(sun: Vec3, heading: Vec3): { pos: Vec3; quat: THREE.Quaternion } {
+  const h = unit(heading);
+  const pos = sub(sun, scale(h, ARRIVAL_KM));
+  const up: Vec3 = Math.abs(h[2]) < 0.95 ? [0, 0, 1] : [1, 0, 0];
+  return { pos, quat: lookAt(pos, sun, up) };
+}
+
+/** Distance from the Sun at which the calendar's own view is seen in 3D, km. */
+export const OVERVIEW_KM = 3.2 * AU_KM;
+
+/** The calendar's view in 3D: looking at the Sun from 3.2 AU toward the viewer, with the calendar's up as up. */
+export function overviewView(sun: Vec3, axes: readonly [Vec3, Vec3, Vec3] = CALENDAR_AXES): { pos: Vec3; quat: THREE.Quaternion } {
+  const pos = addv(sun, scale(axes[2], OVERVIEW_KM));
+  return { pos, quat: lookAt(pos, sun, axes[1]) };
+}
+
+/** Just above a body: this many radii from its centre (0.4 radii up). */
+export const ABOVE_RADII = 1.4;
+/** Facing the Sun from above a body: the Sun this far above the centre of the view, radians. */
+const SUN_ABOVE_CENTRE = (22 * Math.PI) / 180;
+/** …and the body's centre at most this far below it, so it is always at your feet. */
+const BODY_BELOW_MAX = (68 * Math.PI) / 180;
+
+/**
+ * Standing just above a body's north pole, upright (its north is up), facing the Sun:
+ * the body curves away beneath your feet at the bottom of the view and the Sun is near
+ * the top. (Above the Sun, you face Earth.) If the Sun is high in that body's sky (a
+ * tilted planet in summer), you look down a little more so the body stays in view.
+ */
+export function aboveNorth(id: BodyId, bodies: readonly BodyState[]): { pose: Pose; pos: Vec3; quat: THREE.Quaternion } {
+  const b = find(bodies, id);
+  const n = unit(b.axes[2]);
+  const pos = addv(b.pos, scale(n, b.info.radiusKm * ABOVE_RADII));
+  const target = id === 'sun' ? find(bodies, 'earth').pos : find(bodies, 'sun').pos;
+  let s = unit(sub(target, pos));
+  const down = scale(n, -1);
+  // The Sun straight overhead or underfoot: face any horizontal direction instead.
+  if (Math.abs(s[0] * n[0] + s[1] * n[1] + s[2] * n[2]) > 0.9999) s = unit(Math.abs(n[0]) < 0.9 ? cross(n, [1, 0, 0]) : cross(n, [0, 1, 0]));
+  const A = Math.acos(Math.max(-1, Math.min(1, s[0] * down[0] + s[1] * down[1] + s[2] * down[2]))); // body ↔ Sun, from here
+  const forward = rotateToward(down, s, Math.min(BODY_BELOW_MAX, Math.max(0, A - SUN_ABOVE_CENTRE)));
+  const quat = lookAt(pos, addv(pos, forward), n);
+  return { pose: poseFrom(pos, quat, id, 'inertial', bodies), pos, quat };
+}
+
+/** Distances from the Sun compressed as in the calendar's √ fit: r → √(r · 1 AU), so Earth stays at 1 AU. */
+export function fitRadius(rKm: number): number {
+  return rKm > 0 ? Math.sqrt(rKm * AU_KM) : 0;
+}
+
+/** Reshape a place around the Sun for a scale mode (√ fit compresses; linear and true are real distances in 3D). */
+export function shapeFor(mode: 'fit' | 'linear' | 'true', sun: Vec3): ((o: Vec3) => Vec3) | undefined {
+  if (mode !== 'fit') return undefined;
+  return (o) => {
+    const d = sub(o, sun);
+    const r = Math.hypot(...d);
+    return r > 0 ? addv(sun, scale(d, fitRadius(r) / r)) : o;
+  };
+}
+
+/** Bodies placed for a scale mode: planets moved in toward the Sun, the Moon kept beside Earth, sizes unchanged. */
+export function scaleBodies(bodies: readonly BodyState[], mode: 'fit' | 'linear' | 'true'): readonly BodyState[] {
+  const sun = find(bodies, 'sun').pos;
+  const shape = shapeFor(mode, sun);
+  if (!shape) return bodies;
+  const earth = find(bodies, 'earth').pos;
+  const earth2 = shape(earth);
+  return bodies.map((b) => {
+    if (b.info.id === 'sun') return b;
+    if (b.info.id === 'moon') return { ...b, pos: addv(earth2, sub(b.pos, earth)) };
+    return { ...b, pos: shape(b.pos) };
+  });
+}
+
+/**
+ * Turn around a point (the body you are looking at, or the galaxy's centre), keeping
+ * it where it is on screen: like turning a globe in your hands. `yaw` turns about your
+ * own up axis, `pitch` about your own right axis, radians.
+ */
+export function orbitAround(pos: Vec3, quat: THREE.Quaternion, centre: Vec3, yaw: number, pitch: number): { pos: Vec3; quat: THREE.Quaternion } {
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(quat);
+  const r = new THREE.Quaternion().setFromAxisAngle(up, yaw).multiply(new THREE.Quaternion().setFromAxisAngle(right, pitch));
+  const off = v(sub(pos, centre)).applyQuaternion(r);
+  return { pos: addv(centre, arr(off)), quat: r.clone().multiply(quat) };
+}
+
+/**
+ * What Option + scroll turns around: the most prominent body near the middle of the view
+ * (within 35°: the largest on screen for how close it is to the middle, so a big planet
+ * beats a speck of light behind it), else the nearest body.
+ */
+export function orbitTarget(pos: Vec3, quat: THREE.Quaternion, bodies: readonly BodyState[]): BodyState {
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
+  let best: { b: BodyState; score: number } | null = null;
+  for (const b of bodies) {
+    const rel = v(sub(b.pos, pos));
+    const a = fwd.angleTo(rel);
+    if (a > (35 * Math.PI) / 180) continue;
+    const rho = Math.asin(Math.min(1, b.info.radiusKm / Math.max(1, rel.length())));
+    const score = rho / (a + (2 * Math.PI) / 180);
+    if (!best || score > best.score) best = { b, score };
+  }
+  return best ? best.b : find(bodies, nearest(pos, bodies).id);
 }
