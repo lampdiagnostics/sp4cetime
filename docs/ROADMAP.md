@@ -84,6 +84,11 @@ See the owner's notes in DECISIONS §1. Built as a separate, clearly labelled pr
 - [ ] Output: a poster (print resolution), a short video, a share card; "Read your horoscope" links out to an established site.
 - [ ] First earner: the personalised poster or video, sold as a one-off (see DECISIONS §1 "First earners").
 
+#### A sp4cetime connector for Claude (and other AI assistants)
+- [ ] An MCP connector (a small server, or a static API on Cloudflare) that answers questions with the instrument's own maths: "what was the sky when I was born?" → positions, signs, houses (with a time and place), the accuracy tier, and a link that opens that moment and place on sp4cetime.org (a path or a `?live` view).
+- [ ] Listed in Anthropic's Claude directory of connectors so other Claude users can add it; one more way people find sp4cetime.
+- [ ] Builds on "Stand here" (`src/core/houses.ts`) and the spheres model; pure `src/core` maths reused as-is. Licences as the rest (Apache 2.0); honest labels carried into every answer.
+
 #### Premium (later)
 - [ ] Cloud library: your paths and stories kept online and synced across devices (needs accounts; until then files are the store).
 - [ ] Pro features as in DECISIONS §1 (4K video, posters, private links, unbranded embeds, themes).
