@@ -243,7 +243,7 @@ export function App() {
     return {
       themeId: st.themeId, round: st.round, chrome: chromeRef.current, planets: st.planets, moon: st.moon, rings: st.rings,
       labels: st.labels, spirals: st.spirals, timeGrid: st.timeGrid, distanceGrid: st.distanceGrid,
-      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, strobe: st.strobe,
+      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, strobe: st.strobe,
       strobeSteps: st.strobeSteps, focus: st.focus, measure: pane.current?.snapshot().measure ?? 'near',
     };
   };

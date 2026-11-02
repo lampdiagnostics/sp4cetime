@@ -20,6 +20,8 @@ export interface Settings {
   readonly zodiac: boolean;
   /** The galactic equator, centre, anticentre and the halfway points. */
   readonly galactic: boolean;
+  /** Earth's line skin in Fly: coastlines, big lakes, country borders. */
+  readonly coastlines: boolean;
   /** Strobe: the solar system's frozen poses behind the present, and how many a year. */
   readonly strobe: boolean;
   readonly strobeSteps: number;
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   constellations: true,
   zodiac: true,
   galactic: true,
+  coastlines: true,
   strobe: false,
   strobeSteps: 5.2,
   focus: 'sun',
@@ -72,6 +75,7 @@ export function loadSettings(): Settings {
       constellations: typeof data.constellations === 'boolean' ? data.constellations : DEFAULT_SETTINGS.constellations,
       zodiac: typeof data.zodiac === 'boolean' ? data.zodiac : DEFAULT_SETTINGS.zodiac,
       galactic: typeof data.galactic === 'boolean' ? data.galactic : DEFAULT_SETTINGS.galactic,
+      coastlines: typeof data.coastlines === 'boolean' ? data.coastlines : DEFAULT_SETTINGS.coastlines,
       strobe: typeof data.strobe === 'boolean' ? data.strobe : DEFAULT_SETTINGS.strobe,
       strobeSteps:
         typeof data.strobeSteps === 'number' && data.strobeSteps >= STROBE_MIN && data.strobeSteps <= STROBE_MAX

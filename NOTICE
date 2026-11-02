@@ -22,6 +22,8 @@ Third-party software and data included or used, under their own licences:
   IAU figures.
 - Milky Way and Moon maps: Solar System Scope (CC BY 4.0), based on NASA imagery.
 - Earth map: NASA Visible Earth, Blue Marble (public domain).
+- Earth's coastlines, lakes and borders: Natural Earth (public domain),
+  naturalearthdata.com.
   Details: public/textures/CREDITS.md.
 
 Inspirations (credited in the app, under ? How to): the galactic-motion visualization

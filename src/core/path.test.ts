@@ -34,7 +34,7 @@ const point = (over: Partial<PathPoint> = {}): PathPoint => ({
   fly: null,
   look: {
     themeId: 'dark', round: true, chrome: 0, planets: ['earth', 'mars'], moon: true, rings: true, labels: true, spirals: true,
-    timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, strobe: false, strobeSteps: 5.2,
+    timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, strobe: false, strobeSteps: 5.2,
     focus: 'sun', measure: 'near',
   },
   caption: 'Here we are',

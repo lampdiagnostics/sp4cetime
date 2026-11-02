@@ -62,6 +62,8 @@ export interface PointLook {
   readonly constellations: boolean;
   readonly zodiac: boolean;
   readonly galactic: boolean;
+  /** Earth's line skin in 3D (coastlines, lakes, borders); 0.4.0, so older files take the default. */
+  readonly coastlines: boolean;
   readonly strobe: boolean;
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
@@ -106,7 +108,7 @@ export const SP4CE_VERSION = 2;
 /** The look a new visit opens with; a file lists only what differs from it. */
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
-  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true,
+  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true,
   strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
 };
 
@@ -243,6 +245,8 @@ function parseLook(o: Obj, where: string): PointLook {
     constellations: bool(o, 'constellations', where),
     zodiac: bool(o, 'zodiac', where),
     galactic: bool(o, 'galactic', where),
+    // New in 0.4.0: files written before it take the default.
+    coastlines: o.coastlines === undefined ? DEFAULT_LOOK.coastlines : bool(o, 'coastlines', where),
     strobe: bool(o, 'strobe', where),
     strobeSteps: num(o, 'strobeSteps', where, (x) => x >= 1 && x <= 24),
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),

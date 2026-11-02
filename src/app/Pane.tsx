@@ -269,6 +269,7 @@ export function Pane(p: Props) {
       constellations: settings.constellations,
       zodiac: settings.zodiac,
       galactic: settings.galactic,
+      coastlines: settings.coastlines,
     }),
     [settings],
   );

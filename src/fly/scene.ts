@@ -5,6 +5,7 @@
  * whether you are 400 km above Earth or out past Neptune.
  */
 import * as THREE from 'three';
+import { earthLines } from './earthLines';
 import { BODIES, type BodyId, type BodyInfo, type BodyState } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
 import type { SkyStyle } from '../core/theme';
@@ -47,6 +48,8 @@ export interface FlyScene {
   setPixelRatio(r: number): void;
   /** Space colour and the Sun's glow for a theme (Dark, Bright or Colour). */
   setStyle(s: SkyStyle): void;
+  /** Earth's line skin (coastlines, lakes, borders): loaded the first time it is shown. */
+  setEarthLines(on: boolean): void;
   dispose(): void;
 }
 
@@ -235,9 +238,17 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
     meshes.set(info.id, mesh);
   }
 
+  let lines: THREE.Group | null = null;
   const basis = new THREE.Matrix4();
   const tmp = new THREE.Vector3();
   return {
+    setEarthLines(on) {
+      if (on && !lines) {
+        lines = earthLines(import.meta.env.BASE_URL);
+        meshes.get('earth')?.add(lines);
+      }
+      if (lines) lines.visible = on;
+    },
     renderer,
     camera,
     scene,

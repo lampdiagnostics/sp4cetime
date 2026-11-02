@@ -24,6 +24,8 @@ export interface OverlayOptions {
   readonly constellations: boolean;
   readonly zodiac: boolean;
   readonly galactic: boolean;
+  /** Earth's line skin (coastlines, lakes, borders). */
+  readonly coastlines?: boolean;
 }
 
 export interface OverlayLabel {
