@@ -7,7 +7,7 @@
 import { mixRgb, parseColour } from '../core/colour';
 import { ECL_TO_EQ, type Mat3, type Vec3 } from '../core/geometry';
 import type { SkyOptions } from '../core/render';
-import { type FigureData, figureShown, type MarkKind, skyMarks, skySegments } from '../core/skyfigures';
+import { type FigureData, figureShown, type MarkKind, skyMarks, skySegments, turnSigns } from '../core/skyfigures';
 import type { SkyStyle } from '../core/theme';
 import { apply, applyT, projectSky, unprojectSky, viewToGalactic } from '../core/skymap';
 
@@ -103,16 +103,19 @@ export async function loadBackdrop(base: string): Promise<Backdrop> {
     lines = [];
     const far = 4 * focal;
     const on = (p: { x: number; y: number } | null): p is { x: number; y: number } => !!p && Math.abs(p.x) < far && Math.abs(p.y) < far;
+    // The sign boundaries and names turn with the equinox of the viewed date.
+    const shift = options.equinoxShift ?? 0;
     for (const g of segments) {
       if (!figureShown(g.kind, options)) continue;
-      const a = projectSky(apply(view, g.a), focal), b = projectSky(apply(view, g.b), focal);
+      const ga = g.kind === 'signs' ? turnSigns(g.a, shift) : g.a, gb = g.kind === 'signs' ? turnSigns(g.b, shift) : g.b;
+      const a = projectSky(apply(view, ga), focal), b = projectSky(apply(view, gb), focal);
       if (on(a) && on(b)) lines.push({ x0: a.x, y0: a.y, x1: b.x, y1: b.y, kind: g.kind, opacity: g.opacity });
     }
     const brightPts = brightStars.map((d) => projectSky(apply(view, d), focal)).filter(on);
     names = [];
     for (const m of marks) {
       if (!figureShown(m.kind, options)) continue;
-      const p = projectSky(apply(view, m.dir), focal);
+      const p = projectSky(apply(view, m.kind === 'sign' ? turnSigns(m.dir, shift) : m.dir), focal);
       if (!on(p)) continue;
       // Step aside rather than cover a bright star; hide if there is no room.
       const w = m.text.length * (m.kind === 'constellation' || m.kind === 'zodiacFigure' ? 7.6 : 6.3) + 4;
@@ -169,7 +172,7 @@ export async function loadBackdrop(base: string): Promise<Backdrop> {
 
   return {
     draw(ctx, view, cx, cy, focal, box, style, options) {
-      const k = `${JSON.stringify(style)}|${options.constellations}${options.zodiac}${options.galactic}|${[cx, cy, focal, box.x, box.y, box.w, box.h].map((x) => x.toFixed(1)).join(',')}|${view
+      const k = `${JSON.stringify(style)}|${options.constellations}${options.zodiac}${options.galactic}|${(options.equinoxShift ?? 0).toFixed(2)}|${[cx, cy, focal, box.x, box.y, box.w, box.h].map((x) => x.toFixed(1)).join(',')}|${view
         .flat()
         .map((x) => x.toFixed(5))
         .join(',')}`;

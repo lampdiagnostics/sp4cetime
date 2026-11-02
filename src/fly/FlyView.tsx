@@ -43,7 +43,7 @@ import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS,
 import type { Theme } from '../core/theme';
 import type { PlanetId } from '../core/planets';
 import { CALENDAR_AXES } from '../core/paths3d';
-import { SIGNS } from '../core/skyfigures';
+import { lonOfDateFromVector, signOf as signOfLon, skyOfDate } from '../core/houses';
 import { type FlyState, logLerp } from '../core/path';
 import { createGovernor } from '../core/quality';
 
@@ -980,6 +980,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const pxAngle = (lensFov * Math.PI) / 180 / Math.max(1, canvas.clientHeight);
       const galaxyLabels = galaxy ? galaxy.update(now, pos, pxAngle, scene.renderer.getPixelRatio()) : [];
       const o = L.overlays;
+      scene.setEarthLines(o.coastlines ?? true);
       const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
         ...paths.update(
           far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
@@ -1033,12 +1034,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const nearId = nearest(pos, bodies).id;
       const nearTrue = find(trueBodies, nearId).pos, nearShown = find(bodies, nearId).pos;
       const trueCam: Vec3 = [nearTrue[0] + pos[0] - nearShown[0], nearTrue[1] + pos[1] - nearShown[1], nearTrue[2] + pos[2] - nearShown[2]];
+      // Signs from the equinox of the viewed date (precession: about 50″ a year from 2000).
+      const skyNow = skyOfDate(now);
       const signOf = (id: BodyId): string => {
         const t = find(trueBodies, id).pos;
-        const lon = Math.atan2(t[1] - trueCam[1], t[0] - trueCam[0]);
-        const k = Math.floor((((lon * 180) / Math.PI + 360) % 360) / 30);
-        const [glyph, name] = SIGNS[k]!;
-        return `${glyph} ${name}`;
+        const s = signOfLon(lonOfDateFromVector([t[0] - trueCam[0], t[1] - trueCam[1], t[2] - trueCam[2]], skyNow));
+        return `${s.glyph} ${s.name}`;
       };
       const placed: Array<[number, number]> = [];
       for (const b of bodies) {
@@ -1091,7 +1092,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       }
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
-      const sl: readonly SkyLabel[] = sky ? sky.update(L.overlays) : [];
+      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift }) : [];
       const starPts: Array<[number, number]> = [];
       if (sky && sl.length > 0) {
         for (const d of sky.brightStars) {

@@ -123,6 +123,17 @@ export function skyMarks(data: FigureData): Array<{ dir: Vec3; text: string; kin
   ];
 }
 
+/**
+ * The signs are counted from the equinox of the viewed date, which slides west along the
+ * ecliptic (precession, about 50″ a year): a sign mark drawn in the J2000 frame turns about
+ * the ecliptic pole by −shift degrees (shift: `skyOfDate(t).lonShift` in houses.ts).
+ */
+export function turnSigns(v: Vec3, shiftDeg: number): Vec3 {
+  if (shiftDeg === 0) return v;
+  const a = (-shiftDeg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  return [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]];
+}
+
 /** Which segments and names show for these toggles (the same rule in the calendar and Fly mode). */
 export function figureShown(kind: FigureKind | MarkKind, o: { constellations: boolean; zodiac: boolean; galactic: boolean }): boolean {
   switch (kind) {

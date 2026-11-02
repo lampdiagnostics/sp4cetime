@@ -30,7 +30,7 @@ import {
 import { galacticAngle, moonPhase } from './models';
 import { keplerKm } from './paths3d';
 import { moonGeocentric } from './bodies';
-import { SIGNS } from './skyfigures';
+import { lonOfDateFromVector, signOf, skyOfDate } from './houses';
 import { orbitalPeriod, planetById, type PlanetId } from './planets';
 import type { SkyStyle, Theme } from './theme';
 import { focalFor } from './skymap';
@@ -76,6 +76,8 @@ export interface SkyOptions {
   readonly galactic: boolean;
   /** Where the Sun and Moon are on the sky seen from Earth now, and which sign each is in. */
   readonly bodies?: ReadonlyArray<{ readonly dir: Vec3; readonly text: string; readonly glyph: string }>;
+  /** Degrees the signs have slid from their J2000 places (precession and nutation to the viewed date). */
+  readonly equinoxShift?: number;
 }
 
 export interface FrameInput {
@@ -804,10 +806,11 @@ export function skyMatrix(roll: number, yaw: number, now: Time): Mat3 {
 
 /** The Sun and the Moon on the sky as seen from Earth now, with the zodiac sign each is in. */
 export function skyBodies(now: Time): Array<{ dir: Vec3; text: string; glyph: string }> {
+  // Signs from the equinox of this date, not of 2000.
+  const sky = skyOfDate(now);
   const sign = (d: Vec3): string => {
-    const lon = ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
-    const [g, n] = SIGNS[Math.floor(lon / 30) % 12]!;
-    return `${g} ${n}`;
+    const s = signOf(lonOfDateFromVector(d, sky));
+    return `${s.glyph} ${s.name}`;
   };
   const e = keplerKm('earth', now);
   const sun: Vec3 = [-e[0], -e[1], -e[2]];
@@ -915,7 +918,7 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
         constellations: view.constellations,
         zodiac: view.zodiac,
         galactic: view.galactic,
-        ...(view.zodiac && { bodies: skyBodies(f.now) }),
+        ...(view.zodiac && { bodies: skyBodies(f.now), equinoxShift: skyOfDate(f.now).lonShift }),
       },
     );
   } else {

@@ -33,6 +33,8 @@ export interface SkyOptions {
   readonly constellations: boolean;
   readonly zodiac: boolean;
   readonly galactic: boolean;
+  /** Degrees the signs have slid from their J2000 places by the viewed date (houses.ts skyOfDate). */
+  readonly equinoxShift?: number;
 }
 
 export { GALACTIC_MARKS, SIGNS } from '../core/skyfigures';
@@ -376,7 +378,12 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     text: c.name,
     kind: c.zodiac ? 'zodiacFigure' : 'constellation',
   }));
-  const signLabels: SkyLabel[] = SIGNS.map(([glyph, name], k) => ({ dir: eclDir(k * 30 + 15, 9.5), text: `${glyph} ${name}`, kind: 'sign' }));
+  // The signs are counted from the equinox of the viewed date: their lines turn about the
+  // ecliptic pole and their names move with them (rebuilt only when the shift changes).
+  let signShift = 0;
+  const signLabelsAt = (shift: number): SkyLabel[] =>
+    SIGNS.map(([glyph, name], k) => ({ dir: eclDir(k * 30 + 15 - shift, 9.5), text: `${glyph} ${name}`, kind: 'sign' }));
+  let signLabels = signLabelsAt(0);
 
   return {
     /** Directions (ecliptic) of the brighter stars, which labels keep clear of. */
@@ -412,6 +419,12 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       zodiacFigures.visible = o.constellations || o.zodiac;
       ecliptic.visible = signs.visible = o.zodiac;
       galLines.visible = o.galactic;
+      const shift = o.equinoxShift ?? 0;
+      if (Math.abs(shift - signShift) > 0.005) {
+        signShift = shift;
+        signs.rotation.z = (-shift * Math.PI) / 180;
+        signLabels = signLabelsAt(shift);
+      }
       return [
         ...(o.constellations ? [...starLabels, ...conLabels.filter((l) => l.kind === 'constellation')] : []),
         ...(o.constellations || o.zodiac ? conLabels.filter((l) => l.kind === 'zodiacFigure') : []),
