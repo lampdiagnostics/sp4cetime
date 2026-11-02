@@ -50,7 +50,7 @@ export interface FlyState {
 export interface PointLook {
   readonly themeId: string;
   readonly round: boolean;
-  /** 0 everything showing; 1 no boxes; 2 no text at all (the space bar). */
+  /** 0 everything showing; 1 no boxes; 2 no text at all (H or the eye). */
   readonly chrome: 0 | 1 | 2;
   readonly planets: readonly PlanetId[];
   readonly moon: boolean;

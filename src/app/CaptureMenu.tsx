@@ -195,7 +195,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
             <input type="checkbox" checked={sharp} onChange={(e) => setSharp(e.target.checked)} /> Sharp video (up to 4K)
           </label>
           <p className="note">
-            Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (the space bar hides them); this button never is.
+            Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (H or the eye hides them); this button never is.
             {!format && ' This browser cannot record video.'}
           </p>
           <hr />

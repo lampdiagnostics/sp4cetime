@@ -61,6 +61,8 @@ interface Props {
   onBodyClick: (id: LabelId) => void;
   /** A frozen strobe pose was clicked: go back to that moment (seconds from the present, negative). */
   onPoseClick?: (dt: number) => void;
+  /** A tap (touch) on the view that hit nothing: show or hide the controls. */
+  onEmptyTap?: () => void;
 }
 
 interface Flight {
@@ -79,7 +81,7 @@ function viewWidth(cam: Camera, round: boolean): number {
   return round ? 2 * (layout(cam, true).clipR ?? cam.width / 2) : cam.width;
 }
 
-export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, onSpaceZoomChange, handleRef, clock, active, onBodyClick, onSpaceStatement, onPoseClick }: Props) {
+export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, onCameraChange, onSpaceZoomChange, handleRef, clock, active, onBodyClick, onSpaceStatement, onPoseClick, onEmptyTap }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const clockRef = useRef(clock);
   clockRef.current = clock;
@@ -93,6 +95,8 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
   onBodyRef.current = onBodyClick;
   const onPoseRef = useRef(onPoseClick);
   onPoseRef.current = onPoseClick;
+  const onTapRef = useRef(onEmptyTap);
+  onTapRef.current = onEmptyTap;
   const posesRef = useRef<readonly PoseHit[]>([]);
   const labelsRef = useRef<readonly LabelBox[]>([]);
   const camRef = useRef<Camera>({ center: realNow(), secondsPerPixel: 1, width: 0, height: 0 });
@@ -278,9 +282,14 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
     // - on the Sun: move it anywhere (sideways = through time, up/down = its line);
     // - on the Sun's line: slide along it through time;
     // - anywhere else: rotate the solar system (sideways = turn, up/down = roll).
-    // Two pointers: pinch zoom.
+    // Two pointers (touch), one thing at a time, chosen by the first few pixels:
+    // pinch resizes the solar system; twist turns it; sliding sideways moves through
+    // time; sliding up or down zooms time (phones have no Shift key).
     const pointers = new Map<number, { x: number; y: number }>();
     let pinchDist = 0;
+    let two: { d0: number; a0: number; mx0: number; my0: number; a: number; mx: number; my: number; mode: 'pinch' | 'twist' | 'slide' | null } | null = null;
+    /** A touch that might be a tap: where it started, and that only one finger came down. */
+    let tap: { x: number; y: number; t: number } | null = null;
     let gesture: { kind: 'sun' | 'line' | 'rotate' | 'label'; x0: number; y0: number; axis: 'x' | 'y' | null; id?: LabelId; dt?: number } | null = null;
     const labelAt = (p: { x: number; y: number }): LabelBox | undefined =>
       labelsRef.current.find((b) => p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1);
@@ -324,9 +333,15 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
           ? { kind: label || pose ? 'label' : kind, x0: p.x, y0: p.y, axis: null, ...(label && { id: label.id }), ...(pose && { dt: pose.dt }) }
           : null;
       canvas.style.cursor = kind === 'rotate' ? 'grabbing' : CURSORS[kind];
+      tap = pointers.size === 1 && e.pointerType !== 'mouse' && !label && !pose ? { x: p.x, y: p.y, t: performance.now() } : null;
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
-        if (a && b) pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (a && b) {
+          pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+          const ang = Math.atan2(b.y - a.y, b.x - a.x);
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          two = { d0: pinchDist, a0: ang, mx0: mx, my0: my, a: ang, mx, my, mode: null };
+        }
       }
     };
     const onMove = (e: PointerEvent): void => {
@@ -334,6 +349,7 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       if (!prev) return;
       const p = local(e);
       pointers.set(e.pointerId, p);
+      if (tap && Math.hypot(p.x - tap.x, p.y - tap.y) > 8) tap = null;
       if (pointers.size === 1 && gesture) {
         const dx = p.x - prev.x, dy = p.y - prev.y;
         // A press on a name that turns into a drag rotates instead.
@@ -361,9 +377,35 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        // Pinching resizes the solar system, as scrolling does.
-        if (pinchDist > 0 && dist > 0) setSpaceZoom(spaceZoomRef.current * (dist / pinchDist));
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        if (!two) two = { d0: dist, a0: ang, mx0: mx, my0: my, a: ang, mx, my, mode: null };
+        if (two.mode === null) {
+          // Whichever moved furthest first (in pixels at the fingers) is the gesture.
+          const byPinch = Math.abs(dist - two.d0);
+          let dAng = ang - two.a0;
+          dAng = Math.atan2(Math.sin(dAng), Math.cos(dAng));
+          const byTwist = Math.abs(dAng) * dist * 0.5;
+          const bySlide = Math.hypot(mx - two.mx0, my - two.my0);
+          const most = Math.max(byPinch, byTwist, bySlide);
+          if (most > 24) two.mode = most === byPinch ? 'pinch' : most === byTwist ? 'twist' : 'slide';
+        }
+        if (two.mode === 'pinch') {
+          // Pinching resizes the solar system, as scrolling does.
+          if (pinchDist > 0 && dist > 0) setSpaceZoom(spaceZoomRef.current * (dist / pinchDist));
+        } else if (two.mode === 'twist') {
+          let dAng = ang - two.a;
+          dAng = Math.atan2(Math.sin(dAng), Math.cos(dAng));
+          turnYaw(dAng);
+        } else if (two.mode === 'slide') {
+          const dx = mx - two.mx, dy = my - two.my;
+          if (Math.abs(dx) >= Math.abs(dy)) moveTo(pan(camRef.current, dx));
+          else zoom(Math.exp(dy * 0.006));
+        }
         pinchDist = dist;
+        two.a = ang;
+        two.mx = mx;
+        two.my = my;
       }
     };
     const onHover = (e: PointerEvent): void => {
@@ -372,6 +414,9 @@ export function GalacticCanvas({ theme, view, onLiveChange, initialSpanSeconds, 
       canvas.style.cursor = labelAt(p) || poseAt(p) ? 'pointer' : CURSORS[hit(p)];
     };
     const onUp = (e: PointerEvent): void => {
+      if (tap && e.type === 'pointerup' && pointers.size === 1 && performance.now() - tap.t < 350) onTapRef.current?.();
+      tap = null;
+      if (pointers.size <= 2) two = null;
       if (gesture?.kind === 'label' && gesture.id) onBodyRef.current(gesture.id);
       else if (gesture?.kind === 'label' && gesture.dt !== undefined) onPoseRef.current?.(gesture.dt);
       pointers.delete(e.pointerId);

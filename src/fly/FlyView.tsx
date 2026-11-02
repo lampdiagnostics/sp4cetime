@@ -110,6 +110,8 @@ interface Props {
   onHud: (h: FlyHud) => void;
   /** The 3D view's API for paths, once it is ready (null when it goes). */
   onApi?: (api: FlyApi | null) => void;
+  /** A tap (touch) on the view that hit nothing: show or hide the controls. */
+  onEmptyTap?: () => void;
 }
 
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -204,9 +206,22 @@ interface Flight {
   done?: (arrived: boolean) => void;
 }
 
-export default function FlyView({ active, focused = true, theme, overlays, clock, spanSeconds, measure, command, onTimeZoom, onHud, onApi }: Props) {
-  const live = useRef({ active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud });
-  live.current = { active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud };
+export default function FlyView({ active, focused = true, theme, overlays, clock, spanSeconds, measure, command, onTimeZoom, onHud, onApi, onEmptyTap }: Props) {
+  const live = useRef({ active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud, onEmptyTap });
+  live.current = { active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud, onEmptyTap };
+  const stickRef = useRef<HTMLDivElement>(null);
+  const touchHintRef = useRef<HTMLParagraphElement>(null);
+  // On a touch screen, how to fly shows for a few seconds on arriving (or until the first touch).
+  useEffect(() => {
+    const el = touchHintRef.current;
+    if (!active || !el || typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: coarse)').matches) return;
+    el.classList.add('on');
+    const t = window.setTimeout(() => el.classList.remove('on'), 7000);
+    return () => {
+      window.clearTimeout(t);
+      el.classList.remove('on');
+    };
+  }, [active]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<HTMLDivElement>(null);
@@ -472,6 +487,43 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     const pointers = new Map<number, { x: number; y: number }>();
     let pinch = 0;
     /**
+     * Touch, as in phone games: a thumb stick appears wherever a finger lands on the left
+     * of the view and flies you (up: forward, down: back, sideways: slide); a finger
+     * anywhere else looks around. Two fingers: pinch flies forward or back; sliding them
+     * moves you sideways, up or down. A quick tap on nothing shows or hides the controls.
+     */
+    const STICK_R = 56;
+    let stick: { id: number; x0: number; y0: number; x: number; y: number; t: number } | null = null;
+    let two: { d0: number; mx0: number; my0: number; mx: number; my: number; mode: 'pinch' | 'slide' | null } | null = null;
+    /** Sliding with two fingers, px not yet flown. */
+    let slide = { x: 0, y: 0 };
+    /** This touch had a second finger at some point (so its end is not a tap). */
+    let multi = false;
+    let touchAt = 0;
+    const showStick = (): void => {
+      const el = stickRef.current;
+      if (!el) return;
+      if (!stick) {
+        el.style.display = 'none';
+        return;
+      }
+      const r = canvas.getBoundingClientRect();
+      let dx = stick.x - stick.x0, dy = stick.y - stick.y0;
+      const l = Math.hypot(dx, dy);
+      if (l > STICK_R) (dx *= STICK_R / l), (dy *= STICK_R / l);
+      el.style.display = 'block';
+      el.style.left = `${stick.x0 - r.left}px`;
+      el.style.top = `${stick.y0 - r.top}px`;
+      el.style.setProperty('--kx', `${dx}px`);
+      el.style.setProperty('--ky', `${dy}px`);
+    };
+    const hideTouchHint = (): void => {
+      touchHintRef.current?.classList.remove('on');
+    };
+    const tapped = (): void => {
+      live.current.onEmptyTap?.();
+    };
+    /**
      * A press on a name: a click if it is let go where it started, otherwise the start of
      * a drag like any other. The canvas takes the pointer either way, so dragging across
      * names never catches on them.
@@ -484,6 +536,21 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     const onDown = (e: PointerEvent): void => {
       e.preventDefault(); // no text selection while dragging
       if (locked) return;
+      if (e.pointerType === 'touch') {
+        if (pointers.size === 0 && !stick) {
+          multi = false;
+          touchAt = performance.now();
+          hideTouchHint();
+        } else multi = true;
+        const r = canvas.getBoundingClientRect();
+        if (!stick && !pressed && e.clientX - r.left < r.width * 0.42 && pointers.size === 0) {
+          canvas.setPointerCapture(e.pointerId);
+          stick = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t: performance.now() };
+          if (!flight?.warp) flight = null;
+          showStick();
+          return;
+        }
+      }
       downAt = { x: e.clientX, y: e.clientY, moved: false };
       canvas.setPointerCapture(e.pointerId);
       labelHost.classList.add('dragging');
@@ -491,12 +558,22 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       if (!flight?.warp) flight = null;
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
-        if (a && b) pinch = Math.hypot(a.x - b.x, a.y - b.y);
+        if (a && b) {
+          pinch = Math.hypot(a.x - b.x, a.y - b.y);
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          two = { d0: pinch, mx0: mx, my0: my, mx, my, mode: null };
+        }
       }
     };
     let hover: { x: number; y: number } | null = null;
     const onMove = (e: PointerEvent): void => {
       if (locked) return;
+      if (stick && e.pointerId === stick.id) {
+        stick.x = e.clientX;
+        stick.y = e.clientY;
+        showStick();
+        return;
+      }
       if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) downAt.moved = true;
       const r = canvas.getBoundingClientRect();
       hover = { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -514,8 +591,28 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const [a, b] = [...pointers.values()];
         if (!a || !b) return;
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        // Pinching widens or narrows the view; you stay where you are.
-        if (pinch > 0 && d > 0) fov = clamp((fov * pinch) / d, 0.5, 100);
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        if (e.pointerType !== 'touch') {
+          // Pinching widens or narrows the view; you stay where you are.
+          if (pinch > 0 && d > 0) fov = clamp((fov * pinch) / d, 0.5, 100);
+        } else {
+          if (!two) two = { d0: d, mx0: mx, my0: my, mx, my, mode: null };
+          if (two.mode === null) {
+            const byPinch = Math.abs(d - two.d0), bySlide = Math.hypot(mx - two.mx0, my - two.my0);
+            if (Math.max(byPinch, bySlide) > 24) two.mode = byPinch >= bySlide ? 'pinch' : 'slide';
+          }
+          // Pinch apart: fly forward (things grow, as when zooming in); together: back.
+          if (two.mode === 'pinch' && pinch > 0 && d > 0 && !flight?.warp) {
+            flight = null;
+            dolly += Math.log(d / pinch) * 1.5;
+          } else if (two.mode === 'slide' && !flight?.warp) {
+            flight = null;
+            slide.x += mx - two.mx;
+            slide.y += my - two.my;
+          }
+          two.mx = mx;
+          two.my = my;
+        }
         pinch = d;
       }
     };
@@ -523,14 +620,24 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       hover = null;
     };
     const onUp = (e: PointerEvent): void => {
+      if (stick && e.pointerId === stick.id) {
+        const s = stick;
+        stick = null;
+        showStick();
+        if (e.type === 'pointerup' && !multi && pointers.size === 0 && Math.hypot(s.x - s.x0, s.y - s.y0) < 8 && performance.now() - s.t < 350) tapped();
+        return;
+      }
       pointers.delete(e.pointerId);
       pinch = 0;
+      if (pointers.size < 2) two = null;
       if (pointers.size === 0) labelHost.classList.remove('dragging');
       const p = pressed;
       pressed = null;
       const d = downAt;
       downAt = null;
       if (p && e.type === 'pointerup') p.act();
+      // A quick tap on nothing (touch): show or hide the controls.
+      else if (!p && d && !d.moved && e.type === 'pointerup' && e.pointerType === 'touch' && !multi && pointers.size === 0 && !stick && performance.now() - touchAt < 350) tapped();
       // A plain click on the view (not a name, not a drag): steer with the mouse, as in Minecraft.
       else if (!p && d && !d.moved && e.type === 'pointerup' && e.pointerType === 'mouse' && pointers.size === 0 && !flight?.warp) {
         void canvas.requestPointerLock?.();
@@ -565,8 +672,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     const onKeyDown = (e: KeyboardEvent): void => {
       if (!live.current.active || !live.current.focused || typing()) return;
       const k = e.key.toLowerCase();
-      // Space flies up only while steering with the mouse; otherwise it shows and hides the controls.
-      if (k === ' ' && !locked) return;
+      // Space always flies up, as in games (H shows and hides the controls).
       if (k === ' ') e.preventDefault();
       if (MOVE_KEYS.includes(k)) {
         keys.add(k);
@@ -777,9 +883,20 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const sprint = keys.has('control') || (!locked && keys.has('shift'));
         const v = cruiseSpeed(clearance) * (sprint ? 5 : 1);
         const right = flat.clone().cross(upRef).normalize();
-        const ahead = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
-        const side = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
-        const up1 = keys.has('r') || (locked && keys.has(' ')) ? 1 : 0;
+        // The thumb stick: how far it is pushed (past a small dead zone), up to full speed.
+        let stickX = 0, stickY = 0;
+        if (stick) {
+          const sx = (stick.x - stick.x0) / STICK_R, sy = (stick.y - stick.y0) / STICK_R;
+          const l = Math.hypot(sx, sy);
+          if (l > 0.12) {
+            const k = Math.min(1, l) / l;
+            stickX = sx * k;
+            stickY = sy * k;
+          }
+        }
+        const ahead = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0) - stickY;
+        const side = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0) + stickX;
+        const up1 = keys.has('r') || keys.has(' ') ? 1 : 0;
         const down1 = keys.has('f') || (locked && keys.has('shift')) ? 1 : 0;
         const look3 = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
         // W and S fly the way you are looking, so whatever is in the middle of the view is
@@ -792,6 +909,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           .addScaledVector(upRef, up1 - down1)
           .addScaledVector(look3, dolly * 10);
         dolly = 0;
+        // Two fingers sliding: the scene follows them (a screen's height is three seconds' cruise).
+        if ((slide.x !== 0 || slide.y !== 0) && dt > 0) {
+          const k = 3 / (Math.max(1, canvas.clientHeight) * dt);
+          move.addScaledVector(right, -slide.x * k).addScaledVector(upRef, slide.y * k);
+          slide = { x: 0, y: 0 };
+        }
         let moved = false;
         if (move.lengthSq() > 0) {
           const before = pos;
@@ -1179,6 +1302,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       <div ref={markersRef} className="fly-markers" aria-hidden="true" />
       <div ref={labelsRef} className="fly-labels" aria-hidden="true" />
       <div ref={tipRef} className="fly-tip" aria-hidden="true" />
+      <div ref={stickRef} className="fly-stick" aria-hidden="true">
+        <span />
+      </div>
+      <p ref={touchHintRef} className="fly-touch-hint" aria-hidden="true">
+        Left thumb: fly · Drag: look · Pinch: forward and back · Two fingers: slide · Tap: hide controls
+      </p>
       <div ref={warpRef} className="fly-warp" aria-hidden="true">
         <span />
       </div>

@@ -274,7 +274,7 @@ body {
   max-width: 300px;
 }
 
-/* The show/hide toggle (space bar): controls, then all text, then everything back. */
+/* The show/hide toggle (H): controls, then all text, then everything back. */
 .chrome-toggle {
   display: grid;
   place-items: center;
@@ -597,67 +597,7 @@ select option {
   white-space: nowrap;
 }
 
-/* --- Phones -------------------------------------------------------------- */
-
-@media (max-width: 720px) {
-  :root {
-    --gap: 8px;
-  }
-  .corner {
-    padding: 6px 8px;
-    gap: 6px;
-    max-width: calc(100vw - 16px);
-  }
-  .tl {
-    right: var(--gap);
-  }
-  /* Bottom stack, from the bottom up: zoom, bodies and units, display. */
-  .br {
-    left: var(--gap);
-    align-items: stretch;
-    text-align: left;
-  }
-  .br .row,
-  .presets {
-    justify-content: flex-start;
-    max-width: none;
-  }
-  /* The boxes stack without overlapping: their heights are measured (App.tsx) into
-     --tl-h, --tr-h and --br-h. Top: the title box, then the view buttons (a row that
-     scrolls sideways). Bottom, above the eye and Capture: time and speed, then space and view. */
-  .br {
-    bottom: calc(var(--gap) + 44px);
-  }
-  .bl {
-    bottom: calc(var(--gap) * 2 + 44px + var(--br-h, 150px));
-    right: var(--gap);
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .bl .note {
-    display: none;
-  }
-  .tr {
-    top: calc(var(--gap) * 2 + var(--tl-h, 110px));
-    bottom: auto;
-    left: var(--gap);
-    right: var(--gap);
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .tr::-webkit-scrollbar {
-    display: none;
-  }
-  .tr > * {
-    flex: 0 0 auto;
-  }
-  .center-date {
-    font-size: 19px;
-  }
-}
+/* --- Phones: see the dock at the end of this file ---------------------- */
 
 /* --- Fly mode ---------------------------------------------------------------- */
 
@@ -1068,14 +1008,6 @@ select option {
 .chrome-1 .pointbox {
   top: var(--gap);
 }
-@media (max-width: 720px) {
-  .pointbox {
-    top: calc(var(--gap) * 3 + var(--tl-h, 110px) + var(--tr-h, 40px));
-  }
-  .chrome-1 .pointbox {
-    top: var(--gap);
-  }
-}
 .pointbox .pb-head {
   display: flex;
   justify-content: center;
@@ -1259,38 +1191,319 @@ select option {
   text-decoration: underline;
 }
 
-/* Short screens (a phone held sideways): compact boxes so all four corners fit. */
-@media (max-height: 520px) and (min-width: 721px) {
+/* Touch in Fly: the thumb stick (where the left thumb lands) and a first hint. */
+.fly-stick {
+  position: absolute;
+  display: none;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  z-index: 5;
+}
+.fly-stick span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  transform: translate(var(--kx, 0), var(--ky, 0));
+}
+.fly-touch-hint {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  width: min(320px, calc(100% - 32px));
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  z-index: 5;
+}
+.fly-touch-hint.on {
+  opacity: 1;
+}
+.chrome-2 .fly-touch-hint {
+  display: none;
+}
+
+/* --- Phones and short windows: a clear opening screen -------------------- */
+
+/* Wide screens: the dock is invisible and the boxes sit in the corners as before. */
+.dock {
+  display: contents;
+}
+.dock-bar,
+.dock-tabs,
+.top-bar {
+  display: none;
+}
+
+/* Phones and short windows. The only buttons are Now and Fly at the top, Capture and
+   ☰ More at the bottom. More opens the rest, one box at a time under tabs:
+   Time (zoom, speed, play), Space (places, bodies, elements), Display (theme, views).
+   The date stays at the top left as plain text. */
+@media (max-width: 720px), (max-height: 520px) {
   :root {
     --gap: 8px;
   }
-  .corner {
-    padding: 4px 8px;
-    gap: 4px;
-    font-size: 12px;
+
+  /* Top right: Now and Fly. */
+  .top-bar {
+    position: absolute;
+    top: var(--gap);
+    right: var(--gap);
+    z-index: 25;
+    display: flex;
+    gap: 6px;
   }
-  .corner .heading,
-  .bl .note,
-  .fly-where .facts {
-    display: none;
+  .top-bar button,
+  .dock-bar button {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 18px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 14px;
+    white-space: nowrap;
   }
-  .center-date {
-    font-size: 17px;
+  .top-bar button[aria-pressed='true']:not(.primary) {
+    background: var(--pressed);
   }
-  .bl {
+
+  /* Top left: the date, as text. */
+  .dock .corner.tl {
+    position: fixed;
+    top: var(--gap);
+    left: var(--gap);
+    z-index: 24;
+    max-width: calc(100vw - 3 * var(--gap) - 190px);
     flex-direction: row;
     flex-wrap: wrap;
-    align-items: center;
-    max-width: 46vw;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 0;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 12px;
   }
-  .bl .row {
+  .dock .tl .brand {
+    flex-basis: 100%;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dock .tl .brand > span {
+    display: none;
+  }
+  .dock .tl .center-date {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .dock .tl .clock {
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+  .dock .tl .tier-line,
+  .dock .tl .fly-where {
+    flex-basis: 100%;
+  }
+  .app:not(.dock-open) .dock .tl .tier-line,
+  .app:not(.dock-open) .dock .tl .fly-where {
+    display: none;
+  }
+  .dock .fly-where .facts {
+    display: none;
+  }
+
+  /* Bottom: the dock (tabs and one box when open, ☰ More always), right-aligned, with
+     the eye and Capture at the bottom left. */
+  .dock {
+    position: absolute;
+    left: var(--gap);
+    right: var(--gap);
+    bottom: var(--gap);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    pointer-events: none;
+  }
+  .dock > * {
+    pointer-events: auto;
+  }
+  .dock .corner {
+    position: static;
+    max-width: none;
+    padding: 8px 10px;
+    gap: 6px;
+    font-size: 12.5px;
+    border-radius: 12px;
+    text-align: left;
+    align-items: stretch;
+  }
+  .is-round .dock .corner {
+    border-color: var(--panel-border);
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .dock-bar {
+    order: 3;
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+  .dock-bar button {
+    pointer-events: auto;
+  }
+  .dock-open .dock-bar button {
+    background: var(--pressed);
+  }
+  .dock-tabs {
+    order: 1;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .dock-open .dock-tabs {
+    display: flex;
+  }
+  .dock-tabs button {
+    flex: 1;
+    height: 32px;
+    padding: 0 8px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .dock-tabs button[aria-selected='true'] {
+    background: var(--pressed);
+    color: var(--text);
+  }
+  .dock .bl,
+  .dock .br,
+  .dock .tr {
+    order: 2;
+    display: none;
+  }
+  .dock-open .dock[data-tab='time'] .br,
+  .dock-open .dock[data-tab='space'] .bl,
+  .dock-open .dock[data-tab='display'] .tr {
+    display: flex;
+  }
+
+  /* Inside a tab: rows that wrap, small headings, no long notes. */
+  .dock .bl,
+  .dock .br,
+  .dock .tr {
+    flex-direction: row;
     flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: flex-start;
+    column-gap: 8px;
+    row-gap: 6px;
   }
-  .br {
-    bottom: calc(var(--gap) + 40px);
+  .dock .tr {
+    align-items: center;
+  }
+  .dock .corner .heading {
+    margin: 0;
+    font-size: 9.5px;
+  }
+  .dock .bl > .heading,
+  .dock .br > .heading,
+  .dock .bl .note,
+  .dock .fly-hint,
+  .dock .tr > button.primary {
+    display: none;
+  }
+  .dock .br .select.menu {
+    align-items: flex-start;
+  }
+  .dock .br .row,
+  .dock .bl .row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .dock .corner button,
+  .dock .corner select {
+    min-height: 34px;
+  }
+  /* The pickers' lists open upward, inside the screen. */
+  .dock .popover:not(.help-popover) {
+    max-width: calc(100vw - 4 * var(--gap));
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+
+  /* The eye (only with More open, or to bring hidden controls back) and Capture: bottom left. */
+  .float-tools {
+    left: var(--gap);
+    bottom: var(--gap);
+    transform: none;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 3 * var(--gap) - 110px);
+  }
+  .float-tools .capture > button {
+    height: 36px;
+    border-radius: 18px;
+    font-size: 14px;
+  }
+  .chrome-toggle {
+    width: 36px;
+    height: 36px;
+  }
+  .chrome-0:not(.dock-open) .chrome-toggle {
+    display: none;
+  }
+
+  /* A path's caption sits below the top row. */
+  .pointbox {
+    top: calc(var(--gap) * 2 + 48px);
+  }
+  .chrome-1 .pointbox {
+    top: var(--gap);
+  }
+
+  /* The eye hides everything but itself and Capture. */
+  .chrome-1 .dock,
+  .chrome-2 .dock,
+  .chrome-1 .top-bar,
+  .chrome-2 .top-bar {
+    display: none;
+  }
+}
+
+/* A phone held sideways: the dock keeps to the right, leaving the view beside it. */
+@media (max-height: 520px) and (min-width: 600px) {
+  .dock {
+    left: auto;
+    width: min(460px, 58vw);
   }
   .pointbox {
-    top: var(--gap);
     width: min(360px, 40vw);
     padding: 6px 10px;
   }

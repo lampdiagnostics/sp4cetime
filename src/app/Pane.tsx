@@ -182,6 +182,8 @@ interface Props {
   boxesHost: HTMLElement | null;
   handleRef: Ref<PaneHandle>;
   onInfo: (id: number, info: PaneInfo) => void;
+  /** A tap (touch) on the view that hit nothing. */
+  onEmptyTap?: () => void;
 }
 
 /** The round window's rim of ticks, outside its circle (a capture of the calendar includes it). */
@@ -596,6 +598,7 @@ export function Pane(p: Props) {
               <li>W flies toward whatever is in the middle of the view (S backs away) · A D slide sideways · Space up · Shift down (R and F too) · Ctrl five times faster. Speed is half your height above the nearest body each second, so you slow as you arrive.</li>
               <li>Drag or scroll to look around where you stand.</li>
               <li>Pinch to widen or narrow the view; Shift + scroll or pinch zooms time.</li>
+              <li>On a phone or tablet: a thumb stick appears where your thumb lands on the left half (push to fly forward, back or sideways); drag elsewhere to look; pinch to fly forward or back; slide two fingers to move sideways, up or down; tap empty space to hide or show the controls.</li>
               <li>Click a name to fly there (you turn to face it, close in, and arrive just above its north pole). Click a galaxy's or the black hole's name to fly there.</li>
               <li>Back away past 1,000 AU to warp out to the whole galaxy; fly straight at the Sun, or click it, to warp home.</li>
             </ul>
@@ -603,6 +606,7 @@ export function Pane(p: Props) {
             <ul>
               <li>Drag empty space to turn the solar system; grab the Sun to move through time.</li>
               <li>Scroll or pinch: the size of the solar system. Shift + scroll or pinch: time.</li>
+              <li>On a phone or tablet: drag to turn; pinch to resize; twist two fingers to turn; slide two fingers sideways to move through time, or up and down to zoom time; tap empty space to hide or show the controls.</li>
               <li>Sideways scroll, or ← →: along the line through time. N: back to now.</li>
               <li>Click the name of the Sun, a planet or the Moon to fly just above it.</li>
               <li>Centre: Earth makes the view geocentric: Earth's path is straight, the Sun coils around it, and the planets loop back (retrograde).</li>
@@ -610,7 +614,7 @@ export function Pane(p: Props) {
             </ul>
           )}
           <ul>
-            <li>Space bar: hide the boxes, then all labels, then bring them back.</li>
+            <li>H (or the eye): hide the boxes, then all labels, then bring them back. On a phone, tap empty space.</li>
             <li>Speed (bottom right): choose how fast time runs and which way (Live is real time); choosing holds time still until ▶ Play; ❚❚ Pause stops it.</li>
             <li>
               Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,
@@ -695,6 +699,7 @@ export function Pane(p: Props) {
             setSpaceBar(b);
           }}
           onPoseClick={p.jumpBy}
+          {...(p.onEmptyTap && { onEmptyTap: p.onEmptyTap })}
         />
       </div>
 
@@ -713,6 +718,7 @@ export function Pane(p: Props) {
                 command={command}
                 onTimeZoom={(f) => canvas.current?.zoomBy(f)}
                 onHud={setFlyHud}
+                {...(p.onEmptyTap && { onEmptyTap: p.onEmptyTap })}
                 onApi={(a) => {
                   flyApi.current = a;
                 }}

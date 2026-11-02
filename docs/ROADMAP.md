@@ -39,7 +39,8 @@ Everything not done yet. The first block is the next version; the rest stays on 
 - [ ] Check the live site on a laptop, a phone and a tablet (Safari, Chrome, Firefox): calendar, Fly, galaxy, themes, round and full, keys, reduced motion, capture, paths.
 - [ ] Announce to a small group (teachers, science communicators, @Geosophyy, @techartist_) with a Capture recording.
 - [ ] More example paths (life of the Sun, Earth's deep history, the planets' retrograde loops).
-- [ ] Phones: touch flying (a thumb stick, gyroscope looking, tap to travel).
+- [x] Phones: touch flying: a floating thumb stick, drag to look, pinch forward/back, two-finger slide; a clear opening screen (Now, Fly, Capture, ☰ More) (0.3.1).
+- [ ] Phones: gyroscope looking (hold the phone up to the sky), tap to travel.
 - [ ] Optional: Sentry error reports (update the privacy note if added). Page counts: Cloudflare Web Analytics, on since launch.
 - [ ] Screenshot tests in CI; an accessibility list view; presenter notes and auto-advance for paths.
 

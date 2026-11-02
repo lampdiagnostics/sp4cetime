@@ -50,6 +50,15 @@ interface Showing {
   readonly wandered: boolean;
 }
 
+/** The dock's tabs on phones and short windows (each shows one of the boxes). */
+type DockTab = 'time' | 'space' | 'display';
+const DOCK_TABS: readonly { id: DockTab; label: string }[] = [
+  { id: 'time', label: 'Time' },
+  { id: 'space', label: 'Space' },
+  { id: 'display', label: 'Display' },
+];
+const DOCK_KEY = 'sp4cetime.dock';
+
 /** A phone: always full screen (there is no room for the round window). */
 const isPhone = (w: number, h: number): boolean =>
   Math.min(w, h) < 600 && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
@@ -60,7 +69,7 @@ const isPhone = (w: number, h: number): boolean =>
  * eye, Pause and Capture at the bottom centre.
  */
 export function App() {
-  /** What is on screen: 0 everything; 1 no controls; 2 no text at all, just the picture. Space bar cycles. */
+  /** What is on screen: 0 everything; 1 no controls; 2 no text at all, just the picture. H (or the eye) cycles. */
   const [chrome, setChrome] = useState<0 | 1 | 2>(0);
   const cycleChrome = useCallback(() => setChrome((c) => ((c + 1) % 3) as 0 | 1 | 2), []);
   useEffect(() => {
@@ -68,17 +77,28 @@ export function App() {
       const a = document.activeElement;
       return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
     };
-    // Captured before buttons see it, so a focused button is not pressed by the space bar.
+    // H shows and hides the controls, in every view (it is no flying key). Space is left
+    // to Fly mode (up, as in games): it used to hide the controls too, but meant something
+    // else while steering with the mouse, which surprised people.
     const down = (e: globalThis.KeyboardEvent): void => {
-      if (e.key !== ' ' || typing() || keyboardOnControl() || e.metaKey || e.ctrlKey || e.altKey) return;
-      // While steering with the mouse in 3D (as in Minecraft), Space flies up instead.
-      if (document.pointerLockElement) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (!e.repeat) cycleChrome();
+      if (typing() || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        if (!e.repeat) cycleChrome();
+        return;
+      }
+      // Space never presses a button last clicked with the mouse (a stray press would
+      // advance a path or toggle something); a button chosen with Tab still works.
+      if (e.key === ' ' && !keyboardOnControl()) {
+        const a = document.activeElement as HTMLElement | null;
+        if (a && a !== document.body && a.tagName === 'BUTTON') {
+          e.preventDefault();
+          a.blur();
+        }
+      }
     };
     const up = (e: globalThis.KeyboardEvent): void => {
-      if (e.key === ' ' && !typing()) e.preventDefault();
+      if (e.key === ' ' && !typing() && !keyboardOnControl()) e.preventDefault();
     };
     window.addEventListener('keydown', down, true);
     window.addEventListener('keyup', up, true);
@@ -155,19 +175,16 @@ export function App() {
   };
 
   const pageRef = useRef<HTMLDivElement>(null);
-  // Narrow screens stack the boxes; their heights go into CSS variables so they never overlap.
+  // Phones and short windows put the boxes in one dock; its height goes into --dock-h so the eye and Capture sit above it.
   useEffect(() => {
     const root = document.documentElement;
     let last = '';
     const measure = (): void => {
       const h = (sel: string): number => Math.ceil(document.querySelector<HTMLElement>(sel)?.getBoundingClientRect().height ?? 0);
-      const key = `${h('.corner.tl')},${h('.corner.tr')},${h('.corner.br')}`;
+      const key = `${h('.dock')}`;
       if (key === last) return;
       last = key;
-      const [tl, tr, br] = key.split(',');
-      root.style.setProperty('--tl-h', `${tl}px`);
-      root.style.setProperty('--tr-h', `${tr}px`);
-      root.style.setProperty('--br-h', `${br}px`);
+      root.style.setProperty('--dock-h', `${key}px`);
     };
     measure();
     const t = window.setInterval(measure, 400);
@@ -354,7 +371,7 @@ export function App() {
   keyRef.current = { pointNow, making };
   useEffect(() => {
     // Keys that don't count as wandering off a point (Space only shows or hides the boxes).
-    const IGNORE = ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock', 'Tab', ' ', 'p', 'P', 'g', 'G', 'v', 'V'];
+    const IGNORE = ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock', 'Tab', ' ', 'h', 'H', 'p', 'P', 'g', 'G', 'v', 'V'];
     const onKey = (e: globalThis.KeyboardEvent): void => {
       if (dialogRef.current || typingNow() || e.metaKey || e.ctrlKey || e.altKey) return;
       const sh = showRef.current;
@@ -447,9 +464,42 @@ export function App() {
 
   const round = !phone && settings.round;
   const [boxesHost, setBoxesHost] = useState<HTMLDivElement | null>(null);
+  // Phones and short windows: the boxes share one dock, minimised to a single row or open on one tab.
+  const [dockOpen, setDockOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(DOCK_KEY) === 'open';
+    } catch {
+      return false;
+    }
+  });
+  const [dockTab, setDockTab] = useState<DockTab>('time');
+  // A tap on empty space (touch): closes More if it is open, otherwise hides or shows everything.
+  const dockOpenRef = useRef(dockOpen);
+  dockOpenRef.current = dockOpen;
+  const onEmptyTap = useCallback((): void => {
+    if (dockOpenRef.current && window.matchMedia?.('(max-width: 720px), (max-height: 520px)').matches) {
+      setDockOpen(false);
+      try {
+        localStorage.setItem(DOCK_KEY, 'closed');
+      } catch {
+        /* not remembered */
+      }
+      return;
+    }
+    setChrome((c) => (c === 0 ? 1 : 0));
+  }, []);
+  const toggleDock = (): void =>
+    setDockOpen((o) => {
+      try {
+        localStorage.setItem(DOCK_KEY, o ? 'closed' : 'open');
+      } catch {
+        /* private window: just not remembered */
+      }
+      return !o;
+    });
 
   return (
-    <div ref={pageRef} className={`app ${round ? 'is-round' : 'is-full'} ${in3D ? 'in-3d' : ''} chrome-${chrome}`} style={{ background: in3D ? theme.sky.background : theme.background }}>
+    <div ref={pageRef} className={`app ${round ? 'is-round' : 'is-full'} ${in3D ? 'in-3d' : ''} chrome-${chrome}${dockOpen ? ' dock-open' : ''}`} style={{ background: in3D ? theme.sky.background : theme.background }}>
       <Pane
         id={1}
         theme={theme}
@@ -470,6 +520,7 @@ export function App() {
         boxesHost={boxesHost}
         handleRef={pane}
         onInfo={onInfo}
+        onEmptyTap={onEmptyTap}
       />
 
       {/* A path's dissolve between looks (a picture of the old look, fading out). */}
@@ -504,14 +555,14 @@ export function App() {
         />
       )}
 
-      {/* Always on screen, never in a capture: the eye (also the space bar) and Capture. */}
+      {/* Always on screen, never in a capture: the eye (also the H key) and Capture. */}
       <div className="float-tools" data-no-capture>
         <button
           type="button"
           className="chrome-toggle"
           onClick={cycleChrome}
-          aria-label={['Hide the controls (space bar)', 'Hide all text (space bar)', 'Show the controls and text (space bar)'][chrome]}
-          title={['Hide the controls (space bar)', 'Hide all text (space bar)', 'Show the controls and text (space bar)'][chrome]}
+          aria-label={['Hide the controls (H)', 'Hide all text (H)', 'Show the controls and text (H)'][chrome]}
+          title={['Hide the controls (H)', 'Hide all text (H)', 'Show the controls and text (H)'][chrome]}
         >
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" />
@@ -559,8 +610,33 @@ export function App() {
         )}
       </div>
 
+      {/* Phones and short windows: the only buttons at the top are Now and Fly (CSS shows them). */}
+      <div className="top-bar" data-no-capture>
+        <button type="button" className={live && rate === 1 ? 'primary live' : 'primary'} onClick={goNow} aria-pressed={live && rate === 1}>
+          {live && rate === 1 ? '● Now' : 'Back to now'}
+        </button>
+        <button type="button" aria-pressed={in3D} onClick={() => pane.current?.show(in3D ? 'calendar' : 'fly')} title={in3D ? 'Back to the galactic calendar' : 'Fly through the solar system in 3D'}>
+          {in3D ? 'Calendar' : '✦ Fly'}
+        </button>
+      </div>
+
+      {/* The boxes. On wide screens they sit in the corners; on phones and short windows
+          they share one dock at the bottom (CSS), minimised to a row or open on one tab. */}
+      <div className="dock" data-open={dockOpen ? 'true' : 'false'} data-tab={dockTab}>
+      <div className="dock-bar" data-no-capture>
+        <button type="button" className="dock-toggle" onClick={toggleDock} aria-expanded={dockOpen} aria-controls="dock-panels" aria-label={dockOpen ? 'Hide the controls' : 'More controls'}>
+          {dockOpen ? '✕ Close' : '☰ More'}
+        </button>
+      </div>
+      <div className="dock-tabs" role="tablist" aria-label="Controls" data-no-capture>
+        {DOCK_TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={dockTab === t.id} onClick={() => setDockTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
       {/* The window's boxes (its own controls) go here. */}
-      <div className="boxes" ref={setBoxesHost} />
+      <div className="boxes" id="dock-panels" ref={setBoxesHost} />
 
       {/* Top right: now, look, view */}
       <nav className="corner tr" aria-label="Display">
@@ -600,6 +676,7 @@ export function App() {
           </button>
         )}
       </nav>
+      </div>
     </div>
   );
 }

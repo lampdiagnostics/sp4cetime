@@ -2,6 +2,15 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.3.1 — 2026-11-02
+
+Phones first: a clear opening screen and game-style touch controls.
+
+- **A clear screen on phones and short windows.** The only buttons are **● Now** and **✦ Fly** (Calendar while flying) at the top, and **◉ Capture** and **☰ More** at the bottom; the date sits at the top left as text. **☰ More** opens everything else, one compact box at a time, under three tabs: **Time** (zoom, speed, ▶ Play / ❚❚ Pause), **Space** (Go to, planets, centre, elements) and **Display** (theme, Calendar / Fly / Galaxy). It remembers whether you left it open. Computers are unchanged.
+- **Touch, as in phone games.** In Fly and the galaxy: a thumb stick appears wherever your thumb lands on the left half of the screen (push up to fly forward, down to back away, sideways to slide); drag anywhere else to look around; pinch apart to fly forward, together to back away; slide two fingers to move sideways, up or down. A short hint shows on arrival. In the calendar: drag to turn (as before), pinch to resize, twist two fingers to turn, slide two fingers sideways to move through time and up or down to zoom time. Each two-finger gesture does one thing until you let go.
+- **Tap empty space** to hide or show the controls (or close ☰ More if it is open).
+- **H hides the controls** (then the labels, then brings them back), in every view, replacing the space bar. The space bar did two different things in Fly (hide, or fly up while steering with the mouse), which surprised people; now Space always flies up in Fly, as in games, and never presses a button you last clicked with the mouse (so it can't advance a path by accident).
+
 ## 0.3.0 — 2026-11-01 (public beta)
 
 Paths through time and space: presentations made from the map itself, Prezi-style. Go anywhere, press Return, and fly from point to point. Also: smooth video recording, smoother drawing on ordinary computers, and everything the public beta on sp4cetime.org needs.
