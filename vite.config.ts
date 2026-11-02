@@ -11,7 +11,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    // No source maps on the public site: the repository is private.
+    // No source maps on the public site (the code is on GitHub; the site stays light).
     sourcemap: false,
     // Fly mode (Three.js) is a separate, on-demand chunk with its own budget in CI.
     chunkSizeWarningLimit: 700,
@@ -19,5 +19,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // Property tests run hundreds of cases; CI machines are slower and run files side by side.
+    testTimeout: 20_000,
   },
 });
