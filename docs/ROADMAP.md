@@ -106,6 +106,22 @@ Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginar
 - [ ] **Imaginary planets**: a sphere with a radius, a skin (painted or uploaded picture, later relief) and an orbit or a fixed place; clearly labelled imaginary (e.g. the asteroid B 612 and the other small planets of *The Little Prince*). Saved as files, like paths.
 - [ ] Manipulate: paint on skins, drop markers and labels, measure arcs and distances on the surface.
 
+#### Earth through time: a skin that changes with the clock
+Owner, 1 November 2026: Earth's surface skin is a function of time, so speeding the clock up shows the planet changing at every scale. Other simulators (for example Riad's photorealistic Earth, @RiadEtm) are other skins on the same sphere, imported into the viewer.
+- [ ] **Skins as functions of time**: a skin is a set of dated keyframes (pictures or data) and the viewer blends between the two either side of the present; each keyframe carries its source, licence and accuracy tier.
+- [ ] **The clock picks the skin** (like the calendar picks its ticks): each speed shows the layer whose spacing suits it, and averages what changes too fast to see (at a decade a second the seasons would flicker ten times a second, so the yearly mean is shown).
+- [ ] **Skin packs**: a light file (like a path) naming a skin's time range, keyframes, licence and tier, so others' maps and simulators can be loaded on any sphere; later, a live skin drawn by another renderer.
+- [ ] The scales, each from public data and labelled honestly:
+
+| Speed | What you see | Data (check each licence) | Tier |
+| --- | --- | --- | --- |
+| a day a second | day and night, clouds, city lights | NASA Black Marble (VIIRS night lights), GOES/Himawari clouds | measured |
+| a month a second | the seasons: snow, ice, green-up | NASA Blue Marble Next Generation (12 monthly maps), MODIS snow and sea ice | measured |
+| a decade a second | cities growing, forests cut, ice shrinking (1972 →) | Landsat (USGS, 1972 on), MODIS (2000 on), NSIDC sea ice | measured |
+| a millennium a second | farming spreading, cities and empires rising and falling, the ice age ending | HYDE 3.3 (population and land use, 10,000 BCE → now); historical borders (sources to choose; some are GPL, which cannot be used); sea level and ice sheets since the last ice age | reconstructed |
+| a million years a second | ice ages, the Age of Dinosaurs, continents drifting back to Pangaea (~335–175 million years ago), Snowball Earth (~720–635 million years ago) | plate reconstructions to 1 billion years (Müller, Merdith et al., EarthByte; data under CC BY), PaleoDEMs (Scotese and Wright, 2018) | reconstructed, then schematic |
+| beyond 1 billion years | the young Earth | sparse evidence | schematic |
+
 ### On the list: Cellular mode (year two at the earliest)
 - [ ] Decide the first subject (a human cell? a bacterium?) and the scale bridge from Planetary (a person on Earth's surface → a cell).
 - [ ] Sources to evaluate (licences first): Allen Cell Explorer (cell structure, 3D), Human Protein Atlas (where proteins sit in the cell), EMDB and the Cell Image Library (microscopy), Protein Data Bank (molecules, shared with Atomic).
