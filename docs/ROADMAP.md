@@ -124,6 +124,10 @@ Owner, 1 November 2026: Earth's surface skin is a function of time, so speeding 
 
 ### On the list: Cellular mode (year two at the earliest)
 - [ ] Decide the first subject (a human cell? a bacterium?) and the scale bridge from Planetary (a person on Earth's surface → a cell).
+- [ ] Candidate first subject (owner's inspiration, 1 November 2026: an AI-made bacterium video on X; the cell is the sphere): ***Mycoplasma genitalium***, one of the smallest living cells (a near-sphere ~0.3 µm across) and the first to be modelled whole, from its genes (whole-cell model, Karr et al. 2012) to every molecule placed in 3D (Maritan et al. 2022, built with CellPACK). Built from measured parts, so it can be labelled "reconstructed", not invented; and every molecule leads on into Atomic mode via the Protein Data Bank.
+- [ ] Rod-shaped and other cells: the sphere stays a sphere; the shape is a skin with relief (SPHERES.md §5), as mountains are on Earth.
+- [ ] Sources to add and check: CellPACK and the Mesoscope models (Scripps; check the licence), David Goodsell's cell paintings (PDB-101, CC BY 4.0) for reference and credit.
+- [ ] AI-imagined cells only as clearly labelled art, never as the instrument's own picture (rule 5).
 - [ ] Sources to evaluate (licences first): Allen Cell Explorer (cell structure, 3D), Human Protein Atlas (where proteins sit in the cell), EMDB and the Cell Image Library (microscopy), Protein Data Bank (molecules, shared with Atomic).
 - [ ] Spheres and skins for organelles (nucleus, mitochondria), labelled models where shapes are averaged.
 
