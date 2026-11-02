@@ -94,7 +94,21 @@ function orientation(id: BodyId, date: Astronomy.AstroTime): readonly [Vec3, Vec
   const a = axis.ra * 15 * DEG; // hours → radians
   const d = axis.dec * DEG;
   const pole: Vec3 = [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
-  const node: Vec3 = [-Math.sin(a), Math.cos(a), 0]; // ascending node of the body's equator (EQJ)
+  // The ascending node of the body's equator on the J2000 equator (EQJ), from which the
+  // spin angle W is counted: 90° east of the pole's right ascension α0 (IAU).
+  let node: Vec3 = [-Math.sin(a), Math.cos(a), 0];
+  // Earth's pole stays within a fraction of a degree of the celestial pole for centuries,
+  // so its reported right ascension swings wildly (to 12h for dates before 2000) and cannot
+  // fix the node. Its spin is counted from the node 90° east of α0 = 0: use that, made
+  // square to the true pole. Without this, Earth was drawn turned up to 180° (every date
+  // before 2000, and erratically near it). Found by Starsigns (0.4.0); tested against the
+  // Sun's altitude from astronomy-engine.
+  if (id === 'earth') {
+    const p = Math.cos(d) * Math.sin(a); // pole · ŷ
+    const n: Vec3 = [-p * Math.cos(d) * Math.cos(a), 1 - p * p, -p * Math.sin(d)];
+    const l = Math.hypot(n[0], n[1], n[2]);
+    node = [n[0] / l, n[1] / l, n[2] / l];
+  }
   const w = (axis.spin % 360) * DEG;
   const east = cross(pole, node);
   const meridian = add(scale(node, Math.cos(w)), scale(east, Math.sin(w)));
