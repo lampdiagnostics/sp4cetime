@@ -9,14 +9,14 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 - **Fly mode** (Three.js, `src/fly`, lazy-loaded): true-scale 3D solar system, real sky, zodiac, Earth/Moon surfaces, and the whole galaxy (stars, Fermi bubbles, the Sun's whole-life path, Sgr A*, the Local Group). Reached by ✦ Fly / ◎ Galaxy or by clicking a name; the same controls as the calendar.
 - **Capture** (`src/app/capture.ts`, `gif.ts`, `CaptureMenu.tsx`): screenshot (P), GIF (G), video (V) of what is on screen, watermarked.
 - Positions are measured as arcs (°′″) on nested spheres: galaxy (Sgr A*), Sun, each body.
-- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.0** (tag `v0.3.0`), the public beta on sp4cetime.org: paths through time and space (ADR-0017), smooth recording, adaptive resolution. Open source: code Apache 2.0, docs CC BY 4.0, name a trademark (README.md "Licence"). Everything not done is on the 0.4.0 to-do list in docs/ROADMAP.md; next is "Stand here" (README.md "0.4.0").
+- Owner: one person, part-time (Lamp Diagnostics). Current version **0.3.1**, the public beta on sp4cetime.org: paths through time and space (ADR-0017), smooth recording, adaptive resolution; 0.3.1 made phones first (a clear opening screen, game-style touch controls). Tags: `v0.3.1` is pushed by the owner from the Mac (cloud sessions cannot push tags); `v0.1.0`–`v0.3.0` are still to add. Open source: code Apache 2.0, docs CC BY 4.0, name a trademark (README.md "Licence"). Everything not done is on the to-do list in docs/ROADMAP.md; 0.4.0 is in progress: "Stand here" and the Astrology gift (README.md "0.4.0", ADR-0018).
 
 ## Commands
 
 - `npm install` then `npm run dev` (http://localhost:5173). Restart the dev server after dependencies change.
 - `npm run check`: typecheck + tests + build. **Must pass before every commit.**
 - `npm test`: tests only (Vitest + fast-check).
-- `python3 scripts/build_sky.py …`, `build_textures.py …`, `build_galaxy.py`: rebuild `public/` data (usage in each file's header; needs Pillow and NumPy). Outputs are committed.
+- `python3 scripts/build_sky.py …`, `build_textures.py …`, `build_galaxy.py`, `build_earth_lines.py …`: rebuild `public/` data (usage in each file's header; needs Pillow and NumPy). Outputs are committed.
 
 ## Where things live
 
@@ -27,17 +27,17 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | `src/core/geometry.ts`, `planets.ts`, `models.ts` | Frames (ecliptic, galactic, travel, view), Keplerian orbits, accuracy tiers, Moon phase. |
 | `src/core/render.ts` | The calendar renderer: `drawFrame(ctx, input)` → labels, strobe poses, Sun position, space-grid scale. Geocentric mode, strobe, edge pointers. Pure apart from the canvas context. |
 | `src/core/galacticOrbit.ts`, `bob.ts` | The Sun's whole-life galactic orbit (epicycle) and vertical bob, for the galaxy view. |
-| `src/core/skyfigures.ts`, `colour.ts` | Zodiac signs, constellation and galaxy-mark data shared by both views; colour helpers. |
+| `src/core/skyfigures.ts`, `colour.ts` | Zodiac signs, constellation and galaxy-mark data shared by both views (`turnSigns` turns the signs to the equinox of date); colour helpers. |
+| `src/core/houses.ts` | Signs and houses: true obliquity, precession and nutation to the equinox of date, sidereal time from `Time`, Ascendant, MC, Whole Sign and Equal houses. |
 | `src/core/bodies.ts` | True positions and orientations of every body (astronomy-engine), radii, flattening. |
 | `src/core/spheres.ts` | Nested spheres, arc positions, DMS formatting, ray–sphere hits. |
 | `src/core/paths3d.ts`, `skymap.ts` | Fly-mode spirals and grid marks; the calendar sky's perspective lens. |
 | `src/core/constants.ts` | Physical constants, each with its published range. |
 | `src/core/path.ts` | Paths: points (everything on screen), `.sp4ce.json` validation, the van Wijk–Nuij time-flight curve. |
-| `src/app/` | React UI. `App.tsx`: the page (shared clock with speed and pause, theme, space-bar state, top-right box, eye and Capture). `Pane.tsx`: the window (calendar ↔ 3D, its settings, the top-left, bottom-left and bottom-right boxes, portalled into the page, ? How to text and credits, scale bar). `GalacticCanvas.tsx` (gestures, frame loop, label and pose clicks), `skyBackdrop.ts` (sky, figures, names), `settings.ts` (localStorage), `ElementsPicker`, `PlanetPicker`, `HelpButton` (centred pop-up), `CaptureMenu` + `capture.ts` (screen capture) + `gif.ts` (our GIF encoder). Paths: `flights.ts` (flying between points), `pathStore.ts` (files: download, upload, examples; IndexedDB copy), `PathDialog.tsx` (Return); Presentation mode, keys and the point box in `App.tsx`. |
-| `src/fly/` | The 3D view (Fly and the galaxy), no controls of its own: `FlyView.tsx` (loop, Minecraft-style input, journeys to bodies, labels with signs, HUD), `scene.ts` (renderer keeps its frame for capture), `flight.ts` (poses, destinations, warps, speed), `overlays.ts` (spirals sampled to the vanishing point, orbits, ruler grids, scale bar), `sky.ts`, `galaxy.ts` (stars, haze, bubbles, the Sun's path and whole-life orbit), `localGroup.ts` (Sgr A*, neighbour galaxies). |
-| `src/core/skyfigures.ts` | Constellation, zodiac and galaxy-mark definitions shared by both views. |
+| `src/app/` | React UI. `App.tsx`: the page (shared clock with speed and pause, theme, the show/hide state (H, the eye, a tap), top-right box, the phone dock, eye and Capture). `Pane.tsx`: the window (calendar ↔ 3D, its settings, the top-left, bottom-left and bottom-right boxes, portalled into the page, ? How to text and credits, scale bar). `GalacticCanvas.tsx` (gestures, frame loop, label and pose clicks), `skyBackdrop.ts` (sky, figures, names), `settings.ts` (localStorage), `ElementsPicker`, `PlanetPicker`, `HelpButton` (centred pop-up), `CaptureMenu` + `capture.ts` (screen capture) + `gif.ts` (our GIF encoder). Paths: `flights.ts` (flying between points), `pathStore.ts` (files: download, upload, examples; IndexedDB copy), `PathDialog.tsx` (Return); Presentation mode, keys and the point box in `App.tsx`. |
+| `src/fly/` | The 3D view (Fly and the galaxy), no controls of its own: `FlyView.tsx` (loop, Minecraft-style input, journeys to bodies, labels with signs, HUD), `scene.ts` (renderer keeps its frame for capture), `flight.ts` (poses, destinations, warps, speed), `overlays.ts` (spirals sampled to the vanishing point, orbits, ruler grids, scale bar), `sky.ts`, `galaxy.ts` (stars, haze, bubbles, the Sun's path and whole-life orbit), `localGroup.ts` (Sgr A*, neighbour galaxies), `earthLines.ts` (Earth's line skin: coastlines, lakes, borders). |
 | `content/themes/*.json` | Themes as data, validated by `parseTheme`. |
-| `public/sky`, `public/textures` | Star catalogue, Milky Way, galaxy model, Earth and Moon maps, with licences and credits. |
+| `public/sky`, `public/textures` | Star catalogue, Milky Way, galaxy model, Earth and Moon maps, Earth's coastline and border lines (`scripts/build_earth_lines.py`), with licences and credits. |
 | `public/paths/` | Example paths as `.sp4ce.json` files, listed in `index.json` (shown under Examples in the Present menu). |
 | `docs/ROADMAP.md`, `docs/SPHERES.md` | To-do lists by version and the four modes (Galactic, Planetary, Cellular, Atomic); the draft spheres-and-skins model. |
 

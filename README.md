@@ -4,8 +4,8 @@
 
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
-Version 0.3.0 (public beta) · 1 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
-Live at [sp4cetime.org](https://sp4cetime.org) once deployed. (Versions carry a leading zero until the public launch, which will be 1.0.)
+Version 0.3.1 (public beta) · 2 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
+Live at [sp4cetime.org](https://sp4cetime.org). (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
 
@@ -49,19 +49,25 @@ How it is set up (done):
 4. **Page counts.** Cloudflare Web Analytics: anonymous, no cookies, no personal data (said so in *About this beta*).
 5. **Email.** Email Routing: `hello@sp4cetime.org` forwards to the owner's inbox (finish: add the Email Routing DNS records, verify the inbox).
 
-Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0` and a release on GitHub; the device checks (docs/ROADMAP.md, 0.4.0 "after the launch").
+Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` and releases on GitHub (pushed by the owner from the Mac: cloud sessions cannot push tags or make releases); the device checks (docs/ROADMAP.md, "after the launch").
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
-## 0.4.0: "Stand here", the sky over a place (signs and houses)
+## 0.4.0: "Stand here" and the Astrology gift (in progress)
 
-The whole to-do list for 0.4.0 and after is in [docs/ROADMAP.md](docs/ROADMAP.md); "Stand here" is the main new feature:
+The whole to-do list is in [docs/ROADMAP.md](docs/ROADMAP.md). 0.4.0 has two halves on one engine:
+
+**The Astrology gift** (owner, 2 November 2026; design in [ADR-0018](docs/adr/0018-astrology-gift-and-shop.md)). An **Astrology** button opens a dialog: a time and a place (a town is taken at its centre: "Winnipeg" projects from the middle of town). The app makes a short video: the **signs**, the planets floating over the world seen from above; then the **houses**, seen from that place. At the end, a **printable, customisable PDF** lists every body's sign and house for that date and place, with links to horoscope text (free sources or a partner). Anyone can **preview** it free on sp4cetime.org; **"Get the package · $0.99"** goes to **sp4cetime.shop** to pay and download the video and the PDF. No birth data reaches a server (it travels in the link's fragment). The free instrument stays truthful: positions are astronomy; houses and meanings are astrology, and say so.
+
+**Built so far:** `src/core/houses.ts` (signs and houses, tested against astronomy-engine to about an arcsecond); signs from the equinox of the viewed date in both views; Earth's first surface skin (coastlines, lakes and borders as light lines in 3D).
+
+"Stand here" is the instrument's side of it:
 
 The first piece of *Sky on your day* (DECISIONS §1), and the first example of **Planetary mode**: a person standing on a planet is a sphere on that planet's surface skin (docs/SPHERES.md), as a cell will be a sphere in Cellular mode and an atom in Atomic mode. Built into the instrument as an honest view of the real sky over a place, with astrology's houses as a clearly labelled overlay.
 
 **Sign and house, in one line each.** A planet's **sign** is where it sits along the zodiac (its ecliptic longitude seen from Earth's centre): the same for everyone on Earth at that moment. Its **house** is where it sits relative to *one person's horizon* at *one place and time*: the horizon and the meridian of that spot divide the sky into 12 sectors, which sweep the whole sky once a day as Earth turns. So signs need only a date; houses need a date, an exact time and a place.
 
-**The geometry.** At latitude φ and longitude L, with local sidereal time θ = Greenwich sidereal time + L and obliquity ε = 23.44°:
+**The geometry.** At latitude φ and longitude L, with local sidereal time θ = Greenwich apparent sidereal time + L and ε the true obliquity of the date (about 23.44° now; `src/core/houses.ts` computes it, with longitudes from the equinox of the date, not of 2000):
 - **Ascendant** (cusp of house 1): where the eastern horizon cuts the ecliptic: λ = atan2(cos θ, −(sin θ cos ε + tan φ sin ε)). **Descendant** (house 7) opposite.
 - **Midheaven, MC** (cusp of house 10): where the meridian cuts the ecliptic overhead: λ = atan2(sin θ, cos θ cos ε). **IC** (house 4) opposite.
 - **House systems**: Whole Sign (house 1 is the sign holding the Ascendant) and Equal (cusps every 30° from the Ascendant) first; Placidus (trisecting the times points take to rise and culminate) later. Placidus is undefined inside the polar circles; there the view says so.
@@ -76,9 +82,9 @@ The first piece of *Sky on your day* (DECISIONS §1), and the first example of *
 3. **On the ground** at that place: the horizon as a ring, the meridian, the ecliptic with the signs, the 12 houses as tinted wedges on the sky; each body's label reads e.g. "Mars · 14° Leo · house 10". Over the time frame the houses wheel across the sky.
 4. **Transparent planet**: a toggle makes the planet under you see-through, so all 12 houses and every planet, the Sun and the Moon can be seen from where you stand, including those below the horizon.
 5. **From outside** (optional view): Earth with the horizon as a disc tangent at the place, the house planes fanning from it like orange segments, and a line from Earth to each body crossing them.
-6. **The birthday product**: two videos, made with Capture and paths: one from above the planet showing the **signs**, one from ground level showing the **houses**, over the chosen time frame. (Later, the flat chart wheel as a poster.)
-7. **Honest labels**: positions are astronomy (real sky, ephemeris tier); signs are tropical (from the equinox) and sit ≈24° from the constellations of the same name; houses and their meanings are astrology, labelled as such. Interpretations and horoscope links belong to the separate *Sky on your day* product, not the instrument.
-8. **Maths in `src/core/houses.ts`** with property tests (Ascendant and MC against published examples; cusps in order; houses sweep 360° in a sidereal day): Whole Sign and Equal first, Placidus later (undefined inside the polar circles; the view says so). Our own code, no Swiss Ephemeris (AGPL unless licensed).
+6. **The Astrology gift** (ADR-0018): the video, signs from above then houses from the ground, over the chosen time frame, and the printable PDF; previewed free, $0.99 to download on sp4cetime.shop. (Later, the flat chart wheel as a poster.)
+7. **Honest labels**: positions are astronomy (real sky, ephemeris tier); signs are tropical (from the equinox) and sit ≈24° from the constellations of the same name; houses and their meanings are astrology, labelled as such. Interpretations and horoscope links belong to the paid package (sp4cetime.shop), not the free instrument.
+8. **Maths in `src/core/houses.ts`** (built) with property tests (sidereal time against Meeus and astronomy-engine; the Ascendant on the eastern horizon and the MC on the meridian; houses sweep 360° in a sidereal day): Whole Sign and Equal first, Placidus later (undefined inside the polar circles; the view says so). Our own code, no Swiss Ephemeris (AGPL unless licensed).
 9. **Points remember it**: a path's point stores the place, the time frame and the house system (CLAUDE.md rule 16), so a path can fly to "your sky on the day you were born".
 10. **The skin carries it**: in the spheres model, every attribute of a sphere (a place, its houses, a person's data) is coded in a skin (docs/SPHERES.md).
 

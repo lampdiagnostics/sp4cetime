@@ -1,6 +1,6 @@
 # The spheres: the model under every view
 
-Status: **draft specification** (1 November 2026), from the owner's description. Nothing here is built yet beyond what `src/core/spheres.ts` already does; the open questions at the end need the owner's answers before it becomes an ADR and code (planned for 0.5, see [ROADMAP.md](ROADMAP.md)).
+Status: **draft specification** (1 November 2026), from the owner's description. Nothing here is built yet beyond what `src/core/spheres.ts` already does; the open questions at the end need the owner's answers before it becomes an ADR and code (planned after 0.4.0, see [ROADMAP.md](ROADMAP.md)).
 
 ## The idea in the owner's words, made exact
 

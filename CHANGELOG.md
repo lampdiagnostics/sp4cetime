@@ -2,6 +2,15 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.0 — in progress
+
+"Stand here" and the Astrology gift (README.md "0.4.0", ADR-0018). So far:
+
+- **Signs from the equinox of the date you are looking at.** The zodiac was drawn from the equinox of the year 2000; the equinox slides west about 50″ a year (precession), so by now every sign label was 0.37° off, and in ancient times whole signs off. The sign lines, the sign names and each body's "in ♏ Scorpio" now use the equinox of the viewed date, in the calendar and in 3D.
+- **The maths for houses** (`src/core/houses.ts`): the true tilt of Earth's axis on the date, sidereal time, the Ascendant and the Midheaven, Whole Sign and Equal houses; checked against Meeus's worked examples and astronomy-engine (within about an arcsecond). The Astrology dialog, video and PDF come next.
+- **Earth's first surface skin:** coastlines, big lakes and country borders as light lines on the globe in 3D (Natural Earth, public domain), glowing faintly on the night side. **Elements › Coastlines and borders** turns them off; path points remember the choice.
+- Docs: the 0.4.0 plan (the Astrology gift, previewed free, $0.99 on sp4cetime.shop) and the payment options (ADR-0018); version and tag notes brought up to date.
+
 ## 0.3.1 — 2026-11-02
 
 Phones first: a clear opening screen and game-style touch controls.

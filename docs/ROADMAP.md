@@ -1,6 +1,6 @@
 # Roadmap and to-do lists
 
-What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 1 November 2026.
+What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 2 November 2026.
 
 ## The four modes: what the 4 in sp4cetime means
 
@@ -34,7 +34,7 @@ Everything not done yet. The first block is the next version; the rest stays on 
 
 ### Next: after the launch
 - [ ] Cloudflare Email Routing: hello@sp4cetime.org forwarding to the owner's inbox (rule and destination set; DNS records and the inbox verification to finish).
-- [ ] Tags v0.1.0, v0.2.0, v0.3.0 and a 0.3.0 release on GitHub (Releases page).
+- [ ] Tags v0.1.0, v0.2.0, v0.3.0, v0.3.1 and releases on GitHub (Releases page); the owner pushes tags from the Mac (cloud sessions cannot).
 - [ ] Redirect sp4cetime.com, .io and .ai to sp4cetime.org (if owned).
 - [ ] Check the live site on a laptop, a phone and a tablet (Safari, Chrome, Firefox): calendar, Fly, galaxy, themes, round and full, keys, reduced motion, capture, paths.
 - [ ] Announce to a small group (teachers, science communicators, @Geosophyy, @techartist_) with a Capture recording.
@@ -44,23 +44,36 @@ Everything not done yet. The first block is the next version; the rest stays on 
 - [ ] Optional: Sentry error reports (update the privacy note if added). Page counts: Cloudflare Web Analytics, on since launch.
 - [ ] Screenshot tests in CI; an accessibility list view; presenter notes and auto-advance for paths.
 
-### Next: "Stand here", the sky over a place (signs and houses)
+### Next (0.4.0): the Astrology gift
+Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-astrology-gift-and-shop.md).
+- [x] `src/core/houses.ts`: true obliquity, precession and nutation to the equinox of date, apparent sidereal time, Ascendant, MC, Whole Sign and Equal houses; tested against Meeus and astronomy-engine (about an arcsecond).
+- [x] Signs from the equinox of the viewed date, in both views (sign lines and names turn with precession; body labels use longitudes of date).
+- [ ] Place lookup: type a town, get its centre (a gazetteer from public data, e.g. GeoNames, CC BY 4.0, credited); or latitude and longitude in degrees, minutes, seconds.
+- [ ] **Astrology** button and dialog: date, time (and time zone, from the place), place; house system (Whole Sign or Equal).
+- [ ] The video: signs (the planets floating over the world, seen from above), then houses from the place (horizon, meridian, 12 wedges); made by a path and recorded by Capture.
+- [ ] The PDF: every body's sign (degree) and house, Ascendant and MC, the place and time, customisable (title, name, theme), printable; astronomy and astrology labelled; links to horoscope text (free sources, or a partner, credited).
+- [ ] Free preview in the app (Preview mark, PDF first page) and **"Get the package · $0.99"** → sp4cetime.shop.
+- [ ] sp4cetime.shop: the owner picks a provider (recommended: Stripe; ADR-0018) and opens the account; a checkout; one Worker route checks payment; the page renders and downloads the full video and PDF. Shop terms, refunds and a privacy note in the owner's words.
+
+### Next (0.4.0): "Stand here", the sky over a place (signs and houses)
 The first example of Planetary mode (a person on Earth's surface is a sphere on its skin). Full design in README.md "0.4.0".
 - [ ] Signs from above, as now (each body's name gives its sign seen from where you are).
 - [ ] Houses dialog: a place (latitude and longitude in degrees, minutes, seconds and fractions; a less precise place taken at its middle point) and a time frame (one moment, time stopped; or a range, e.g. the hour around a birth, playing live or sped up, looping).
 - [ ] Ground view: horizon, meridian, ecliptic and signs, 12 house wedges, labels "Mars · 14° Leo · house 10"; a toggle makes the planet transparent so all 12 houses and every body show from where you stand.
 - [ ] Optional view from outside (horizon disc, house planes, lines to each body); later the flat chart wheel.
-- [ ] Birthday product: two videos (signs from above; houses from the ground) over the time frame, via paths and Capture; a partner astrologer's or licensed horoscope text, credited (DECISIONS §1).
-- [ ] `src/core/houses.ts` (Ascendant, MC, Whole Sign and Equal; Placidus later), property-tested; honest labels; points remember place, time frame and house system. No Swiss Ephemeris (its AGPL is incompatible with Apache 2.0 unless licensed).
+- [ ] The Astrology gift above is the birthday product (its horoscope text is in the paid package, not the free instrument).
+- [x] `src/core/houses.ts` (Ascendant, MC, Whole Sign and Equal), property-tested.
+- [ ] Placidus (undefined inside the polar circles); honest labels; points remember place, time frame and house system. No Swiss Ephemeris (its AGPL is incompatible with Apache 2.0 unless licensed).
 
 ### Next: a live link (screen saver)
 - [ ] `sp4cetime.org/?live` (see Screen saver below).
 
 ### On the list: the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (frame, sphere size, galaxy root, time, inner skins).
-- [ ] ADR-0018; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.
+- [ ] An ADR; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.
 - [ ] 2D painting on skins: an image or GeoJSON layer on any sphere, from a file (local first, like paths).
-- [ ] Zodiac signs from the equinox of the viewed date (now J2000); star proper motion over ~100,000 years.
+- [x] Zodiac signs from the equinox of the viewed date (0.4.0).
+- [ ] Star proper motion over ~100,000 years.
 
 ### On the list: events and stories (the rest of the Library)
 - [ ] Events on the timeline (DECISIONS §1 "Library"); a story = events + a path.
@@ -77,7 +90,7 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 #### Desktop widget and calendar layer
 - [ ] macOS/iOS widgets (WidgetKit) are snapshots refreshed on a schedule, not live 3D: a small native app could render "today on the Sun's path" (the date, the Moon's phase, the signs) as an image a few times a day. Later, only if wanted.
 - [ ] HTML widget engines such as [Übersicht](https://maketecheasier.com/customize-mac-desktop-ubersicht/) can show the live page as a desktop widget now (via Live mode).
-- [ ] "A layer on an existing calendar": rather than drawing inside Apple or Google Calendar (not possible from a web app), bring calendars in: `.ics` import (0.6) and, much later, an `.ics` export of a story's events.
+- [ ] "A layer on an existing calendar": rather than drawing inside Apple or Google Calendar (not possible from a web app), bring calendars in: `.ics` import (after the spheres model) and, much later, an `.ics` export of a story's events.
 
 #### Sky on your day (birthdays and astrology)
 See the owner's notes in DECISIONS §1. Built as a separate, clearly labelled product on the same engine, so sp4cetime itself stays a truthful instrument.
@@ -97,7 +110,9 @@ See the owner's notes in DECISIONS §1. Built as a separate, clearly labelled pr
 
 ### On the list: Planetary mode
 
-Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginary planets. First example: "Stand here" in 0.4.0 (a person, a sphere on Earth's surface skin, with the sky's houses around them). In Planetary mode each organism is a sphere; in Cellular mode each cell; in Atomic mode each atom; every attribute of a sphere is coded in its skin (SPHERES.md).
+Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginary planets.
+- [x] Earth's first surface skin (0.4.0): coastlines, big lakes and country borders as light lines on the globe in 3D (Natural Earth, public domain), an Elements toggle that path points remember.
+- [ ] 2D painting on Earth's skin: a light picture or GeoJSON layer from a file (the place of a chart marked; later, anyone's map). First example: "Stand here" in 0.4.0 (a person, a sphere on Earth's surface skin, with the sky's houses around them). In Planetary mode each organism is a sphere; in Cellular mode each cell; in Atomic mode each atom; every attribute of a sphere is coded in its skin (SPHERES.md).
 - [ ] Skins with relief (SPHERES.md §5): elevation models as tiled height fields.
   - Moon: LRO LOLA elevation and LROC imagery (NASA, public domain).
   - Mars: MGS MOLA elevation, Mars Express HRSC and Viking colour mosaics (NASA/ESA, check each licence).
