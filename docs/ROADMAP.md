@@ -44,16 +44,19 @@ Everything not done yet. The first block is the next version; the rest stays on 
 - [ ] Optional: Sentry error reports (update the privacy note if added). Page counts: Cloudflare Web Analytics, on since launch.
 - [ ] Screenshot tests in CI; an accessibility list view; presenter notes and auto-advance for paths.
 
-### Next (0.4.0): the Astrology gift
-Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-astrology-gift-and-shop.md).
+### Next (0.4.0): ✶ Starsigns
+Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-starsigns-and-shop.md).
 - [x] `src/core/houses.ts`: true obliquity, precession and nutation to the equinox of date, apparent sidereal time, Ascendant, MC, Whole Sign and Equal houses; tested against Meeus and astronomy-engine (about an arcsecond).
 - [x] Signs from the equinox of the viewed date, in both views (sign lines and names turn with precession; body labels use longitudes of date).
 - [x] Place lookup: type a town, get its centre and time zone (Natural Earth populated places, public domain, 7,342 towns); or latitude and longitude in degrees, minutes, seconds; the local time turned into UTC with the zone's history (daylight saving, skipped and doubled hours).
-- [x] **✶ Astrology** button and dialog: date, local time (or "I don't know the time"), place; Whole Sign or Equal houses; a table of every body's sign, degree, house and retrograde, the Ascendant and MC; "Go to this moment" sets the map there. (`src/core/reading.ts`, `places.ts`; `src/app/zones.ts`, `AstrologyDialog.tsx`.)
+- [x] **✶ Starsigns** button and dialog (renamed from Astrology): date, local time (or "I don't know the time"), place; Whole Sign or Equal houses; a table of every body's sign, degree, house and retrograde, the Ascendant and MC; "Go to this moment" sets the map there. (`src/core/reading.ts`, `places.ts`; `src/app/zones.ts`, `AstrologyDialog.tsx`.)
 - [ ] Where the button lives: top right on computers; on phones in ☰ More › Display (owner to say if it should be on the opening screen).
-- [ ] The video: signs (the planets floating over the world, seen from above), then houses from the place (horizon, meridian, 12 wedges); made by a path and recorded by Capture.
-- [ ] The PDF: every body's sign (degree) and house, Ascendant and MC, the place and time, customisable (title, name, theme), printable; astronomy and astrology labelled; links to horoscope text (free sources, or a partner, credited).
-- [ ] Free preview in the app (Preview mark, PDF first page) and **"Get the package · $0.99"** → sp4cetime.shop.
+- [x] Fixed on the way: Earth was drawn turned up to 180° for dates before 2000 (now within 0.05° of astronomy-engine, 1600–2400).
+- [x] A **free path** from the reading (six points: calendar, Earth from space with signs, over the place, the Ascendant on the eastern horizon, the Midheaven, END), saved with the person's paths; played on its own.
+- [x] The house overlay in 3D: the place's horizon, house boundaries and numbers, ASC and MC; body labels with degree and house; path points remember it.
+- [x] The video: the path recorded by Capture (about 30–40 s, captions included).
+- [x] The PDF (our own writer): every body's sign, degree and house, Ascendant and MC, a chart wheel, the place and time; title, name, Letter or A4, paper or night; astronomy and astrology labelled; links to free reading (astro.com, Cafe Astrology); a partner's text later.
+- [x] Free: the path and a PDF preview (PREVIEW mark). **"⤓ Get the video and the PDF · US$1.99"** → sp4cetime.shop (the order in the link's fragment); works without paying in development only.
 - [ ] sp4cetime.shop: the owner picks a provider (recommended: Stripe; ADR-0018) and opens the account; a checkout; one Worker route checks payment; the page renders and downloads the full video and PDF. Shop terms, refunds and a privacy note in the owner's words.
 
 ### Next (0.4.0): "Stand here", the sky over a place (signs and houses)
@@ -62,7 +65,7 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 - [ ] Houses dialog: a place (latitude and longitude in degrees, minutes, seconds and fractions; a less precise place taken at its middle point) and a time frame (one moment, time stopped; or a range, e.g. the hour around a birth, playing live or sped up, looping).
 - [ ] Ground view: horizon, meridian, ecliptic and signs, 12 house wedges, labels "Mars · 14° Leo · house 10"; a toggle makes the planet transparent so all 12 houses and every body show from where you stand.
 - [ ] Optional view from outside (horizon disc, house planes, lines to each body); later the flat chart wheel.
-- [ ] The Astrology gift above is the birthday product (its horoscope text is in the paid package, not the free instrument).
+- [ ] ✶ Starsigns above is the birthday product (its horoscope text is in the paid package, not the free instrument).
 - [x] `src/core/houses.ts` (Ascendant, MC, Whole Sign and Equal), property-tested.
 - [ ] Placidus (undefined inside the polar circles); honest labels; points remember place, time frame and house system. No Swiss Ephemeris (its AGPL is incompatible with Apache 2.0 unless licensed).
 

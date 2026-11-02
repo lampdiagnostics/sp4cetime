@@ -47,6 +47,17 @@ export interface FlyState {
 }
 
 /** How it looks: everything on screen that is not a camera. */
+/** A Starsigns chart shown on the sky: a place's horizon and its 12 houses (0.4.0). */
+export interface ChartLook {
+  /** Degrees, north +. */
+  readonly lat: number;
+  /** Degrees, east +. */
+  readonly lon: number;
+  readonly system: 'whole' | 'equal';
+  /** The place's name, for labels ("Winnipeg"). */
+  readonly place: string;
+}
+
 export interface PointLook {
   readonly themeId: string;
   readonly round: boolean;
@@ -64,6 +75,8 @@ export interface PointLook {
   readonly galactic: boolean;
   /** Earth's line skin in 3D (coastlines, lakes, borders); 0.4.0, so older files take the default. */
   readonly coastlines: boolean;
+  /** A Starsigns chart (horizon and houses) on the sky in 3D, or none; 0.4.0. */
+  readonly chart: ChartLook | null;
   readonly strobe: boolean;
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
@@ -108,7 +121,7 @@ export const SP4CE_VERSION = 2;
 /** The look a new visit opens with; a file lists only what differs from it. */
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
-  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true,
+  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null,
   strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
 };
 
@@ -228,6 +241,15 @@ function parseFly(o: Obj, where: string): FlyState {
   };
 }
 
+function parseChart(o: Obj, where: string): ChartLook {
+  return {
+    lat: num(o, 'lat', where, (x) => Math.abs(x) <= 90),
+    lon: num(o, 'lon', where, (x) => Math.abs(x) <= 180),
+    system: oneOf(o, 'system', where, ['whole', 'equal'] as const),
+    place: str(o, 'place', where, 80),
+  };
+}
+
 function parseLook(o: Obj, where: string): PointLook {
   const planets = o.planets;
   if (!Array.isArray(planets) || !planets.every((p) => PLANET_IDS.includes(p as PlanetId))) fail(where, 'planets must be planet names');
@@ -247,6 +269,7 @@ function parseLook(o: Obj, where: string): PointLook {
     galactic: bool(o, 'galactic', where),
     // New in 0.4.0: files written before it take the default.
     coastlines: o.coastlines === undefined ? DEFAULT_LOOK.coastlines : bool(o, 'coastlines', where),
+    chart: o.chart === undefined || o.chart === null ? null : parseChart(obj(o, 'chart', where), `${where} chart`),
     strobe: bool(o, 'strobe', where),
     strobeSteps: num(o, 'strobeSteps', where, (x) => x >= 1 && x <= 24),
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),

@@ -1,5 +1,5 @@
 """
-Build the place list for the Astrology dialog: towns and cities with their centres and
+Build the place list for the Starsigns dialog: towns and cities with their centres and
 time zones, so "Winnipeg" is taken at the middle of town and a local birth time can be
 turned into UTC (0.4.0).
 

@@ -4,6 +4,7 @@
  * Rebuilt every frame relative to the camera (floating origin), so they flow
  * with time exactly as in the calendar.
  */
+import type { ChartLook } from '../core/path';
 import * as THREE from 'three';
 import { type BodyState, moonGeocentric } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
@@ -26,6 +27,8 @@ export interface OverlayOptions {
   readonly galactic: boolean;
   /** Earth's line skin (coastlines, lakes, borders). */
   readonly coastlines?: boolean;
+  /** A Starsigns chart: the place's horizon and houses on the sky. */
+  readonly chart?: ChartLook | null;
 }
 
 export interface OverlayLabel {

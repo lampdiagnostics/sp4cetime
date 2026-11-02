@@ -191,3 +191,24 @@ export function chartAt(t: Time, lat: number, lonEast: number, system: HouseSyst
   const mc = midheavenDeg(lst, sky.obliquity);
   return { sky, lst, asc, mc, system, cusps: houseCusps(system, asc), polar: Math.abs(lat) > 90 - sky.obliquity };
 }
+
+/** A direction (unit) in the app's J2000 ecliptic frame for a longitude and latitude of date, degrees. */
+export function eclipticDirOfDate(lonDate: number, latDeg: number, sky: SkyOfDate): [number, number, number] {
+  const l = (lonDate - sky.lonShift) * DEG, b = latDeg * DEG;
+  return [Math.cos(b) * Math.cos(l), Math.cos(b) * Math.sin(l), Math.sin(b)];
+}
+
+/**
+ * Straight up at a place (its zenith) as a direction in the J2000 ecliptic frame: the
+ * pole of its horizon. From the local sidereal time and latitude, through the equator
+ * and ecliptic of date (the ecliptic's own slow tilt, ≈47″ a century, is left out).
+ */
+export function zenithDir(t: Time, lat: number, lonEast: number): [number, number, number] {
+  const sky = skyOfDate(t);
+  const lst = (sky.gast + lonEast) * DEG, f = lat * DEG, e = sky.obliquity * DEG;
+  const x = Math.cos(f) * Math.cos(lst), y = Math.cos(f) * Math.sin(lst), z = Math.sin(f);
+  // Equator of date → ecliptic of date (about x by the obliquity), then back to the J2000 equinox.
+  const ye = y * Math.cos(e) + z * Math.sin(e), ze = -y * Math.sin(e) + z * Math.cos(e);
+  const s = -sky.lonShift * DEG;
+  return [x * Math.cos(s) - ye * Math.sin(s), x * Math.sin(s) + ye * Math.cos(s), ze];
+}

@@ -1,5 +1,5 @@
 /**
- * Places for the Astrology dialog (0.4.0): find a town by name and take it at its centre
+ * Places for the Starsigns dialog (0.4.0): find a town by name and take it at its centre
  * ("Winnipeg" is the middle of Winnipeg), or read latitude and longitude typed in degrees,
  * minutes and seconds or decimals. Data: public/places.json (Natural Earth populated
  * places, public domain; scripts/build_places.py), with each town's time zone.

@@ -37,13 +37,13 @@ import {
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
-import { createSky, loadSky, type SkyLabel } from './sky';
+import { createSky, loadSky, type SkyChart, type SkyLabel } from './sky';
 import { createGalaxy, galaxyFade, GAL_NORTH, loadGalaxyMap, RULER_STATEMENT, warpOutVantage } from './galaxy';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
 import type { Theme } from '../core/theme';
 import type { PlanetId } from '../core/planets';
 import { CALENDAR_AXES } from '../core/paths3d';
-import { lonOfDateFromVector, signOf as signOfLon, skyOfDate } from '../core/houses';
+import { chartAt, eclipticDirOfDate, formatSignDeg, houseOf, lonOfDateFromVector, signOf as signOfLon, skyOfDate, zenithDir } from '../core/houses';
 import { type FlyState, logLerp } from '../core/path';
 import { createGovernor } from '../core/quality';
 
@@ -1036,10 +1036,25 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const trueCam: Vec3 = [nearTrue[0] + pos[0] - nearShown[0], nearTrue[1] + pos[1] - nearShown[1], nearTrue[2] + pos[2] - nearShown[2]];
       // Signs from the equinox of the viewed date (precession: about 50″ a year from 2000).
       const skyNow = skyOfDate(now);
+      // A Starsigns chart: the place's horizon and houses on the sky, and each body's house in its label.
+      const ch = L.overlays.chart;
+      const chart = ch ? chartAt(now, ch.lat, ch.lon, ch.system) : null;
+      const skyChart: SkyChart | null =
+        ch && chart
+          ? {
+              zenith: zenithDir(now, ch.lat, ch.lon),
+              cusps: chart.cusps.map((c) => eclipticDirOfDate(c, 0, skyNow)),
+              middles: chart.cusps.map((c) => eclipticDirOfDate(c + 15, -11, skyNow)),
+              asc: eclipticDirOfDate(chart.asc, 2.5, skyNow),
+              mc: eclipticDirOfDate(chart.mc, 2.5, skyNow),
+              key: `${ch.lat},${ch.lon},${ch.system},${Math.round(chart.lst * 20)}`,
+            }
+          : null;
       const signOf = (id: BodyId): string => {
         const t = find(trueBodies, id).pos;
-        const s = signOfLon(lonOfDateFromVector([t[0] - trueCam[0], t[1] - trueCam[1], t[2] - trueCam[2]], skyNow));
-        return `${s.glyph} ${s.name}`;
+        const lon = lonOfDateFromVector([t[0] - trueCam[0], t[1] - trueCam[1], t[2] - trueCam[2]], skyNow);
+        const s = signOfLon(lon);
+        return chart ? `${s.glyph} ${formatSignDeg(lon)} · house ${houseOf(lon, chart.cusps)}` : `${s.glyph} ${s.name}`;
       };
       const placed: Array<[number, number]> = [];
       for (const b of bodies) {
@@ -1092,7 +1107,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       }
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
-      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift }) : [];
+      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift, chart: skyChart }) : [];
       const starPts: Array<[number, number]> = [];
       if (sky && sl.length > 0) {
         for (const d of sky.brightStars) {

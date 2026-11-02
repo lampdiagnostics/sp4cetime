@@ -1,6 +1,6 @@
 /**
- * A reading: every body's sign and house for one moment and one place (the Astrology
- * gift's table and PDF, 0.4.0). Positions are geocentric (seen from Earth's centre), from
+ * A reading: every body's sign and house for one moment and one place (the Starsigns
+ * table, path and PDF, 0.4.0). Positions are geocentric (seen from Earth's centre), from
  * the app's own ephemeris (bodies.ts), moved to the equinox of the date (houses.ts).
  * Geometric positions: light-time and aberration are left out (under 1′ for every body,
  * far below the whole degrees shown). The Moon seen from the place itself can differ by

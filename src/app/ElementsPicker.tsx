@@ -82,6 +82,11 @@ export function ElementsPicker({ settings, onChange }: Props) {
               )}
             </div>
           ))}
+          {settings.chart && (
+            <label>
+              <input type="checkbox" checked onChange={() => onChange({ chart: null })} /> Starsigns houses ({settings.chart.place}, 3D)
+            </label>
+          )}
         </div>
       )}
     </div>

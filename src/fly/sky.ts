@@ -35,6 +35,21 @@ export interface SkyOptions {
   readonly galactic: boolean;
   /** Degrees the signs have slid from their J2000 places by the viewed date (houses.ts skyOfDate). */
   readonly equinoxShift?: number;
+  /** A Starsigns chart: the place's horizon and its 12 houses on the sky (directions in the ecliptic frame). */
+  readonly chart?: SkyChart | null;
+}
+
+export interface SkyChart {
+  /** Straight up at the place (unit, ecliptic frame): the horizon is the great circle 90° from it. */
+  readonly zenith: Vec3;
+  /** The 12 house cusps as directions on the ecliptic, house 1 first. */
+  readonly cusps: readonly Vec3[];
+  /** Where each house's number goes (the middle of the house, just below the zodiac band). */
+  readonly middles: readonly Vec3[];
+  readonly asc: Vec3;
+  readonly mc: Vec3;
+  /** Changes when the chart does (the geometry is rebuilt only then). */
+  readonly key: string;
 }
 
 export { GALACTIC_MARKS, SIGNS } from '../core/skyfigures';
@@ -43,7 +58,7 @@ export interface SkyLabel {
   /** Direction, ecliptic frame (unit vector). */
   readonly dir: Vec3;
   readonly text: string;
-  readonly kind: 'star' | 'constellation' | 'zodiacFigure' | 'sign' | 'galactic';
+  readonly kind: 'star' | 'constellation' | 'zodiacFigure' | 'sign' | 'galactic' | 'house';
 }
 
 // The sky is drawn first with depth testing off, so its size does not matter as long as it
@@ -385,6 +400,52 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     SIGNS.map(([glyph, name], k) => ({ dir: eclDir(k * 30 + 15 - shift, 9.5), text: `${glyph} ${name}`, kind: 'sign' }));
   let signLabels = signLabelsAt(0);
 
+  // A Starsigns chart: the horizon ring and the house boundaries, rebuilt when the chart changes.
+  let chartLines: THREE.LineSegments | null = null;
+  let chartKey = '';
+  let chartLabels: SkyLabel[] = [];
+  const setChart = (c: SkyChart | null | undefined): void => {
+    const key = c?.key ?? '';
+    if (key === chartKey) return;
+    chartKey = key;
+    if (chartLines) {
+      ecl.remove(chartLines);
+      chartLines.geometry.dispose();
+      const i = lineMats.findIndex((l) => l.m === chartLines!.material);
+      if (i >= 0) lineMats.splice(i, 1);
+      (chartLines.material as THREE.Material).dispose();
+      chartLines = null;
+    }
+    chartLabels = [];
+    if (!c) return;
+    const pts: number[] = [];
+    // The horizon: the great circle 90° from the zenith.
+    const z = c.zenith;
+    const a: Vec3 = Math.abs(z[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    const cr = (p: Vec3, q: Vec3): Vec3 => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    const nrm = (p: Vec3): Vec3 => {
+      const l = Math.hypot(p[0], p[1], p[2]) || 1;
+      return [p[0] / l, p[1] / l, p[2] / l];
+    };
+    const u = nrm(cr(z, a)), w = cr(z, u);
+    const ring = (k: number): Vec3 => {
+      const t = (k / 180) * Math.PI;
+      return [u[0] * Math.cos(t) + w[0] * Math.sin(t), u[1] * Math.cos(t) + w[1] * Math.sin(t), u[2] * Math.cos(t) + w[2] * Math.sin(t)];
+    };
+    for (let k = 0; k < 360; k += 1) pts.push(...ring(k), ...ring(k + 1));
+    // Each house boundary: a line across the zodiac band (perpendicular to the ecliptic) at the cusp.
+    for (const d of c.cusps) {
+      const lon = Math.atan2(d[1], d[0]) * (180 / Math.PI);
+      for (let b = -14; b < 14; b += 2) pts.push(...eclDir(lon, b), ...eclDir(lon, b + 2));
+    }
+    chartLines = lineSet(pts, 'zodiac', 0.85, ecl);
+    chartLabels = [
+      ...c.middles.map((dir, i) => ({ dir, text: `House ${i + 1}`, kind: 'house' as const })),
+      { dir: c.asc, text: '↑ ASC', kind: 'house' as const },
+      { dir: c.mc, text: 'MC', kind: 'house' as const },
+    ];
+  };
+
   return {
     /** Directions (ecliptic) of the brighter stars, which labels keep clear of. */
     brightStars: bright as readonly Vec3[],
@@ -419,6 +480,8 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       zodiacFigures.visible = o.constellations || o.zodiac;
       ecliptic.visible = signs.visible = o.zodiac;
       galLines.visible = o.galactic;
+      setChart(o.chart);
+      if (chartLines) chartLines.visible = !!o.chart;
       const shift = o.equinoxShift ?? 0;
       if (Math.abs(shift - signShift) > 0.005) {
         signShift = shift;
@@ -430,6 +493,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
         ...(o.constellations || o.zodiac ? conLabels.filter((l) => l.kind === 'zodiacFigure') : []),
         ...(o.zodiac ? signLabels : []),
         ...(o.galactic ? galLabels : []),
+        ...chartLabels,
       ];
     },
     dispose(): void {

@@ -53,13 +53,13 @@ Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` and releases on GitHub 
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
-## 0.4.0: "Stand here" and the Astrology gift (in progress)
+## 0.4.0: "Stand here" and Starsigns (in progress)
 
 The whole to-do list is in [docs/ROADMAP.md](docs/ROADMAP.md). 0.4.0 has two halves on one engine:
 
-**The Astrology gift** (owner, 2 November 2026; design in [ADR-0018](docs/adr/0018-astrology-gift-and-shop.md)). An **Astrology** button opens a dialog: a time and a place (a town is taken at its centre: "Winnipeg" projects from the middle of town). The app makes a short video: the **signs**, the planets floating over the world seen from above; then the **houses**, seen from that place. At the end, a **printable, customisable PDF** lists every body's sign and house for that date and place, with links to horoscope text (free sources or a partner). Anyone can **preview** it free on sp4cetime.org; **"Get the package · $0.99"** goes to **sp4cetime.shop** to pay and download the video and the PDF. No birth data reaches a server (it travels in the link's fragment). The free instrument stays truthful: positions are astronomy; houses and meanings are astrology, and say so.
+**✶ Starsigns** (owner, 2 November 2026; design in [ADR-0018](docs/adr/0018-starsigns-and-shop.md)). A dialog takes a date, a local time and a place (a town is taken at its centre, in its time zone: "Winnipeg" projects from the middle of town) and shows every body's sign, degree and house. **▷ Play my Starsigns path** flies a free path: the calendar at that moment; Earth from space with the planets labelled by sign; high over the place; standing there facing the Ascendant on the eastern horizon with the houses drawn on the sky; up to the Midheaven; Earth and the zodiac again. The path is saved like any other (present it again, download it). **Preview the PDF** shows the printable sheet (title, name, Letter or A4, paper or night colours) with a PREVIEW mark. **⤓ Get the video and the PDF · US$1.99** goes to **sp4cetime.shop**, which makes the full package after payment (the order travels in the link's fragment, never to a server). Positions are astronomy; houses and meanings are astrology, and say so.
 
-**Built so far:** `src/core/houses.ts` (signs and houses, tested against astronomy-engine to about an arcsecond); signs from the equinox of the viewed date in both views; Earth's first surface skin (coastlines, lakes and borders as light lines in 3D).
+**Built so far:** the house maths (`houses.ts`, about an arcsecond against astronomy-engine); signs from the equinox of the viewed date in both views; Earth's first surface skin (coastlines, lakes, borders); ✶ Starsigns with its path, house overlay, PDF and recording. **Still to do:** sp4cetime.shop (provider, checkout, one Worker route), the transparent planet and a time range around the moment.
 
 "Stand here" is the instrument's side of it:
 
@@ -82,7 +82,7 @@ The first piece of *Sky on your day* (DECISIONS §1), and the first example of *
 3. **On the ground** at that place: the horizon as a ring, the meridian, the ecliptic with the signs, the 12 houses as tinted wedges on the sky; each body's label reads e.g. "Mars · 14° Leo · house 10". Over the time frame the houses wheel across the sky.
 4. **Transparent planet**: a toggle makes the planet under you see-through, so all 12 houses and every planet, the Sun and the Moon can be seen from where you stand, including those below the horizon.
 5. **From outside** (optional view): Earth with the horizon as a disc tangent at the place, the house planes fanning from it like orange segments, and a line from Earth to each body crossing them.
-6. **The Astrology gift** (ADR-0018): the video, signs from above then houses from the ground, over the chosen time frame, and the printable PDF; previewed free, $0.99 to download on sp4cetime.shop. (Later, the flat chart wheel as a poster.)
+6. **✶ Starsigns** (ADR-0018): a free path, signs from above then houses from the ground; its video and the printable PDF US$1.99 on sp4cetime.shop. (Later, the flat chart wheel as a poster.)
 7. **Honest labels**: positions are astronomy (real sky, ephemeris tier); signs are tropical (from the equinox) and sit ≈24° from the constellations of the same name; houses and their meanings are astrology, labelled as such. Interpretations and horoscope links belong to the paid package (sp4cetime.shop), not the free instrument.
 8. **Maths in `src/core/houses.ts`** (built) with property tests (sidereal time against Meeus and astronomy-engine; the Ascendant on the eastern horizon and the MC on the meridian; houses sweep 360° in a sidereal day): Whole Sign and Equal first, Placidus later (undefined inside the polar circles; the view says so). Our own code, no Swiss Ephemeris (AGPL unless licensed).
 9. **Points remember it**: a path's point stores the place, the time frame and the house system (CLAUDE.md rule 16), so a path can fly to "your sky on the day you were born".

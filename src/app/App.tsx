@@ -3,7 +3,9 @@ import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
-import { drawShot, type Shot, stageIn, viewStages } from './capture';
+import { drawShot, recordVideo, type Shot, stageIn, viewStages } from './capture';
+import { saveBytes } from './shop';
+import type { StarsignsActions } from './StarsignsDialog';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
 import { newPathId, type Path, type PathPoint, type PointLook, pointLabel } from '../core/path';
@@ -12,8 +14,8 @@ import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
 import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath } from './pathStore';
 import { type DialogResult, PathDialog } from './PathDialog';
 
-/** The Astrology dialog loads when first opened (it is not needed to see the map). */
-const AstrologyDialog = lazy(() => import('./AstrologyDialog').then((m) => ({ default: m.AstrologyDialog })));
+/** The Starsigns dialog loads when first opened (it is not needed to see the map). */
+const StarsignsDialog = lazy(() => import('./StarsignsDialog').then((m) => ({ default: m.StarsignsDialog })));
 
 const VIEW_NAME = { calendar: 'Calendar', fly: 'Fly', galaxy: 'Whole galaxy' } as const;
 /** Typing in a field (a drop-down menu that still has focus doesn't count: its keys go to the path). */
@@ -246,7 +248,7 @@ export function App() {
     return {
       themeId: st.themeId, round: st.round, chrome: chromeRef.current, planets: st.planets, moon: st.moon, rings: st.rings,
       labels: st.labels, spirals: st.spirals, timeGrid: st.timeGrid, distanceGrid: st.distanceGrid,
-      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, strobe: st.strobe,
+      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, chart: st.chart, strobe: st.strobe,
       strobeSteps: st.strobeSteps, focus: st.focus, measure: pane.current?.snapshot().measure ?? 'near',
     };
   };
@@ -297,7 +299,7 @@ export function App() {
   // Making a path: Return opens the dialog with what is on screen at that moment.
   const [making, setMaking] = useState<Path | null>(null);
   const [dialog, setDialog] = useState<{ starting: boolean; point: PathPoint } | null>(null);
-  const [astro, setAstro] = useState(false);
+  const [starsigns, setStarsigns] = useState(false);
   const confirmPoint = (r: DialogResult): void => {
     if (!dialog) return;
     const pt: PathPoint = { ...dialog.point, caption: r.caption };
@@ -466,6 +468,51 @@ export function App() {
   };
   const shownPoint = showing ? showing.path.points[showing.index] : undefined;
 
+  // ✶ Starsigns: a path played on its own (a hold at each point), and for the package, recorded.
+  const playing = useRef(0);
+  const autoPlay = async (path: Path, record: boolean): Promise<void> => {
+    const run = ++playing.current;
+    const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
+    const arrive = async (i: number): Promise<boolean> => {
+      goToPoint(path, i);
+      for (let k = 0; k < 900; k++) {
+        await new Promise((r) => setTimeout(r, 100));
+        if (playing.current !== run || showRef.current?.path.id !== path.id) return false;
+        if (showRef.current.index === i && !showRef.current.flying) return true;
+      }
+      return false;
+    };
+    const hold = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    if (!(await arrive(0))) return;
+    const rec = record ? await recordVideo(() => getShot(), { fps: 30, watermark: true }, () => {}) : null;
+    if (record && !rec) setMessage('This browser would not record a video; the PDF is saved anyway.');
+    await hold(2500);
+    for (let i = 1; i < path.points.length && live(); i++) {
+      if (!(await arrive(i))) break;
+      await hold(i === path.points.length - 1 ? 3000 : 3800);
+    }
+    rec?.stop();
+    if (playing.current === run) playing.current++;
+  };
+  const starsignsActions: StarsignsActions = {
+    base: () => keyRef.current.pointNow(),
+    play: (path) => {
+      setStarsigns(false);
+      void savePath(path).then(refreshPaths);
+      void autoPlay(path, false);
+    },
+    makePackage: (path, pdf, fileBase) => {
+      setStarsigns(false);
+      void savePath(path).then(refreshPaths);
+      void autoPlay(path, true).then(() => saveBytes(pdf, `${fileBase}.pdf`, 'application/pdf'));
+    },
+    go: (t) => {
+      // The map goes to that moment, time held still there.
+      deps.setClock(t, 1, false);
+      setStarsigns(false);
+    },
+  };
+
   const round = !phone && settings.round;
   const [boxesHost, setBoxesHost] = useState<HTMLDivElement | null>(null);
   // Phones and short windows: the boxes share one dock, minimised to a single row or open on one tab.
@@ -548,16 +595,9 @@ export function App() {
         </section>
       )}
 
-      {astro && (
+      {starsigns && (
         <Suspense fallback={null}>
-        <AstrologyDialog
-          onClose={() => setAstro(false)}
-          onGo={(t) => {
-            // The map goes to that moment, time held still there.
-            deps.setClock(t, 1, false);
-            setAstro(false);
-          }}
-        />
+          <StarsignsDialog onClose={() => setStarsigns(false)} actions={starsignsActions} />
         </Suspense>
       )}
 
@@ -660,8 +700,8 @@ export function App() {
         <button type="button" className={live && rate === 1 ? 'primary live' : 'primary'} onClick={goNow} aria-pressed={live && rate === 1}>
           {live && rate === 1 ? '● Now' : 'Back to now'}
         </button>
-        <button type="button" className="astro-button" onClick={() => setAstro(true)} title="Signs and houses for a date, a time and a place">
-          ✶ Astrology
+        <button type="button" className="astro-button" onClick={() => setStarsigns(true)} title="Starsigns: the planets' signs and houses for a date, a time and a place">
+          ✶ Starsigns
         </button>
         <label className="select">
           <span className="visually-hidden">Theme</span>

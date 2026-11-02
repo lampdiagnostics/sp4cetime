@@ -270,6 +270,7 @@ export function Pane(p: Props) {
       zodiac: settings.zodiac,
       galactic: settings.galactic,
       coastlines: settings.coastlines,
+      chart: settings.chart,
     }),
     [settings],
   );

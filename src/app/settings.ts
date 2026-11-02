@@ -1,3 +1,4 @@
+import type { ChartLook } from '../core/path';
 import { PLANET_IDS, type PlanetId } from '../core/planets';
 
 /**
@@ -22,6 +23,8 @@ export interface Settings {
   readonly galactic: boolean;
   /** Earth's line skin in Fly: coastlines, big lakes, country borders. */
   readonly coastlines: boolean;
+  /** A Starsigns chart on the sky (horizon and houses), or none. Not kept between visits. */
+  readonly chart: ChartLook | null;
   /** Strobe: the solar system's frozen poses behind the present, and how many a year. */
   readonly strobe: boolean;
   readonly strobeSteps: number;
@@ -42,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   zodiac: true,
   galactic: true,
   coastlines: true,
+  chart: null,
   strobe: false,
   strobeSteps: 5.2,
   focus: 'sun',
@@ -76,6 +80,7 @@ export function loadSettings(): Settings {
       zodiac: typeof data.zodiac === 'boolean' ? data.zodiac : DEFAULT_SETTINGS.zodiac,
       galactic: typeof data.galactic === 'boolean' ? data.galactic : DEFAULT_SETTINGS.galactic,
       coastlines: typeof data.coastlines === 'boolean' ? data.coastlines : DEFAULT_SETTINGS.coastlines,
+      chart: null,
       strobe: typeof data.strobe === 'boolean' ? data.strobe : DEFAULT_SETTINGS.strobe,
       strobeSteps:
         typeof data.strobeSteps === 'number' && data.strobeSteps >= STROBE_MIN && data.strobeSteps <= STROBE_MAX

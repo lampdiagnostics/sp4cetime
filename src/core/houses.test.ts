@@ -5,6 +5,8 @@ import {
   ascendantDeg,
   centuries,
   chartAt,
+  eclipticDirOfDate,
+  zenithDir,
   formatSignDeg,
   gmstDeg,
   houseCusps,
@@ -210,6 +212,24 @@ describe('The zodiac drawn from the equinox of date', () => {
           expect(dAng(lonOfDateFromVector(v, sky), k * 30)).toBeLessThan(1e-6);
         }
       }),
+    );
+  });
+});
+
+describe('The horizon of a place on the sky', () => {
+  it('has the Ascendant on it, east of the meridian, and the MC on its meridian above', () => {
+    fc.assert(
+      fc.property(modern, fc.double({ min: -60, max: 60, noNaN: true }), fc.double({ min: -180, max: 180, noNaN: true }), (t, lat, lon) => {
+        const c = chartAt(t, lat, lon);
+        const z = zenithDir(t, lat, lon);
+        const asc = eclipticDirOfDate(c.asc, 0, c.sky);
+        // On the horizon: 90° from the zenith (the ecliptic's tilt since 2000 is ignored: under 0.1° by 2200).
+        expect(Math.abs(asc[0] * z[0] + asc[1] * z[1] + asc[2] * z[2])).toBeLessThan(0.002);
+        const mc = eclipticDirOfDate(c.mc, 0, c.sky);
+        // The MC is above the horizon outside the polar circles.
+        expect(mc[0] * z[0] + mc[1] * z[1] + mc[2] * z[2]).toBeGreaterThan(0);
+      }),
+      { numRuns: 200 },
     );
   });
 });

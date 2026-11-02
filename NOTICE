@@ -24,7 +24,7 @@ Third-party software and data included or used, under their own licences:
 - Earth map: NASA Visible Earth, Blue Marble (public domain).
 - Earth's coastlines, lakes and borders: Natural Earth (public domain),
   naturalearthdata.com.
-- Towns and their time zones (the Astrology dialog): Natural Earth populated places
+- Towns and their time zones (the Starsigns dialog): Natural Earth populated places
   (public domain), public/places.json.
   Details: public/textures/CREDITS.md.
 
