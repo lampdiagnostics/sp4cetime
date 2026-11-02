@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time } from '../core/time';
@@ -11,6 +11,9 @@ import { formatTime } from '../core/time';
 import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
 import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath } from './pathStore';
 import { type DialogResult, PathDialog } from './PathDialog';
+
+/** The Astrology dialog loads when first opened (it is not needed to see the map). */
+const AstrologyDialog = lazy(() => import('./AstrologyDialog').then((m) => ({ default: m.AstrologyDialog })));
 
 const VIEW_NAME = { calendar: 'Calendar', fly: 'Fly', galaxy: 'Whole galaxy' } as const;
 /** Typing in a field (a drop-down menu that still has focus doesn't count: its keys go to the path). */
@@ -294,6 +297,7 @@ export function App() {
   // Making a path: Return opens the dialog with what is on screen at that moment.
   const [making, setMaking] = useState<Path | null>(null);
   const [dialog, setDialog] = useState<{ starting: boolean; point: PathPoint } | null>(null);
+  const [astro, setAstro] = useState(false);
   const confirmPoint = (r: DialogResult): void => {
     if (!dialog) return;
     const pt: PathPoint = { ...dialog.point, caption: r.caption };
@@ -544,6 +548,19 @@ export function App() {
         </section>
       )}
 
+      {astro && (
+        <Suspense fallback={null}>
+        <AstrologyDialog
+          onClose={() => setAstro(false)}
+          onGo={(t) => {
+            // The map goes to that moment, time held still there.
+            deps.setClock(t, 1, false);
+            setAstro(false);
+          }}
+        />
+        </Suspense>
+      )}
+
       {dialog && (
         <PathDialog
           starting={dialog.starting}
@@ -642,6 +659,9 @@ export function App() {
       <nav className="corner tr" aria-label="Display">
         <button type="button" className={live && rate === 1 ? 'primary live' : 'primary'} onClick={goNow} aria-pressed={live && rate === 1}>
           {live && rate === 1 ? '● Now' : 'Back to now'}
+        </button>
+        <button type="button" className="astro-button" onClick={() => setAstro(true)} title="Signs and houses for a date, a time and a place">
+          ✶ Astrology
         </button>
         <label className="select">
           <span className="visually-hidden">Theme</span>

@@ -48,8 +48,9 @@ Everything not done yet. The first block is the next version; the rest stays on 
 Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-astrology-gift-and-shop.md).
 - [x] `src/core/houses.ts`: true obliquity, precession and nutation to the equinox of date, apparent sidereal time, Ascendant, MC, Whole Sign and Equal houses; tested against Meeus and astronomy-engine (about an arcsecond).
 - [x] Signs from the equinox of the viewed date, in both views (sign lines and names turn with precession; body labels use longitudes of date).
-- [ ] Place lookup: type a town, get its centre (a gazetteer from public data, e.g. GeoNames, CC BY 4.0, credited); or latitude and longitude in degrees, minutes, seconds.
-- [ ] **Astrology** button and dialog: date, time (and time zone, from the place), place; house system (Whole Sign or Equal).
+- [x] Place lookup: type a town, get its centre and time zone (Natural Earth populated places, public domain, 7,342 towns); or latitude and longitude in degrees, minutes, seconds; the local time turned into UTC with the zone's history (daylight saving, skipped and doubled hours).
+- [x] **✶ Astrology** button and dialog: date, local time (or "I don't know the time"), place; Whole Sign or Equal houses; a table of every body's sign, degree, house and retrograde, the Ascendant and MC; "Go to this moment" sets the map there. (`src/core/reading.ts`, `places.ts`; `src/app/zones.ts`, `AstrologyDialog.tsx`.)
+- [ ] Where the button lives: top right on computers; on phones in ☰ More › Display (owner to say if it should be on the opening screen).
 - [ ] The video: signs (the planets floating over the world, seen from above), then houses from the place (horizon, meridian, 12 wedges); made by a path and recorded by Capture.
 - [ ] The PDF: every body's sign (degree) and house, Ascendant and MC, the place and time, customisable (title, name, theme), printable; astronomy and astrology labelled; links to horoscope text (free sources, or a partner, credited).
 - [ ] Free preview in the app (Preview mark, PDF first page) and **"Get the package · $0.99"** → sp4cetime.shop.

@@ -1514,3 +1514,76 @@ select option {
     display: none;
   }
 }
+
+/* ✶ Astrology (0.4.0): the dialog of signs and houses. */
+.path-dialog.astro-dialog {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 2 * var(--gap));
+  overflow-y: auto;
+}
+.astro-dialog .astro-when label {
+  flex: 1;
+  min-width: 140px;
+}
+.astro-dialog input[type='date'],
+.astro-dialog input[type='time'] {
+  color-scheme: dark;
+}
+:root[data-ui='light'] .astro-dialog input[type='date'],
+:root[data-ui='light'] .astro-dialog input[type='time'] {
+  color-scheme: light;
+}
+.astro-places {
+  margin: -4px 0 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--button);
+}
+.astro-places button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+}
+.astro-places button:hover,
+.astro-places button:focus-visible {
+  background: var(--pressed);
+}
+.astro-system select {
+  align-self: flex-start;
+}
+.astro-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.astro-table th,
+.astro-table td {
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+}
+.astro-table thead th {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.astro-table tbody th {
+  font-weight: 600;
+}
+.astro-table tr.angle th,
+.astro-table tr.angle td {
+  color: var(--accent);
+}
+.astro-table .rx {
+  color: var(--text-dim);
+}
+.astro-soon {
+  flex: 1;
+  align-self: center;
+}
