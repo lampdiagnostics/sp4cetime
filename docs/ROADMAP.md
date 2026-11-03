@@ -56,13 +56,18 @@ Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-starsi
 - [x] The house overlay in 3D: the place's horizon, house boundaries and numbers, ASC and MC; body labels with degree and house; path points remember it.
 - [x] The video: the path recorded by Capture (about 30–40 s, captions included).
 - [x] The PDF (our own writer): every body's sign, degree and house, Ascendant and MC, a chart wheel, the place and time; title, name, Letter or A4, paper or night; astronomy and astrology labelled; links to free reading (astro.com, Cafe Astrology); a partner's text later.
-- [x] Free: ▷ Go (the path), ▷ Go + ◉ Capture (an MP4, watermarked), ⤓ the path (.json), the card's preview (PREVIEW mark). **"✶ Personalise and download · US$1.49"** → sp4cetime.shop (the order in the link's fragment); works without paying in development only.
+- [x] Free on sp4cetime.org, no prices: ▷ Go (the path), ▷ Go + ◉ Capture (an MP4), ⤓ the card (the inside, one page), ⤓ the path (.json). **✶ Customize** → sp4cetime.shop (the order in the link's fragment; enabled when `SHOP_OPEN`). **☕ Buy us a coffee!** shows once `COFFEE_URL` holds a Stripe Payment Link.
 - [x] Dialog (owner, 2 Nov): opens on now and here; Go first; Place / Lat / Lon with a transit-style completer and nearest-town lookup; blank time = noon; houses by number and name.
 - [x] The path's four steps (pole facing the Sun; planet groups picked out one by one; the sky over the place, coloured for the hour; the wheel with each house), the 3D chart wheel, a soft highlight.
-- [x] The card PDF: folds to 5 × 7 in (Letter) or A6 (A4), inside in landscape.
+- [x] The card PDF: folds to 5 × 7 in (Letter) or A6 (A4), inside in landscape; free one-sided (inside only); the two-sided card with a cover kept for the shop.
 - [ ] Hospitals first in the place search: needs a licence-compatible list (Wikidata, CC0; or GeoNames, CC BY) downloaded by the owner (not reachable from the cloud workspace); nearest intersections not needed (town centres are within a fraction of a degree for houses).
 - [ ] A sped-up GIF and SVG pictures (the wheel, the cover) for the package; the shop's customisation page (name, artwork).
-- [ ] sp4cetime.shop: the owner picks a provider (recommended: Stripe; ADR-0018) and opens the account; a checkout; one Worker route checks payment; the page renders and downloads the full video and PDF. Shop terms, refunds and a privacy note in the owner's words.
+- [ ] ☕ Buy us a coffee!: the owner makes a Stripe Payment Link (customer chooses the amount) and the address goes in `src/app/shop.ts`.
+- [ ] **sp4cetime.shop** (owner, 2 Nov 2026), a separate small site on the same engine:
+  - [ ] Customise Starsigns cards and videos for occasions: birthdays, a new baby, a wedding, an anniversary, this very moment; names, messages, artwork; the two-sided card with a cover.
+  - [ ] More formats: sped-up GIFs, print PDFs, SVG posters (the wheel, the sky), screen savers.
+  - [ ] Templates (e.g. for personality types), then a marketplace where others offer their templates and paths (Library and creator marketplace, DECISIONS §1).
+  - [ ] Stripe Checkout; one Worker route checks payment; downloads made in the browser; terms, refunds and a privacy note in the owner's words.
 
 ### Next (0.4.0): "Stand here", the sky over a place (signs and houses)
 The first example of Planetary mode (a person on Earth's surface is a sphere on its skin). Full design in README.md "0.4.0".

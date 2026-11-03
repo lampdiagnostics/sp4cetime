@@ -1,16 +1,19 @@
 /**
- * The Starsigns package (ADR-0018): the path is free to play, record (◉ Capture) and
- * download; personalising it (a name, artwork) and the clean video, card and pictures are
- * US$1.49 on sp4cetime.shop. Until the shop is open, the paid download works only in
- * development (`npm run dev`), so the owner can try it; everyone else sees "opens soon".
+ * sp4cetime.org shows no prices (owner, 2 November 2026): Starsigns' path, video, card and
+ * path file are free; ✶ Customize goes to sp4cetime.shop (cards and videos for occasions,
+ * names, artwork, GIFs, posters, screen savers, templates; later others' templates and
+ * paths); ☕ Buy us a coffee! is a Stripe Payment Link (ADR-0018).
  */
 
 export const SHOP_URL = 'https://sp4cetime.shop/';
-export const PRICE = 'US$1.49';
-/** Turned on once sp4cetime.shop takes payments. */
+/** Turned on once sp4cetime.shop is up (until then ✶ Customize says it is coming). */
 export const SHOP_OPEN = false;
-/** The full package can be made here without paying: only while developing. */
-export const UNLOCKED = import.meta.env.DEV;
+/**
+ * "☕ Buy us a coffee!": a Stripe Payment Link where the buyer chooses the amount (the
+ * owner makes it in the Stripe dashboard and pastes its https://buy.stripe.com/… address
+ * here). Empty: the button is not shown.
+ */
+export const COFFEE_URL = '';
 
 /** What the shop needs to make the same package, carried in the link's fragment (never sent to a server). */
 export interface ShopOrder {

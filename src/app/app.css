@@ -1765,3 +1765,18 @@ select option {
     animation: none;
   }
 }
+.astro-buy .row {
+  align-items: center;
+}
+.astro-buy .coffee {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--button);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.astro-buy .coffee:hover {
+  background: var(--button-hover);
+}

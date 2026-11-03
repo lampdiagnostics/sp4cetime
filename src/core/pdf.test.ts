@@ -80,6 +80,14 @@ describe('The Starsigns card', () => {
     expect(s).toContain('(9 · Travel and learning) Tj');
     expect(s).not.toContain('PREVIEW');
   });
+  it('makes the free one-sided card: the inside only, one page, no mark', () => {
+    const s = asText(starsignsCard(r, { ...o, paper: 'letter', preview: false, sides: 'inside' }));
+    checkXref(s);
+    expect(s).toContain('/Count 1');
+    expect(s).toContain('(Your sky) Tj');
+    expect(s).not.toContain('(the sky at your moment) Tj');
+    expect(s).not.toContain('PREVIEW');
+  });
   it('makes an A6 card on A4, marked when a preview', () => {
     const s = asText(starsignsCard(r, { ...o, paper: 'a4', preview: true }));
     checkXref(s);

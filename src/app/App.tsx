@@ -4,7 +4,6 @@ import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
 import { drawShot, recordVideo, type Shot, stageIn, viewStages } from './capture';
-import { saveBytes } from './shop';
 import type { StarsignsActions } from './StarsignsDialog';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
@@ -504,11 +503,6 @@ export function App() {
       void autoPlay(path, capture);
     },
     download: (path) => exportPath(path),
-    makePackage: (path, pdf, fileBase) => {
-      setStarsigns(false);
-      void savePath(path).then(refreshPaths);
-      void autoPlay(path, true).then(() => saveBytes(pdf, `${fileBase}.pdf`, 'application/pdf'));
-    },
   };
 
   const round = !phone && settings.round;

@@ -7,7 +7,7 @@ import { formatLat, formatLon } from '../core/spheres';
 import { starsignsPath } from '../core/starsigns';
 import { starsignsCard } from '../core/starsignsPdf';
 import { fromUnixMs } from '../core/time';
-import { PRICE, SHOP_OPEN, shopLink, UNLOCKED, viewPdf } from './shop';
+import { COFFEE_URL, saveBytes, SHOP_OPEN, shopLink } from './shop';
 import { formatOffset, localToUtc } from './zones';
 
 const DEG = Math.PI / 180;
@@ -41,8 +41,6 @@ export interface StarsignsActions {
   play: (path: Path, capture: boolean) => void;
   /** Save the path as a .sp4ce.json file (free). */
   download: (path: Path) => void;
-  /** The paid package, made here (development only until the shop opens). */
-  makePackage: (path: Path, pdf: Uint8Array, fileBase: string) => void;
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -57,7 +55,8 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * the free path (signs from above, the planets one by one, the sky over the place, the
  * wheel). Place: type it (a completer like a transit app's: arrows, Tab or Enter, a tap),
  * or type latitude and longitude and the nearest town fills in. A blank time means noon.
- * Personalising (a name, artwork) and the clean files are on sp4cetime.shop. Never in a capture.
+ * The video (Go + Capture), the card's inside (PDF) and the path are free; ✶ Customize goes to
+ * sp4cetime.shop (occasions, names, artwork). No prices on this site. Never in a capture.
  */
 export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
   const start = useMemo(today, []);
@@ -139,11 +138,13 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
 
   const reading: Reading | null = useMemo(() => (moment && where ? readingAt(moment.t, where.lat, where.lon, system) : null), [moment, where, system]);
   const coordsText = where ? `${formatLat(where.lat * DEG, 0)} · ${formatLon(where.lon * DEG, 0)}` : '';
-  const card = (preview: boolean): Uint8Array | null =>
+  /** The card's inside, one page, free. */
+  const card = (): Uint8Array | null =>
     reading && moment && where
       ? starsignsCard(reading, {
           paper,
-          preview,
+          preview: false,
+          sides: 'inside',
           whenText: `${moment.whenText}${moment.noTime ? ' (no time given: noon)' : ` (${where.zone ? formatOffset(moment.offset) : 'UTC'})`}`,
           placeLabel: where.label,
           coordsText,
@@ -389,6 +390,20 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
             <button
               type="button"
               onClick={() => {
+                const b = card();
+                if (b) saveBytes(b, `${fileBase}-card.pdf`, 'application/pdf');
+              }}
+              title="The inside of a birthday card: the wheel and every sign and house. Print it, fold it in half."
+            >
+              ⤓ The card (PDF)
+            </button>
+            <select value={paper} onChange={(e) => setPaper(e.target.value as 'letter' | 'a4')} aria-label="Card size">
+              <option value="letter">5 × 7 in (Letter)</option>
+              <option value="a4">A6 (A4)</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
                 const p = path();
                 if (p) actions.download(p);
               }}
@@ -396,34 +411,18 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
             >
               ⤓ The path (.json)
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                const b = card(true);
-                if (b) viewPdf(b, `${fileBase}-card-preview.pdf`);
-              }}
-              title="A folding birthday card: print both sides, fold in half"
-            >
-              Preview the card (PDF)
-            </button>
-            <select value={paper} onChange={(e) => setPaper(e.target.value as 'letter' | 'a4')} aria-label="Paper">
-              <option value="letter">5 × 7 in card (Letter)</option>
-              <option value="a4">A6 card (A4)</option>
-            </select>
           </div>
         )}
+        {reading && <p className="note">All free: ▷ Go + ◉ Capture saves the video; the card and the path download here.</p>}
 
-        {reading && (
-          <div className="astro-buy">
+        <div className="astro-buy">
+          <div className="row">
             <button
               type="button"
               className="primary"
-              disabled={!SHOP_OPEN && !UNLOCKED}
+              disabled={!SHOP_OPEN || !where}
               onClick={() => {
-                const p = path();
-                const b = card(false);
-                if (!p || !b || !where) return;
-                if (UNLOCKED) return actions.makePackage(p, b, fileBase);
+                if (!where) return;
                 window.open(
                   shopLink({
                     date,
@@ -438,17 +437,20 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
                 );
               }}
             >
-              ✶ Personalise and download · {PRICE}
+              ✶ Customize
             </button>
-            <span className="note">
-              {UNLOCKED
-                ? 'Development: the package is made here without paying (the video, then the clean card).'
-                : SHOP_OPEN
-                  ? 'On sp4cetime.shop: add a name and artwork, then download the video, the card and the pictures. Your details travel in the link only.'
-                  : 'On sp4cetime.shop, opening soon: a name and artwork, the clean video, card and pictures.'}
-            </span>
+            {COFFEE_URL && (
+              <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener">
+                ☕ Buy us a coffee!
+              </a>
+            )}
           </div>
-        )}
+          <span className="note">
+            {SHOP_OPEN
+              ? 'At sp4cetime.shop: cards and videos for birthdays, a new baby, a wedding or this very moment, with names and artwork. Your details travel in the link only.'
+              : 'Coming soon at sp4cetime.shop: cards and videos for birthdays, a new baby, a wedding or this very moment, with names and artwork.'}
+          </span>
+        </div>
       </form>
     </div>
   );

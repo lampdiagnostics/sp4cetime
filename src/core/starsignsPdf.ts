@@ -7,7 +7,7 @@
  */
 
 import { formatSignDeg, houseLabel, houseOf } from './houses';
-import { PdfDoc, type PdfPage, type RGB, wrapText } from './pdf';
+import { PdfDoc, PdfPage, type RGB, wrapText } from './pdf';
 import type { Reading } from './reading';
 
 export interface SheetOptions {
@@ -185,6 +185,8 @@ export interface CardOptions {
   readonly placeLabel: string;
   readonly coordsText: string;
   readonly systemName: string;
+  /** 'inside': one page, the inside only (the free card on sp4cetime.org); 'both' (default): outside and inside. */
+  readonly sides?: 'inside' | 'both';
 }
 
 /**
@@ -226,8 +228,9 @@ export function starsignsCard(r: Reading, o: CardOptions): Uint8Array {
     wheel(p, r, { ...sheet, noTime: plain }, { cx, cy, R, at, ink, dim, faint, accent });
   };
 
-  // Outside: the back (left half), then the front cover (right half).
-  const out = doc.addPage(PW, PH);
+  // Outside: the back (left half), then the front cover (right half). Not in the one-sided card.
+  const both = o.sides !== 'inside';
+  const out = both ? doc.addPage(PW, PH) : new PdfPage(PW, PH);
   marks(out);
   out.text(x0 + half / 2, y0 + 40 * k, 'Starsigns by sp4cetime.org', { size: 9 * k, color: dim, align: 'center' });
   out.text(x0 + half / 2, y0 + 28 * k, 'Positions are astronomy · houses are astrology', { size: 7.5 * k, color: dim, align: 'center' });
