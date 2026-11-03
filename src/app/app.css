@@ -295,13 +295,17 @@ body {
 }
 
 .chrome-1 .float-tools > *,
-.chrome-2 .float-tools > * {
+.chrome-2 .float-tools > *,
+.chrome-1 .float-tools .capture,
+.chrome-2 .float-tools .capture {
   opacity: 0.35;
 }
 
 .chrome-1 .float-tools > *:hover,
 .chrome-2 .float-tools > *:hover,
-.float-tools > .capture:focus-within {
+.chrome-1 .float-tools .capture:hover,
+.chrome-2 .float-tools .capture:hover,
+.float-tools .capture:focus-within {
   opacity: 1;
 }
 
@@ -1882,7 +1886,7 @@ select option {
   color: var(--text);
 }
 /* The recording timer stays bright while the rest is dimmed for a clean picture (it is never recorded). */
-.float-tools > .capture:has(.rec-status) {
+.float-tools .capture:has(.rec-status) {
   opacity: 1;
 }
 .rec-status button {
@@ -2008,4 +2012,20 @@ select option {
 }
 .fly-wheel-label[data-kind='dot'].hl {
   box-shadow: 0 0 16px 4px var(--dot, #fff), 0 0 0 2px var(--sky-zodiac, #f0c674);
+}
+
+/* ◉ Capture and ▷ Present: two buttons side by side, each with its own menu. */
+.capture-pair {
+  display: contents;
+}
+/* Both menus open upward from the left edge of their button, inside the screen. */
+.float-tools .capture .popover.capture-popover {
+  left: 0;
+  right: auto;
+  transform: none;
+  width: min(300px, calc(100vw - 2 * var(--gap)));
+}
+/* ▷ Present's menu opens from the left of the bottom tools (as Capture's), so it fits a phone. */
+.float-tools .capture.present {
+  position: static;
 }

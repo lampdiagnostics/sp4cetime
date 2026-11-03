@@ -102,6 +102,8 @@ export interface PathPoint {
   /** Written when the point was set, for its box: where, and which way it faces. */
   readonly where: string;
   readonly facing: string;
+  /** Seconds to stay here when the path plays by itself (Shift, ▶ Go); a default if not given. 0.4.0. */
+  readonly pause?: number;
 }
 
 export interface Path {
@@ -137,6 +139,8 @@ export interface FilePoint {
   readonly where?: string;
   readonly facing?: string;
   readonly caption?: string;
+  /** Seconds to stay when playing by itself. */
+  readonly pause?: number;
   /** The present: [whole days since 2000-01-01 00:00 UTC, seconds into the day]. */
   readonly t: readonly [number, number];
   /** Time running: seconds per second (0 = paused). */
@@ -296,6 +300,7 @@ export function parsePoint(x: unknown, where = 'point'): PathPoint {
     caption: typeof x.caption === 'string' ? str(x, 'caption', where) : '',
     where: typeof x.where === 'string' ? str(x, 'where', where, 400) : '',
     facing: typeof x.facing === 'string' ? str(x, 'facing', where, 400) : '',
+    ...(typeof x.pause === 'number' && Number.isFinite(x.pause) && x.pause >= 0 && x.pause <= 120 ? { pause: x.pause } : {}),
   };
 }
 
@@ -343,6 +348,7 @@ export function toSp4ceFile(path: Path, when: (t: Time) => string = () => ''): S
         ...(p.where && { where: p.where }),
         ...(p.facing && { facing: p.facing }),
         ...(p.caption && { caption: p.caption }),
+        ...(p.pause !== undefined && { pause: Math.round(p.pause * 10) / 10 }),
         t: [p.present.day, dec(p.present.sec, 3)],
         rate: p.playing ? p.speed : 0,
         cal: { off: [c.offset.day, dec(c.offset.sec, 3)], spp: sig(c.secondsPerPixel, 6), roll: dec(c.roll, 6), yaw: dec(c.yaw, 6), size: sig(c.spaceZoom, 6), y: dec(c.panY, 1) },
@@ -376,6 +382,7 @@ function fromFilePoint(x: unknown, where: string): PathPoint {
       caption: typeof x.caption === 'string' ? x.caption : '',
       where: typeof x.where === 'string' ? x.where : '',
       facing: typeof x.facing === 'string' ? x.facing : '',
+      pause: x.pause,
     },
     where,
   );

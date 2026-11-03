@@ -41,7 +41,11 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
   /** A path recording (◉ Record): its length so far and ■ Stop (it also stops at the path's end). */
   pathRecording: { clock: string; stop: () => void } | null;
 }) {
-  const [open, setOpen] = useState(false);
+  /** Which menu is open: ◉ Capture or ▷ Present (two buttons since 3 Nov 2026), or neither. */
+  const [openMenu, setOpenMenu] = useState<'capture' | 'present' | null>(null);
+  const open = openMenu !== null;
+  const setOpen = (on: boolean): void => setOpenMenu(on ? openMenu : null);
+  const presentId = useId();
   const [watermark, setWatermark] = useState(true);
   const [size, setSize] = useState<VideoSize>(getVideoSize);
   const [chosen, setChosen] = useState('');
@@ -166,7 +170,8 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
   const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
 
   return (
-    <div className="picker capture" ref={root} data-no-capture>
+    <div className="capture-pair" ref={root} data-no-capture>
+    <div className="picker capture">
       {pathRecording ? (
         <span className="rec-status" role="status">
           <span className="rec-dot" aria-hidden="true" />
@@ -184,11 +189,11 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
           GIF {Math.round(busy.progress * 100)}%
         </button>
       ) : (
-        <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((x) => !x)} title="Screenshot (P), GIF (G) or video (V); present a path">
-          ◉ Capture · ▷ Present
+        <button type="button" aria-expanded={openMenu === 'capture'} aria-controls={panelId} onClick={() => setOpenMenu(openMenu === 'capture' ? null : 'capture')} title="Screenshot (P), GIF (G) or video (V)">
+          ◉ Capture
         </button>
       )}
-      {open && !busy && (
+      {openMenu === 'capture' && !busy && (
         <div className="popover capture-popover" id={panelId} role="dialog" aria-label="Capture">
           <button type="button" onClick={shoot}>
             📷 Screenshot <kbd>P</kbd>
@@ -215,8 +220,16 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
             Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (H or the eye hides them); this button never is.
             {!format && ' This browser cannot record video.'}
           </p>
-          <hr />
-          <div className="present-section" aria-label="Present a path">
+        </div>
+      )}
+    </div>
+    <div className="picker capture present">
+      <button type="button" aria-expanded={openMenu === 'present'} aria-controls={presentId} onClick={() => setOpenMenu(openMenu === 'present' ? null : 'present')} title="Present a path (Shift plays it by itself)">
+        ▷ Present
+      </button>
+      {openMenu === 'present' && (
+        <div className="popover capture-popover" id={presentId} role="dialog" aria-label="Present a path">
+          <div className="present-section">
             <span className="heading">Present a path</span>
             {present.paths.length === 0 && (
               <p className="note">Make your own: go anywhere and press Return to start a path; travel and press Return for each next point.</p>
@@ -267,9 +280,11 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
               }}
             />
             {present.message && <p className="note">{present.message}</p>}
+            <p className="note">Shift plays the path by itself (Shift again stops); → and ← go point by point.</p>
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

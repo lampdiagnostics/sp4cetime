@@ -588,7 +588,7 @@ export function App() {
         }
       };
     }
-    await hold(2500);
+    await hold(path.points[from]?.pause !== undefined ? path.points[from]!.pause! * 1000 : 2500);
     for (let i = from + 1; i < path.points.length && live(); i++) {
       const pt = path.points[i]!;
       // Recording (owner, 3 Nov 2026): no planet-by-planet highlights in the video; each view
@@ -598,7 +598,9 @@ export function App() {
       let picks = 0;
       if (rec) for (let j = i + 1; j < path.points.length - 1 && path.points[j]!.look.highlight; j++) picks++;
       // A body picked out is a quick beat; a new view is held long enough to take in.
-      await hold(i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
+      // A point may say how long to stay (Starsigns does); otherwise a body picked out is a quick
+      // beat and a new view is held long enough to take in.
+      await hold(pt.pause !== undefined ? pt.pause * 1000 : i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
     }
     finish();
     if (playing.current === run) {

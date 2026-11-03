@@ -25,7 +25,7 @@
 
 import { BODIES, type BodyId, moonGeocentric, solarSystemAt } from './bodies';
 import type { Vec3 } from './geometry';
-import { eclipticDirOfDate, formatSignDeg, houseLabel, signOf } from './houses';
+import { eclipticDirOfDate, formatSignDeg, signOf } from './houses';
 import type { ChartLook, FlyState, Path, PathPoint, PointLook } from './path';
 import type { Reading } from './reading';
 
@@ -160,7 +160,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     highlight,
     seeThrough,
   });
-  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false): PathPoint => ({
+  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false, pause?: number): PathPoint => ({
+    ...(pause !== undefined ? { pause } : {}),
     view: 'fly',
     present: t,
     speed: 1,
@@ -187,7 +188,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const forward = add(scale(down, Math.cos(tilt)), scale(sideways, Math.sin(tilt)));
   const pole: FlyState = { anchor: 'earth', frame: 'inertial', rel: above, quat: lookQuat(forward, n), fov: 84, up: n };
   const points: PathPoint[] = [
-    point(pole, `${whose} · ${o.whenText}${noon} · ${o.placeName}`, false),
+    point(pole, `${whose} · ${o.whenText}${noon} · ${o.placeName}`, false, null, '', false, false, 4),
   ];
 
   // 2. The planets: as few views as hold them all, each centred on its group; each body picked out in turn.
@@ -201,12 +202,11 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   for (const g of groupDirections(dirs, GROUP_HALF_DEG)) {
     const centre = unit(g.reduce<Vec3>((acc, i) => add(acc, dirs[i]!), [0, 0, 0]));
     const view: FlyState = { ...pole, quat: lookQuat(centre, n) };
-    const names = g.map((i) => r.bodies[i]!.name);
-    points.push(point(view, names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!, false));
-    for (const i of g) {
-      const b = r.bodies[i]!;
-      points.push(point(view, `${b.name} · ${formatSignDeg(b.lon)}${b.retrograde ? ' · retrograde' : ''}`, false, b.id));
-    }
+    // A pause over each view, longer when it holds more bodies (owner, 3 Nov 2026: no picking
+    // out or pulsing; their names and signs are on screen).
+    const names = g.map((i) => `${r.bodies[i]!.name} ${formatSignDeg(r.bodies[i]!.lon)}`);
+    const caption = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
+    points.push(point(view, caption, false, null, '', false, false, 3 + 0.8 * g.length));
   }
 
   // 3. Down to the place, looking straight up: the zodiac and the houses overhead (the MC at the top of the view).
@@ -231,6 +231,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
       null,
       o.placeLabel,
       true,
+      false,
+      6,
     ),
   );
 
@@ -241,10 +243,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   // A camera's right is up × back; with up = pole × asc and back = −pole, right = −asc: the Ascendant on the left.
   const wheelUp = unit(cross(poleBody, ascBody));
   const wheel: FlyState = { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + STAND_KM), quat: lookQuat(poleBody, wheelUp), fov: 90, up: upWorld };
-  points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true));
-  for (const b of r.bodies) {
-    points.push(point(wheel, `${b.name} · ${formatSignDeg(b.lon)} · house ${houseLabel(b.house)}`, true, b.id, o.placeLabel, true, true));
-  }
-  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeName} · sp4cetime.org`, true, null, o.placeLabel, true, true));
+  // The whole zodiac, held long enough to read every body on the wheel (no picking out, owner 3 Nov 2026).
+  points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true, 10));
+  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeName} · sp4cetime.org`, true, null, o.placeLabel, true, true, 4));
   return { id: o.id, name: `Starsigns · ${o.name ? `${o.name}, ` : ''}${o.whenText}`, created: o.created, points, finished: true };
 }

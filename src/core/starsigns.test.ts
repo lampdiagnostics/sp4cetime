@@ -66,15 +66,14 @@ describe('The Starsigns path', () => {
     expect(path.finished).toBe(true);
   });
 
-  it('picks out every body twice: by sign over the world, and by house on the wheel', () => {
-    const lit = pts.filter((p) => p.look.highlight).map((p) => p.look.highlight);
-    for (const b of r.bodies) expect(lit.filter((x) => x === b.id)).toHaveLength(2);
-    const mars = pts.filter((p) => p.look.highlight === 'mars');
-    expect(mars[0]!.caption).toBe('Mars · 23° Cancer');
-    expect(mars[1]!.caption).toContain('house 9 · Travel and learning');
-    // Signs first (no chart), then houses (with the chart).
-    expect(mars[0]!.look.chart).toBeNull();
-    expect(mars[1]!.look.chart).toMatchObject({ lat: 49.883, system: 'whole' });
+  it('pauses over every body without picking any out (owner, 3 Nov 2026)', () => {
+    expect(pts.every((p) => p.look.highlight === null)).toBe(true);
+    // Every body is named once over the world, with its sign, in a view held longer for more bodies.
+    for (const b of r.bodies) expect(pts.filter((p) => !p.look.chart && p.caption.includes(b.name)).length).toBeGreaterThanOrEqual(1);
+    const mars = pts.find((p) => p.caption.includes('Mars 23° Cancer'))!;
+    expect(mars.look.chart).toBeNull();
+    expect(mars.pause).toBeGreaterThanOrEqual(3.8);
+    for (const p of pts) expect(p.pause).toBeGreaterThan(0);
   });
 
   it('stands in the town looking straight up, then puts the Ascendant on the left of the wheel', () => {
@@ -122,5 +121,6 @@ describe('The Starsigns path', () => {
     const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path))));
     expect(back.points).toHaveLength(pts.length);
     expect(back.points.map((p) => p.look.highlight)).toEqual(pts.map((p) => p.look.highlight));
+    expect(back.points.map((p) => p.pause)).toEqual(pts.map((p) => (p.pause === undefined ? undefined : Math.round(p.pause * 10) / 10)));
   });
 });
