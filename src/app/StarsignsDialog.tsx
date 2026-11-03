@@ -9,6 +9,7 @@ import { starsignsCard } from '../core/starsignsPdf';
 import { fromUnixMs } from '../core/time';
 import { COFFEE_URL, saveBytes, SHOP_OPEN, shopLink } from './shop';
 import { formatOffset, localToUtc } from './zones';
+import { getVideoSize } from './capture';
 
 const DEG = Math.PI / 180;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -550,7 +551,10 @@ function GoButton({ disabled, onGo, onRecord }: { disabled: boolean; onGo: () =>
           }}
         >
           <button type="button" role="menuitem" className="go-record" autoFocus onClick={() => (setMenu(false), onRecord())}>
-            ◉ Record <span className="hint">fly it and save the video; stops by itself at the end</span>
+            ◉ Record{' '}
+            <span className="hint">
+              fly it and save the video ({getVideoSize() === 'small' ? 'small, for X' : 'hi-res'}; change in ◉ Capture); stops by itself at the end
+            </span>
           </button>
           <button type="button" role="menuitem" onClick={() => (setMenu(false), onGo())}>
             ▶ Just go

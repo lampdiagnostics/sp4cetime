@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { type Recording, recordGif, recordVideo, screenshot, type Shot, videoFormat } from './capture';
+import { getVideoSize, type Recording, recordGif, recordVideo, screenshot, setVideoSize, type Shot, type VideoSize, videoFormat } from './capture';
 import type { Path } from '../core/path';
 
 const GIF_SECONDS = 5;
@@ -43,7 +43,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
 }) {
   const [open, setOpen] = useState(false);
   const [watermark, setWatermark] = useState(true);
-  const [sharp, setSharp] = useState(false);
+  const [size, setSize] = useState<VideoSize>(getVideoSize);
   const [chosen, setChosen] = useState('');
   const [sureDelete, setSureDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -129,7 +129,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
     if (busy || !format) return;
     setOpen(false);
     setBusy({ kind: 'video', since: Date.now() });
-    void recordVideo(stage, { fps: VIDEO_FPS, watermark, sharp }, () => {
+    void recordVideo(stage, { fps: VIDEO_FPS, watermark, size }, () => {
       rec.current = null;
       setBusy(null);
     }).then(
@@ -202,9 +202,15 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
           <label>
             <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} /> Watermark “@sp4cetime.org”
           </label>
-          <label title="Video at up to 4K instead of 1080p: sharper, but heavier for the computer while recording">
-            <input type="checkbox" checked={sharp} onChange={(e) => setSharp(e.target.checked)} /> Sharp video (up to 4K)
-          </label>
+          <fieldset className="video-size">
+            <legend>Video size (also ✶ Starsigns ◉ Record)</legend>
+            <label title="Up to 4K wide at a high bit rate: for showing on a computer or a big screen (heavier while recording)">
+              <input type="radio" name="video-size" checked={size === 'hires'} onChange={() => (setSize('hires'), setVideoSize('hires'))} /> Hi-res, for desktop screens
+            </label>
+            <label title="720p at about 2 Mbit/s (around 15 MB a minute): quick to upload to X and other social sites">
+              <input type="radio" name="video-size" checked={size === 'small'} onChange={() => (setSize('small'), setVideoSize('small'))} /> Small, for X (720p)
+            </label>
+          </fieldset>
           <p className="note">
             Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (H or the eye hides them); this button never is.
             {!format && ' This browser cannot record video.'}

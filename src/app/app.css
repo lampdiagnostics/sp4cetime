@@ -1972,3 +1972,24 @@ select option {
     width: min(640px, calc(100vw - 2 * var(--gap)));
   }
 }
+
+/* Capture › Video size: two choices, remembered. */
+.capture-popover .video-size {
+  margin: 2px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capture-popover .video-size legend {
+  padding: 0 4px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+.capture-popover .video-size label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

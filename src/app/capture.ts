@@ -483,18 +483,45 @@ export function videoFormat(): { mime: string; ext: string } | null {
   return null;
 }
 
-/** A video of what is on screen at full resolution (up to 4K wide), until stopped. */
+/**
+ * Video size (owner, 3 Nov 2026), one choice for every recording (the Capture menu and
+ * Starsigns' ◉ Record), remembered in this browser:
+ * - 'hires': for desktop screens, up to 4K wide, a high bit rate (8–50 Mbit/s);
+ * - 'small': for posting on X, at most 1280 × 720 and about 2 Mbit/s (roughly 15 MB a
+ *   minute, far under X's 512 MB; X re-encodes to 720p anyway).
+ */
+export type VideoSize = 'hires' | 'small';
+const VIDEO_SIZE_KEY = 'sp4ce-video-size';
+export function getVideoSize(): VideoSize {
+  try {
+    return localStorage.getItem(VIDEO_SIZE_KEY) === 'small' ? 'small' : 'hires';
+  } catch {
+    return 'hires';
+  }
+}
+export function setVideoSize(s: VideoSize): void {
+  try {
+    localStorage.setItem(VIDEO_SIZE_KEY, s);
+  } catch {
+    /* not remembered */
+  }
+}
+
+/** A video of what is on screen, until stopped: hi-res (up to 4K wide) or small (720p, for X). */
 export async function recordVideo(
   getShot: () => Shot | null,
-  /** `sharp`: up to 4K wide (heavier); otherwise up to 1920 px wide (1080p), smooth on most computers. */
-  o: { fps: number; watermark: boolean; sharp?: boolean },
+  o: { fps: number; watermark: boolean; size?: VideoSize },
   onDone: () => void,
 ): Promise<Recording | null> {
   const fmt = videoFormat();
   const first = getShot();
   if (!fmt || !first) return null;
   const px = shotScale(first);
-  const k = Math.min(px, (o.sharp ? 3840 : 1920) / Math.max(1, first.region.width));
+  const small = (o.size ?? getVideoSize()) === 'small';
+  // Small: fit within 1280 × 720 (either way round). Hi-res: up to 4K wide.
+  const k = small
+    ? Math.min(px, 1280 / Math.max(1, Math.max(first.region.width, first.region.height)), 720 / Math.max(1, Math.min(first.region.width, first.region.height)))
+    : Math.min(px, 3840 / Math.max(1, first.region.width));
   const c = document.createElement('canvas');
   c.width = Math.max(2, Math.floor((first.region.width * k) / 2) * 2);
   c.height = Math.max(2, Math.floor((first.region.height * k) / 2) * 2);
@@ -511,8 +538,8 @@ export async function recordVideo(
   const track = stream.getVideoTracks()[0] as (MediaStreamTrack & { requestFrame?: () => void }) | undefined;
   const manual = typeof track?.requestFrame === 'function';
   const live = manual ? stream : c.captureStream(o.fps);
-  // About 0.1 bits per pixel per frame, 6 to 40 Mbit/s.
-  const bps = Math.min(40e6, Math.max(6e6, c.width * c.height * o.fps * 0.1));
+  // Hi-res: about 0.12 bits per pixel per frame, 8 to 50 Mbit/s. Small: about 2 Mbit/s (1.2 to 2.5).
+  const bps = small ? Math.min(2.5e6, Math.max(1.2e6, c.width * c.height * o.fps * 0.07)) : Math.min(50e6, Math.max(8e6, c.width * c.height * o.fps * 0.12));
   const rec = new MediaRecorder(live, { mimeType: fmt.mime, videoBitsPerSecond: bps });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => {
