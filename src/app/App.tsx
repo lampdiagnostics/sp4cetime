@@ -271,7 +271,14 @@ export function App() {
       setPaused(!playing);
     },
     applyLook: (look) => {
-      if (lookKey(look) === lookKey(lookNow())) return;
+      const now = lookNow();
+      if (lookKey(look) === lookKey(now)) return;
+      // Picking out another body is not a new look: no cross-fade (its snapshot's labels
+      // flickered in another size and case under the live ones).
+      if (lookKey({ ...look, highlight: null }) === lookKey({ ...now, highlight: null })) {
+        update({ highlight: look.highlight });
+        return;
+      }
       dissolve();
       const { chrome: c, measure: _m, ...rest } = look;
       update(rest);

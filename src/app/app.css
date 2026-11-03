@@ -1730,10 +1730,10 @@ select option {
   font-weight: 700;
   animation: fly-pop 0.5s ease-out;
 }
-/* A pop by size, not scale: these names are placed by transform, which a scale would shift. */
+/* The name picked out fades up (no change of size: that read as all the names jumping). */
 @keyframes fly-pop {
-  0% { font-size: 20px; }
-  100% { font-size: 13px; }
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
 .fly-wheel-label {
   position: absolute;
@@ -1768,10 +1768,7 @@ select option {
 @media (prefers-reduced-motion: reduce) {
   .fly-halo,
   .fly-label.hl,
-  .fly-wheel-label.dim {
-  opacity: 0.3;
-}
-.fly-wheel-label.hl {
+  .fly-wheel-label.hl {
     animation: none;
   }
 }
