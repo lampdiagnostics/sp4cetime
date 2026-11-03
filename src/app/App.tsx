@@ -120,7 +120,12 @@ export function App() {
 
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
-  useEffect(() => saveSettings(settings), [settings]);
+  // While a path is presented its look is borrowed, not saved (it used to overwrite your own
+  // settings: no time grid after a Starsigns run). Stopping puts yours back.
+  const beforePresent = useRef<{ settings: Settings; chrome: 0 | 1 | 2 } | null>(null);
+  useEffect(() => {
+    if (!beforePresent.current) saveSettings(settings);
+  }, [settings]);
   const theme: Theme = useMemo(() => THEMES.find((t) => t.id === settings.themeId) ?? (THEMES[0] as Theme), [settings.themeId]);
   useEffect(() => {
     document.documentElement.dataset.ui = theme.ui;
@@ -336,6 +341,7 @@ export function App() {
     signal.current.cancelled = true;
     const sig: FlightSignal = { cancelled: false };
     signal.current = sig;
+    if (!showRef.current && !beforePresent.current) beforePresent.current = { settings: settingsRef.current, chrome: chromeRef.current };
     setShowing({ path, index, flying: true, wandered: false });
     void flyToPoint(pt, depsRef.current, sig).then((arrived) => {
       if (sig.cancelled) return;
@@ -349,6 +355,12 @@ export function App() {
     // Stopped mid-flight: time is held where the flight left it; the controls show it paused.
     if (showRef.current?.flying) setPaused(true);
     setShowing(null);
+    const before = beforePresent.current;
+    beforePresent.current = null;
+    if (before) {
+      setSettings(before.settings);
+      setChrome(before.chrome);
+    }
   }, []);
   /** Next (+1) or back (−1), from the keys or the ◀ ▶ buttons (phones). */
   const stepPath = useCallback(
@@ -620,7 +632,12 @@ export function App() {
     download: (path) => exportPath(path),
   };
 
-  const round = !phone && settings.round;
+  const round = settings.round;
+  // Phones open full screen (the round window is a tap away, top right).
+  useEffect(() => {
+    if (phone) update({ round: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [boxesHost, setBoxesHost] = useState<HTMLDivElement | null>(null);
   // Phones and short windows: the boxes share one dock, minimised to a single row or open on one tab.
   const [dockOpen, setDockOpen] = useState<boolean>(() => {
@@ -790,6 +807,17 @@ export function App() {
         <button type="button" className="astro-button" onClick={() => setStarsigns(true)} aria-label="Starsigns" title="Starsigns: the planets' signs and houses for a date, a time and a place">
           <span className="twinkle" aria-hidden="true">✶</span>
         </button>
+        {/* Round or Full (owner, 3 Nov 2026: at the top right on every screen, phones too). */}
+        <button
+          type="button"
+          className="round-button"
+          onClick={() => update({ round: !settings.round })}
+          aria-pressed={settings.round}
+          aria-label={settings.round ? 'Round window (tap for full screen)' : 'Full screen (tap for the round window)'}
+          title={settings.round ? 'Round window: tap for full screen' : 'Full screen: tap for the round window'}
+        >
+          {settings.round ? '◯' : '▭'}
+        </button>
       </div>
 
       {/* The boxes. On wide screens they sit in the corners; on phones and short windows
@@ -845,11 +873,6 @@ export function App() {
             ◎ Galaxy
           </button>
         </div>
-        {!phone && (
-          <button type="button" onClick={() => update({ round: !settings.round })} aria-pressed={settings.round}>
-            {settings.round ? '◯ Round' : '▭ Full'}
-          </button>
-        )}
       </nav>
       </div>
     </div>

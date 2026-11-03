@@ -65,11 +65,22 @@ export const STROBE_MIN = 1;
 export const STROBE_MAX = 24;
 
 
+/**
+ * Until 0.4.0's fix, playing a Starsigns path saved its clean look (no time grid, spirals,
+ * orbits, distance grid or galactic marks; every planet) as the visitor's own settings, so
+ * the next visit opened without them. Once per browser, those are put back to the defaults.
+ */
+const FIX_040 = 'sp4cetime.settings.fix040';
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const data = JSON.parse(raw) as Partial<Settings>;
+    if (!localStorage.getItem(FIX_040)) {
+      for (const k of ['planets', 'rings', 'spirals', 'timeGrid', 'distanceGrid', 'galactic', 'constellations'] as const) delete data[k];
+      localStorage.setItem(FIX_040, '1');
+    }
     const planets = Array.isArray(data.planets)
       ? PLANET_IDS.filter((id) => (data.planets as unknown[]).includes(id))
       : DEFAULT_SETTINGS.planets;
