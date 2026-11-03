@@ -1100,7 +1100,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const seeThroughNow = !!L.overlays.seeThrough;
       const wheelOn = !!(ch && chart) && far <= 0.5 && (fromEarth > 6 || seeThroughNow);
       let haloShown = false;
-      const placed: Array<[number, number]> = [];
+      const placed: Rect[] = [];
       for (const b of bodies) {
         const el = labels.get(b.info.id);
         if (!el) continue;
@@ -1138,7 +1138,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const rawX = ((v3.x + 1) / 2) * W + Math.max(6, pxR * 0.72), rawY = ((1 - v3.y) / 2) * H - Math.max(6, pxR * 0.72);
         const offView = rawX < 0 || rawX > W || rawY < 0 || rawY > H;
         const lx = big && offView ? 16 : Math.min(Math.max(rawX, 8), W - 180);
-        const ly = big && offView ? H * 0.5 : Math.min(Math.max(rawY, 16), H - 16);
+        const ly0 = big && offView ? H * 0.5 : Math.min(Math.max(rawY, 16), H - 16);
         // Don't stack names: a body right beside one already named (the Moon by Earth, from afar) stays unnamed
         // (unless it is the one picked out).
         const picked = L.overlays.highlight === b.info.id;
@@ -1153,16 +1153,21 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           halo.style.top = `${hy - size / 2}px`;
           haloShown = true;
         }
-        if (!picked && placed.some(([x, y]) => Math.abs(x - lx) < 60 && Math.abs(y - ly) < 12)) {
-          el.style.display = 'none';
-          continue;
-        }
         const text = `${b.info.name} · ${formatSize(apparentDiameter(b.info.radiusKm, d))}${L.overlays.zodiac && b.info.id !== nearId ? ` · in ${signOf(b.info.id)}` : ''}`;
-        if (hidden({ x0: lx, y0: ly, x1: lx + labelWidth(text, 'body'), y1: ly + 13 }, d, b.info.id)) {
+        // Names never vanish for crowding (owner, 3 Nov 2026: Neptune beside Saturn): one that
+        // would overlap a name already placed moves to the nearest free line below or above.
+        const lw = labelWidth(text, 'body');
+        const clash = (y: number): boolean => placed.some((q) => lx < q.x1 && lx + lw > q.x0 && y < q.y1 && y + 13 > q.y0);
+        let ly = ly0;
+        for (const dy of [0, 14, -14, 28, -28, 42, -42, 56]) {
+          ly = Math.min(Math.max(ly0 + dy, 16), H - 16);
+          if (!clash(ly)) break;
+        }
+        if (hidden({ x0: lx, y0: ly, x1: lx + lw, y1: ly + 13 }, d, b.info.id)) {
           el.style.display = 'none';
           continue;
         }
-        placed.push([lx, ly]);
+        placed.push({ x0: lx, y0: ly, x1: lx + lw, y1: ly + 13 });
         el.style.display = 'block';
         el.style.transform = `translate(${lx}px, ${ly}px)`;
         if (el.textContent !== text) el.textContent = text;
