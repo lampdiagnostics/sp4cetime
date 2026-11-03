@@ -171,6 +171,8 @@ interface Props {
   /** Move the shared present by this many seconds (a frozen strobe pose was clicked). */
   jumpBy: (dt: number) => void;
   chrome: 0 | 1 | 2;
+  /** Set what is on screen (the Elements menu's Controls and Text boxes). */
+  setChrome: (c: 0 | 1 | 2) => void;
   /** This window's controls are the ones in the boxes, and it takes the keyboard. */
   selected: boolean;
   onSelect: () => void;
@@ -195,7 +197,7 @@ export const RIM_PX = 14;
  * While selected, its controls fill the screen's corner boxes.
  */
 export function Pane(p: Props) {
-  const { id, theme, settings, update, clock, rate, speed, playing, onPlay, changeRate, chrome, selected, box, round } = p;
+  const { id, theme, settings, update, clock, rate, speed, playing, onPlay, changeRate, chrome, setChrome, selected, box, round } = p;
   const [mode, setMode] = useState<'calendar' | 'fly'>('calendar');
   const [measure, setMeasure] = useState<Measure>('near');
   const [flyHud, setFlyHud] = useState<FlyHud | null>(null);
@@ -532,7 +534,7 @@ export function Pane(p: Props) {
             </select>
           </label>
         </div>
-        <ElementsPicker settings={settings} onChange={update} />
+        <ElementsPicker settings={settings} onChange={update} chrome={chrome} onChrome={setChrome} />
         <p className="note">
           {in3D ? SCALE_NOTE_3D : SCALE_NOTE}
           {banded && <><br />Shaded bands: paths too tightly wound to draw turn by turn here</>}
@@ -599,7 +601,7 @@ export function Pane(p: Props) {
           {in3D ? (
             <ul>
               <li>Click the view to steer with the mouse, as in Minecraft; Esc lets go.</li>
-              <li>W flies toward whatever is in the middle of the view (S backs away) · A D slide sideways · Space up · Shift down (R and F too) · Ctrl five times faster. Speed is half your height above the nearest body each second, so you slow as you arrive.</li>
+              <li>W flies toward whatever is in the middle of the view (S backs away) · A D slide sideways · R up · F down · Ctrl five times faster. Speed is half your height above the nearest body each second, so you slow as you arrive.</li>
               <li>Drag or scroll to look around where you stand.</li>
               <li>Pinch to widen or narrow the view; Shift + scroll or pinch zooms time.</li>
               <li>On a phone or tablet: a thumb stick appears where your thumb lands on the left half (push to fly forward, back or sideways); drag elsewhere to look; pinch to fly forward or back; slide two fingers to move sideways, up or down; tap empty space to hide or show the controls.</li>
@@ -618,7 +620,8 @@ export function Pane(p: Props) {
             </ul>
           )}
           <ul>
-            <li>H (or the eye): hide the boxes, then all labels, then bring them back. On a phone, tap empty space.</li>
+            <li>Space or H (or the eye, or Elements › Controls and Text): hide the boxes, then all labels, then bring them back. On a phone, tap empty space.</li>
+            <li>Shift on its own: play the path by itself; Shift again stops it. An arrow key takes over (→ next, ← back); Shift plays on from there.</li>
             <li>Speed (bottom right): choose how fast time runs and which way (Live is real time); choosing holds time still until ▶ Play; ❚❚ Pause stops it.</li>
             <li>
               Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,

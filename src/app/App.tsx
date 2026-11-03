@@ -81,9 +81,9 @@ export function App() {
       const a = document.activeElement;
       return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
     };
-    // H shows and hides the controls, in every view (it is no flying key). Space is left
-    // to Fly mode (up, as in games): it used to hide the controls too, but meant something
-    // else while steering with the mouse, which surprised people.
+    // Space (owner, 3 Nov 2026) and H show and hide the controls, then all text, then bring
+    // everything back, in every view (neither flies: R and F do). Space never presses a
+    // button last clicked with the mouse; a button chosen with Tab still works.
     const down = (e: globalThis.KeyboardEvent): void => {
       if (typing() || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'h' || e.key === 'H') {
@@ -91,14 +91,11 @@ export function App() {
         if (!e.repeat) cycleChrome();
         return;
       }
-      // Space never presses a button last clicked with the mouse (a stray press would
-      // advance a path or toggle something); a button chosen with Tab still works.
       if (e.key === ' ' && !keyboardOnControl()) {
         const a = document.activeElement as HTMLElement | null;
-        if (a && a !== document.body && a.tagName === 'BUTTON') {
-          e.preventDefault();
-          a.blur();
-        }
+        if (a && a !== document.body && a.tagName === 'BUTTON') a.blur();
+        e.preventDefault();
+        if (!e.repeat) cycleChrome();
       }
     };
     const up = (e: globalThis.KeyboardEvent): void => {
@@ -370,6 +367,8 @@ export function App() {
     const point = keyRef.current.pointNow();
     if (point) setDialog({ starting: !keyRef.current.making, point });
   };
+  /** Shift on its own: present by itself, or stop (set once autoPlay is defined). */
+  const presentKey = useRef<() => void>(() => {});
   const dialogRef = useRef(dialog);
   dialogRef.current = dialog;
   const keyRef = useRef({ pointNow, making });
@@ -382,6 +381,12 @@ export function App() {
       const sh = showRef.current;
       if (sh) {
         if (e.key === 'Enter' && keyboardOnControl()) return;
+        // Any arrow key stops a path playing by itself; → and ← then go point by point
+        // (Shift plays on by itself from there).
+        if (e.key.startsWith('Arrow') && autoRun.current) {
+          playing.current++;
+          setAuto(false);
+        }
         if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
           e.preventDefault();
           e.stopPropagation();
@@ -418,11 +423,34 @@ export function App() {
       }
       setShowing((s) => (s ? { ...s, wandered: true } : s));
     };
+    // Shift on its own (pressed and let go with nothing else) presents: plays the path by
+    // itself, or stops it. Shift with another key, a scroll or a click is something else.
+    let shiftAlone = false;
+    const shiftDown = (e: globalThis.KeyboardEvent): void => {
+      if (e.key === 'Shift') shiftAlone = !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && !typingNow() && !dialogRef.current;
+      else shiftAlone = false;
+    };
+    const shiftUp = (e: globalThis.KeyboardEvent): void => {
+      if (e.key !== 'Shift') return;
+      if (shiftAlone) presentKey.current();
+      shiftAlone = false;
+    };
+    const notAlone = (): void => {
+      shiftAlone = false;
+    };
+    window.addEventListener('keydown', shiftDown, true);
+    window.addEventListener('keyup', shiftUp, true);
+    window.addEventListener('wheel', notAlone, { capture: true, passive: true });
+    window.addEventListener('pointerdown', notAlone, true);
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onPointer, true);
     window.addEventListener('wheel', onPointer, true);
     return () => {
       window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keydown', shiftDown, true);
+      window.removeEventListener('keyup', shiftUp, true);
+      window.removeEventListener('wheel', notAlone, true);
+      window.removeEventListener('pointerdown', notAlone, true);
       window.removeEventListener('pointerdown', onPointer, true);
       window.removeEventListener('wheel', onPointer, true);
     };
@@ -485,7 +513,7 @@ export function App() {
     const id = window.setInterval(() => setRecNow(performance.now()), 250);
     return () => window.clearInterval(id);
   }, [recording]);
-  const autoPlay = async (path: Path, record: boolean): Promise<void> => {
+  const autoPlay = async (path: Path, record: boolean, from = 0): Promise<void> => {
     const run = ++playing.current;
     setAuto(true);
     const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
@@ -510,7 +538,7 @@ export function App() {
         }
       };
     }
-    if (!(await arrive(0))) {
+    if (!(await arrive(from))) {
       if (record) setRecording((r) => (r && r.run === run ? null : r));
       if (playing.current === run) setAuto(false);
       return;
@@ -542,7 +570,7 @@ export function App() {
       };
     }
     await hold(2500);
-    for (let i = 1; i < path.points.length && live(); i++) {
+    for (let i = from + 1; i < path.points.length && live(); i++) {
       if (!(await arrive(i))) break;
       // A body picked out is a quick beat; a new view is held long enough to take in.
       const pt = path.points[i]!;
@@ -553,6 +581,22 @@ export function App() {
       playing.current++;
       setAuto(false);
     }
+  };
+  // Shift (owner, 3 Nov 2026): one tap plays the path by itself, the next stops it. After an
+  // arrow key took over, Shift plays on by itself from the point shown.
+  presentKey.current = () => {
+    if (autoRun.current) {
+      stopPresenting();
+      return;
+    }
+    const sh = showRef.current;
+    if (sh) {
+      void autoPlay(sh.path, false, sh.index);
+      return;
+    }
+    const p = paths[0] ?? examples[0];
+    if (p) void autoPlay(p, false);
+    else setStarsigns(true);
   };
   const starsignsActions: StarsignsActions = {
     base: () => keyRef.current.pointNow(),
@@ -615,6 +659,7 @@ export function App() {
         changeRate={changeRate}
         jumpBy={jumpBy}
         chrome={chrome}
+        setChrome={setChrome}
         selected
         onSelect={() => {}}
         box={{ x: 0, y: 0, w: vp.w, h: vp.h }}

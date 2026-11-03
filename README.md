@@ -147,6 +147,7 @@ npm run dev        # http://localhost:5173
 - **Top right**: ● Now / Back to now, the theme (Dark, Bright, Colour), Calendar · ✦ Fly · ◎ Galaxy, ◯ Round / ▭ Full.
 - **Bottom left**: SPACE (Go to: Solar system, Geostationary orbit, Low Earth orbit, Earth & Moon, Moon, Mars, Jupiter, Saturn, Sun, Whole galaxy); VIEW (Planets, Centre: Sun or Earth); ELEMENTS (Spirals, Strobe, Orbits, Time grid, Space grid, Constellations, Zodiac, Galaxy marks).
 - **Bottom right**: TIME (zoom: Minute, Hour, Day, Week, Month, Year, Decade, Century, Galactic year, Sun's life); SPEED: **▶ Play · speed and direction (Live, or ◀/▶ a minute … a century each second) · ❚❚ Pause** (choosing a speed holds time still until ▶ Play); the space grid's **scale bar** (two of its brown dashed lines and the km between them); **? How to** (instructions and credits).
+- **Keys:** **Space** or **H** hides the controls, then all text, then brings everything back (also **Elements › Controls / Text and labels**, for phones). **Shift** on its own plays the path by itself; Shift again stops. An arrow key takes over (→ next, ← back) until Shift plays on from there.
 - **Bottom centre** (always on screen, never in a capture): the eye (also the H key, or a tap on empty space on a phone: hide the boxes, then all labels, then bring them back) and **◉ Capture**. A ✶ Starsigns recording (hold **▶ Go** in its dialog › **◉ Record**) shows its running time and **■ Stop** here, and stops by itself at the end of the path.
 
 **Calendar** (the default view), with the real sky behind it, turned so the Sun's current sign is behind the Sun.
@@ -160,7 +161,7 @@ npm run dev        # http://localhost:5173
 
 **Fly** (✦ Fly, or click a name). You are in the solar system, in 3D, at true scale.
 
-- Click the view to steer with the mouse, as in Minecraft (Esc lets go). **W** flies toward whatever is in the middle of the view, S backs away, A/D slide sideways, Space up, Shift down (R/F too), Ctrl five times faster. Speed is half your height above the nearest body each second.
+- Click the view to steer with the mouse, as in Minecraft (Esc lets go). **W** flies toward whatever is in the middle of the view, S backs away, A/D slide sideways, R up, F down (R/F too), Ctrl five times faster. Speed is half your height above the nearest body each second.
 - Drag or scroll to look around where you stand; pinch to widen or narrow the view; Shift + scroll or pinch zooms time (the units of the time and space grids, a ruler along the Sun's line).
 - Click a name to fly there: you turn to face it, close in, and arrive just above its north pole. Names give apparent size and, with Zodiac on, the sign the body is in seen from where you are. Distant bodies get a dot in their path's colour. Labels never show through a body in front of them.
 - Every spiral runs out to the vanishing point.

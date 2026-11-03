@@ -19,10 +19,13 @@ const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
 interface Props {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
+  /** What is on screen: 0 everything, 1 no controls, 2 no text at all (Space, H, the eye, a tap). */
+  chrome: 0 | 1 | 2;
+  onChrome: (c: 0 | 1 | 2) => void;
 }
 
 /** A drop-down of the elements to show, each one on or off. */
-export function ElementsPicker({ settings, onChange }: Props) {
+export function ElementsPicker({ settings, onChange, chrome, onChrome }: Props) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -49,6 +52,17 @@ export function ElementsPicker({ settings, onChange }: Props) {
       </button>
       {open && (
         <div className="popover" id={panelId} role="dialog" aria-label="Choose what to show">
+          {/* The same three steps as Space, H or the eye; on a phone, a tap on empty space brings everything back. */}
+          <div>
+            <label title="Hide the boxes and buttons (Space or H); tap empty space or press Space to bring them back">
+              <input type="checkbox" checked={chrome === 0} onChange={(e) => onChrome(e.target.checked ? 0 : 1)} /> Controls
+            </label>
+          </div>
+          <div>
+            <label title="Hide every word on screen too (Space or H twice)">
+              <input type="checkbox" checked={chrome < 2} onChange={(e) => onChrome(e.target.checked ? 0 : 2)} /> Text and labels
+            </label>
+          </div>
           {ELEMENTS.map(([k, label]) => (
             <div key={k}>
               <label>

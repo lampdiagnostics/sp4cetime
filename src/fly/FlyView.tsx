@@ -478,8 +478,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     /**
      * Flying is like Minecraft's creative mode: there is an "up" (the up of wherever you
      * last arrived, or set by Reset view), you never roll, you look up and down at most
-     * straight up or down, and W A S D move you level with it, Space and Shift straight up
-     * and down. Click the view to steer with the mouse (Esc lets go).
+     * straight up or down, and W A S D move you level with it, R and F straight up and
+     * down. Click the view to steer with the mouse (Esc lets go).
      */
     const upRef = new THREE.Vector3(0, 1, 0).applyQuaternion(worldOf(pose, bodiesAt(now0()).bodies).quat);
     let locked = false;
@@ -680,12 +680,11 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const a = document.activeElement;
       return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
     };
-    const MOVE_KEYS = ['w', 'a', 's', 'd', 'r', 'f', 'shift', 'control', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+    // Space shows and hides the controls and Shift presents (App.tsx): neither flies.
+    const MOVE_KEYS = ['w', 'a', 's', 'd', 'r', 'f', 'control', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
     const onKeyDown = (e: KeyboardEvent): void => {
       if (!live.current.active || !live.current.focused || typing()) return;
       const k = e.key.toLowerCase();
-      // Space always flies up, as in games (H shows and hides the controls).
-      if (k === ' ') e.preventDefault();
       if (MOVE_KEYS.includes(k)) {
         keys.add(k);
         if (!flight?.warp) flight = null;
@@ -887,12 +886,11 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           const f = flat.clone().multiplyScalar(Math.cos(p)).addScaledVector(upRef, Math.sin(p));
           quat = lookAt([0, 0, 0], [f.x, f.y, f.z], [upRef.x, upRef.y, upRef.z]);
         }
-        // Move: W A S D level with "up"; Space or R up, Shift or F down (Space and Shift while
-        // steering with the mouse; otherwise Shift goes faster); Ctrl faster. Speed scales
+        // Move: W A S D level with "up"; R up, F down; Ctrl faster. Speed scales
         // with the distance to the nearest thing: a body, the black hole, a galaxy.
         const near = nearest(pos, bodies);
         const clearance = Math.min(near.altitude, galaxy ? galaxy.clearanceKm(pos, now) : Infinity);
-        const sprint = keys.has('control') || (!locked && keys.has('shift'));
+        const sprint = keys.has('control');
         const v = cruiseSpeed(clearance) * (sprint ? 5 : 1);
         const right = flat.clone().cross(upRef).normalize();
         // The thumb stick: how far it is pushed (past a small dead zone), up to full speed.
@@ -908,12 +906,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         }
         const ahead = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0) - stickY;
         const side = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0) + stickX;
-        const up1 = keys.has('r') || keys.has(' ') ? 1 : 0;
-        const down1 = keys.has('f') || (locked && keys.has('shift')) ? 1 : 0;
+        const up1 = keys.has('r') ? 1 : 0;
+        const down1 = keys.has('f') ? 1 : 0;
         const look3 = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
         // W and S fly the way you are looking, so whatever is in the middle of the view is
         // where you go (and it grows until you arrive); A and D slide sideways, level;
-        // Space and Shift rise and sink along "up".
+        // R and F rise and sink along "up".
         const move = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(quat)
           .multiplyScalar(ahead)
@@ -1410,7 +1408,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       <canvas
         ref={canvasRef}
         className="fly-canvas"
-        aria-label="The solar system in 3D. Click to steer with the mouse, as in Minecraft (Escape lets go): W A S D fly level, Space up, Shift down, Ctrl faster. Drag or scroll to look around where you stand; pinch to widen or narrow the view; Shift with scroll or pinch zooms time; W A S D to move, R and F up and down, Shift to go faster. Click a name to fly just above that body, over its north pole."
+        aria-label="The solar system in 3D. Click to steer with the mouse, as in Minecraft (Escape lets go): W A S D fly level, R up, F down, Ctrl faster. Drag or scroll to look around where you stand; pinch to widen or narrow the view; Shift with scroll or pinch zooms time. Click a name to fly just above that body, over its north pole."
       />
       <div ref={markersRef} className="fly-markers" aria-hidden="true" />
       <div ref={labelsRef} className="fly-labels" aria-hidden="true" />
