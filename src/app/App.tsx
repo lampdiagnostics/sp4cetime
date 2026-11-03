@@ -578,10 +578,15 @@ export function App() {
     }
     await hold(2500);
     for (let i = from + 1; i < path.points.length && live(); i++) {
-      if (!(await arrive(i))) break;
-      // A body picked out is a quick beat; a new view is held long enough to take in.
       const pt = path.points[i]!;
-      await hold(i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200);
+      // Recording (owner, 3 Nov 2026): no planet-by-planet highlights in the video; each view
+      // is held a little longer instead (more for each body it would have picked out).
+      if (rec && pt.look.highlight && i < path.points.length - 1) continue;
+      if (!(await arrive(i))) break;
+      let picks = 0;
+      if (rec) for (let j = i + 1; j < path.points.length - 1 && path.points[j]!.look.highlight; j++) picks++;
+      // A body picked out is a quick beat; a new view is held long enough to take in.
+      await hold(i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
     }
     finish();
     if (playing.current === run) {
