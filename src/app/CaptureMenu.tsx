@@ -9,7 +9,7 @@ const VIDEO_FPS = 30;
 
 /**
  * Capture what is on screen (the view, its names, and the boxes if they are showing),
- * straight to Downloads (a Starsigns recording, started by holding ▶ Go in its dialog,
+ * straight to Downloads (a Starsigns recording, started by ⤓ Download package in its dialog,
  * shows its running time and ■ Stop here instead):
  * - P a screenshot (in every view);
  * - G a GIF: time plays for 5 seconds while it records, then pauses;
@@ -40,7 +40,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
   present: PresentControls;
   /** Open ▷ Present with this path selected (a new ✶ Starsigns path). */
   focusPath?: { id: string; n: number } | null;
-  /** A path recording (◉ Record): its length so far and ■ Stop (it also stops at the path's end). */
+  /** A path recording (the Starsigns package): its length so far and ■ Stop (it also stops at the path's end). */
   pathRecording: { clock: string; stop: () => void } | null;
 }) {
   /** Which menu is open: ◉ Capture or ▷ Present (two buttons since 3 Nov 2026), or neither. */
@@ -217,7 +217,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
             <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} /> Watermark “@sp4cetime.org”
           </label>
           <fieldset className="video-size">
-            <legend>Video size (also ✶ Starsigns ◉ Record)</legend>
+            <legend>Video size (also the ✶ Starsigns package)</legend>
             <label title="Up to 4K wide at a high bit rate: for showing on a computer or a big screen (heavier while recording)">
               <input type="radio" name="video-size" checked={size === 'hires'} onChange={() => (setSize('hires'), setVideoSize('hires'))} /> Hi-res, for desktop screens
             </label>

@@ -493,7 +493,7 @@ export function videoFormat(): { mime: string; ext: string } | null {
 
 /**
  * Video size (owner, 3 Nov 2026), one choice for every recording (the Capture menu and
- * Starsigns' ◉ Record), remembered in this browser:
+ * the ✶ Starsigns package), remembered in this browser:
  * - 'hires': for desktop screens, up to 4K wide, a high bit rate (8–50 Mbit/s);
  * - 'small': for posting on X, at most 1280 × 720 and about 2 Mbit/s (roughly 15 MB a
  *   minute, far under X's 512 MB; X re-encodes to 720p anyway).

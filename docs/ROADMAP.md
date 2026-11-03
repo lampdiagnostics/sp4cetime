@@ -28,6 +28,33 @@ Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 - [x] Pre-launch review for bugs; fixes in CHANGELOG.md.
 - [x] Pushed to GitHub (public) and live on sp4cetime.org via Cloudflare Workers (README.md "Going live"), with anonymous page counts by Cloudflare Web Analytics.
 
+## Heading into 0.5.0 (written 3 November 2026, end of the 0.4.0 session)
+
+How to work (owner): commit changes locally as they are made; push to GitHub, and so to sp4cetime.org, only after substantial progress.
+
+### 0.5.0 to-do
+- [ ] **Publish on GitHub:** push the `v0.4.0` tag from the Mac (`git push -f origin v0.4.0`), make a **GitHub Release** for v0.4.0 with the CHANGELOG entry; add the missing tags and releases v0.1.0–v0.3.0 (and v0.3.1's release). From now on, push in batches after substantial progress, then tag and release.
+- [ ] **The money trail** (README.md "Opening sp4cetime.store: the money trail"): 0 the bank, 1 activate Stripe, 2 live mode in the Stripe connector, 3 live prices, 4 live coffee link (☕ turns on at once), 5–10 portal, the Worker on sp4cetime.store, secrets, webhook, email, open; 11 tax, 12 terms, refunds and privacy in the owner's words.
+- [ ] Turn ✶ Customize back on in the Starsigns dialog when the shop opens (`SHOP_OPEN`), and the shop's own checks: a real order of each product, a real readout email.
+- [ ] **Stand here** (README.md "0.4.0", rest of the design): the ground view as an instrument of its own (house wedges on the sky, a transparent-planet toggle in Elements, a time frame playing an hour), points remembering it; Placidus with honest labels.
+- [ ] Starsigns: the night field brighter (the ground can hardly be seen at night); the planets to show in 3D during the path even when only Mercury–Mars are ticked? (the owner decides: the rule is that menus decide what is on screen).
+- [ ] Hospitals first in the place search (a Wikidata CC0 list the owner downloads; the cloud cannot reach it).
+- [ ] Live link / screen saver (`?live`), GIF and SVG posters for the package, sharing links.
+- [ ] Phones: gyroscope looking, tap to travel. A check on a real phone and tablet of everything changed in 0.4.0 (compact layout, Round on phones, Starsigns, package download on iOS).
+- [ ] The spheres model (owner's open questions in docs/SPHERES.md), then events and stories.
+
+### Bugs and loose ends to fix
+- [ ] **Package on iPhone/iPad:** Safari's video recording and .zip download are untested; Safari records MP4 only in recent versions.
+- [ ] **Package memory:** a hi-res (4K) recording is held in memory and copied once to make the .zip; long or 4K packages could strain phones. Consider small video by default on phones.
+- [ ] **Cross-fades:** names now vanish and fade back in when a presentation changes look (the snapshot leaves them out); a true name-by-name cross-fade would be nicer.
+- [ ] **Old saved paths** from before the four poses (6-point and 30-point Starsigns paths, with highlights) still sit in ▷ Present in browsers that made them; offer to clear them, or mark them old.
+- [ ] **The first flight** of a path (from wherever you are to its START) can take 10–15 s; shorten it.
+- [ ] **Ground at eye height:** Earth's sphere is drawn with flat facets, so the ground can sit up to ~2 km below the eye at the horizon; finer tessellation near the camera.
+- [ ] **Labels:** on the wheel, the Sun's and Mercury's names can still touch when within a few degrees; the top-left box is cut to "SP4CETIM…" on narrow phones.
+- [ ] **A property test** (planet grouping) once ran past its time limit under load in `npm run check`; give it fewer runs or a longer limit.
+- [ ] **Readouts:** the webhook's email path is tested with a mock only; test with Stripe's test events and Cloudflare Email Service once set up.
+- [ ] **Keys:** check Shift-to-present and Space-to-hide on Windows and in Firefox and Safari (only Chromium tested).
+
 ## 0.4.0 — done 2 November 2026; what is left is the to-do list
 
 Everything not done yet. The first block is the next version; the rest stays on the list until it is picked up.
@@ -50,13 +77,13 @@ Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-starsi
 - [x] Signs from the equinox of the viewed date, in both views (sign lines and names turn with precession; body labels use longitudes of date).
 - [x] Place lookup: type a town, get its centre and time zone (Natural Earth populated places, public domain, 7,342 towns); or latitude and longitude in degrees, minutes, seconds; the local time turned into UTC with the zone's history (daylight saving, skipped and doubled hours).
 - [x] **✶ Starsigns** button and dialog (renamed from Astrology): date, local time (or "I don't know the time"), place; Whole Sign or Equal houses; a table of every body's sign, degree, house and retrograde, the Ascendant and MC; "Go to this moment" sets the map there. (`src/core/reading.ts`, `places.ts`; `src/app/zones.ts`, `AstrologyDialog.tsx`.)
-- [x] Where the button lives: top right on computers; on phones at the top beside Now and Fly, a twinkling ✶ (owner, 2 Nov). ▶ Go in the dialog (tap: go; hold: ◉ Record); ◉ Capture at the bottom.
+- [x] Where the button lives: top right on computers; on phones at the top beside Now and Fly, a twinkling ✶ (owner, 2 Nov). ✶ Create Path in the dialog (opens in ▷ Present); ◉ Capture and ▷ Present at the bottom.
 - [x] Fixed on the way: Earth was drawn turned up to 180° for dates before 2000 (now within 0.05° of astronomy-engine, 1600–2400).
 - [x] A **free path** from the reading (six points: calendar, Earth from space with signs, over the place, the Ascendant on the eastern horizon, the Midheaven, END), saved with the person's paths; played on its own.
 - [x] The house overlay in 3D: the place's horizon, house boundaries and numbers, ASC and MC; body labels with degree and house; path points remember it.
 - [x] The video: the path recorded by Capture (about 30–40 s, captions included).
 - [x] The PDF (our own writer): every body's sign, degree and house, Ascendant and MC, a chart wheel, the place and time; title, name, Letter or A4, paper or night; astronomy and astrology labelled; links to free reading (astro.com, Cafe Astrology); a partner's text later.
-- [x] Free on sp4cetime.org, no prices: ▷ Go (the path), hold ▶ Go › ◉ Record (an MP4), ⤓ the card (the inside, one page), ⤓ the path (.json). **✶ Customize** → sp4cetime.store (the order in the link's fragment; enabled when `SHOP_OPEN`). **☕ Buy us a coffee!** shows once `COFFEE_URL` holds a Stripe Payment Link.
+- [x] Free on sp4cetime.org, no prices: ✶ Create Path (run from ▷ Present), ⤓ Download package (PDF + MP4 + token in one .zip), ⤓ the card (the inside, one page), ⤓ the path (.json). **✶ Customize** → sp4cetime.store (the order in the link's fragment; enabled when `SHOP_OPEN`). **☕ Buy us a coffee!** shows once `COFFEE_URL` holds a Stripe Payment Link.
 - [x] Dialog (owner, 2 Nov): opens on now and here; Go first; Place / Lat / Lon with a transit-style completer and nearest-town lookup; blank time = noon; houses by number and name.
 - [x] The path's four steps (pole facing the Sun; planet groups picked out one by one; the sky over the place, coloured for the hour; the wheel with each house), the 3D chart wheel, a soft highlight.
 - [x] The card PDF: folds to 5 × 7 in (Letter) or A6 (A4), inside in landscape; free one-sided (inside only); the two-sided card with a cover kept for the shop.
