@@ -27,7 +27,7 @@ export interface WheelInput {
   readonly asc: number;
   readonly mc: number;
   /** Every body: longitude of date and a short label. */
-  readonly bodies: ReadonlyArray<{ readonly id: BodyId; readonly lon: number; readonly text: string }>;
+  readonly bodies: ReadonlyArray<{ readonly id: BodyId; readonly lon: number; readonly text: string; readonly colour?: string }>;
   readonly highlight: BodyId | null;
   /** Line colours: the zodiac's, and the houses' (an accent). */
   readonly zodiac: string;
@@ -123,7 +123,13 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
       group.scale.setScalar(w.radiusKm);
 
       // Labels: signs in the ring, house numbers inside, ASC and MC outside, bodies spread where they crowd.
-      const items: Array<{ p: Vec3; text: string; kind: string; hl?: boolean }> = [];
+      const items: Array<{ p: Vec3; text: string; kind: string; hl?: boolean; colour?: string; size?: number }> = [];
+      // Each body as a disc on the ring at its true longitude, big enough to see (the real ones
+      // are too small, or at the edge of the view): the Sun largest, then the Moon.
+      for (const b of w.bodies) {
+        const size = b.id === 'sun' ? 18 : b.id === 'moon' ? 14 : 10;
+        items.push({ p: at(b.lon - w.shift, R_SIGN - 0.05), text: '', kind: 'dot', hl: b.id === w.highlight, size, ...(b.colour ? { colour: b.colour } : {}) });
+      }
       for (let s = 0; s < 12; s++) items.push({ p: at(s * 30 + 15 - w.shift, (R_OUT + R_SIGN) / 2), text: `${SIGNS[s]![0]} ${SIGNS[s]![1]}`, kind: 'sign' });
       w.cusps.forEach((c, i) => items.push({ p: at(c + 15 - w.shift, R_HOUSE - 0.07), text: String(i + 1), kind: 'house' }));
       items.push({ p: at(w.asc - w.shift, 1.12), text: 'ASC', kind: 'angle' }, { p: at(w.mc - w.shift, 1.12), text: 'MC', kind: 'angle' });
@@ -157,6 +163,14 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
         if (el.textContent !== it.text) el.textContent = it.text;
         if (el.dataset.kind !== it.kind) el.dataset.kind = it.kind;
         el.classList.toggle('hl', !!it.hl);
+        if (it.kind === 'dot') {
+          const px = `${it.size ?? 10}px`;
+          if (el.style.width !== px) el.style.width = el.style.height = px;
+          const c = it.colour ?? '#ffffff';
+          if (el.style.getPropertyValue('--dot') !== c) el.style.setProperty('--dot', c);
+        } else if (el.style.width) {
+          el.style.width = el.style.height = '';
+        }
         // While one body is picked out, the others step back.
         el.classList.toggle('dim', it.kind === 'body' && !!w.highlight && !it.hl);
       });

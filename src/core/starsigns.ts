@@ -7,8 +7,11 @@
  *      facing the Sun, the zodiac around the horizon.
  *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
  *      body picked out in turn (it pulses; its caption gives its sign and degree).
- *   3. THE SKY OVER THE PLACE: down to the place (a town at its centre), looking straight
- *      up: the constellations, the zodiac and the houses overhead, the sky coloured for that hour.
+ *   3. THE SKY OVER THE PLACE (owner, 3 Nov 2026): standing in a field at the place (a town
+ *      at its centre), the ground along the bottom of the view, looking up toward the highest
+ *      point of the zodiac (90° from the Ascendant) so the most of it is in view, with the
+ *      constellations and the houses, the sky coloured for that hour. A pause, then the ground
+ *      drops away (pose 4).
  *   4. THE WHOLE ZODIAC (owner, 3 Nov 2026): still standing at the place, the planet drops
  *      away beneath your feet (see-through), and looking down past them toward the ecliptic's
  *      south pole the whole zodiac is a ring around the sky, exactly as on the printed chart
@@ -100,6 +103,8 @@ export interface StarsignsOptions {
 
 /** The 3D chart wheel's outer radius around Earth, in Earth radii (src/fly/wheel.ts draws it). */
 export const WHEEL_RADII = 12;
+/** Eye height above the place, km: standing in a field (owner, 3 Nov 2026: ground level). */
+const STAND_KM = 0.002;
 /** Half the angle a view of planets may span (so each group fits even on a narrow screen). */
 const GROUP_HALF_DEG = 28;
 
@@ -161,6 +166,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     distanceGrid: false,
     // At the place (and see-through), the constellations too: the night sky as it is.
     constellations: ground,
+    // No Milky Way direction marks ("l 270° · behind the Sun", the anticentre): not part of a chart.
+    galactic: false,
     strobe: false,
     chart: withChart ? chart : null,
     highlight,
@@ -219,13 +226,19 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const lat = r.lat * DEG, lon = r.lon * DEG;
   const up: Vec3 = [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
   const north: Vec3 = [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)];
-  const mcBody = toBody(eclipticDirOfDate(r.chart.mc, 0, r.chart.sky));
-  let toMc = add(mcBody, scale(up, -dot(mcBody, up)));
-  if (Math.hypot(...toMc) < 1e-6) toMc = north;
+  // The highest point of the zodiac (the nonagesimal, 90° before the Ascendant): face its
+  // direction along the ground, tilted up so the horizon sits just above the bottom of the view.
+  const nona = toBody(eclipticDirOfDate(r.chart.asc - 90, 0, r.chart.sky));
+  let toward = add(nona, scale(up, -dot(nona, up)));
+  if (Math.hypot(...toward) < 1e-6) toward = north;
+  toward = unit(toward);
+  const groundFov = 100;
+  const pitch = (groundFov / 2 - 9) * DEG;
+  const gaze = add(scale(toward, Math.cos(pitch)), scale(up, Math.sin(pitch)));
   const upWorld = unit(toWorld(up));
   points.push(
     point(
-      { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + 1), quat: lookQuat(up, unit(toMc)), fov: 100, up: upWorld },
+      { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + STAND_KM), quat: lookQuat(gaze, up), fov: groundFov, up: upWorld },
       `The sky over ${o.placeName}${noon} · rising ${formatSignDeg(r.chart.asc)}`,
       true,
       null,
@@ -240,7 +253,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const ascBody = toBody(eclipticDirOfDate(r.chart.asc, 0, r.chart.sky));
   // A camera's right is up × back; with up = pole × asc and back = −pole, right = −asc: the Ascendant on the left.
   const wheelUp = unit(cross(poleBody, ascBody));
-  const wheel: FlyState = { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + 1), quat: lookQuat(poleBody, wheelUp), fov: 90, up: upWorld };
+  const wheel: FlyState = { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + STAND_KM), quat: lookQuat(poleBody, wheelUp), fov: 90, up: upWorld };
   points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true));
   for (const b of r.bodies) {
     points.push(point(wheel, `${b.name} · ${formatSignDeg(b.lon)} · house ${houseLabel(b.house)}`, true, b.id, o.placeLabel, true, true));

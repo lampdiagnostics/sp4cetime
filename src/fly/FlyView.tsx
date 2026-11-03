@@ -1186,7 +1186,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
                   const lon = lonOfDateFromVector([b.pos[0] - earthB.pos[0], b.pos[1] - earthB.pos[1], b.pos[2] - earthB.pos[2]], skyNow);
                   const picked = L.overlays.highlight === b.info.id;
                   const sg = signOfLon(lon);
-                  return { id: b.info.id, lon, text: picked ? `${b.info.name} · ${formatSignDeg(lon)} · house ${houseOf(lon, chart.cusps)}` : `${b.info.name} ${Math.floor(sg.deg)}°` };
+                  const colour = b.info.id === 'sun' ? L.theme.sunLine : b.info.id === 'moon' ? L.theme.moon : L.theme.planets[b.info.id as PlanetId];
+                  return { id: b.info.id, lon, colour, text: picked ? `${b.info.name} · ${formatSignDeg(lon)} · house ${houseOf(lon, chart.cusps)}` : `${b.info.name} ${Math.floor(sg.deg)}°` };
                 }),
               highlight: L.overlays.highlight ?? null,
               zodiac: L.theme.sky.zodiac,
@@ -1213,10 +1214,22 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       }
       const coversStar = (r: Rect, own?: readonly [number, number]): boolean =>
         starPts.some(([x, y]) => (!own || Math.hypot(x - own[0], y - own[1]) > 2) && x > r.x0 - 4 && x < r.x1 + 4 && y > r.y0 - 4 && y < r.y1 + 4);
+      // Standing on the ground (Earth not see-through): names below the horizon are under
+      // your feet, not in the sky, so they are not shown through the ground.
+      let groundUp: Vec3 | null = null;
+      if (!seeThroughNow && far <= 0.5) {
+        const e = find(bodies, 'earth');
+        const off = sub3(pos, e.pos);
+        if (len3(off) - e.info.radiusKm < 50) groundUp = unit3(off);
+      }
       for (let i = 0; i < skyLabels.length; i++) {
         const el = skyLabels[i]!;
         const g = sl[i];
         if (!g) {
+          el.style.display = 'none';
+          continue;
+        }
+        if (groundUp && g.dir[0] * groundUp[0] + g.dir[1] * groundUp[1] + g.dir[2] * groundUp[2] < -0.01) {
           el.style.display = 'none';
           continue;
         }

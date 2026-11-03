@@ -1993,3 +1993,14 @@ select option {
   gap: 6px;
   align-items: center;
 }
+
+/* The chart wheel's bodies: a disc each, in its own colour, on the ring at its longitude. */
+.fly-wheel-label[data-kind='dot'] {
+  border-radius: 50%;
+  background: var(--dot, #fff);
+  box-shadow: 0 0 8px var(--dot, #fff), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  font-size: 0;
+}
+.fly-wheel-label[data-kind='dot'].hl {
+  box-shadow: 0 0 16px 4px var(--dot, #fff), 0 0 0 2px var(--sky-zodiac, #f0c674);
+}

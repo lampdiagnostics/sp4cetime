@@ -83,7 +83,10 @@ describe('The Starsigns path', () => {
     expect(f.frame).toBe('body');
     const up = f.rel.map((x) => x / Math.hypot(...f.rel)) as V;
     const look = rot(f.quat, [0, 0, -1]);
-    expect(look[0] * up[0] + look[1] * up[1] + look[2] * up[2]).toBeCloseTo(1, 6);
+    // Standing in a field: looking 41° up (the horizon 9° above the bottom of a 100° view), level (no roll).
+    expect((Math.asin(look[0] * up[0] + look[1] * up[1] + look[2] * up[2]) * 180) / Math.PI).toBeCloseTo(41, 4);
+    const right = rot(f.quat, [1, 0, 0]);
+    expect(right[0] * up[0] + right[1] * up[1] + right[2] * up[2]).toBeCloseTo(0, 6);
     // The last pose: still in the town (body frame, same spot), Earth see-through, looking up the
     // ecliptic's north pole with the Ascendant on the left (as on the printed chart).
     const last = pts[pts.length - 1]!;
@@ -93,6 +96,7 @@ describe('The Starsigns path', () => {
     expect(last.look.seeThrough).toBe(true);
     expect(ground.look.seeThrough).toBe(false);
     expect(ground.look.constellations).toBe(true);
+    for (const p of pts) expect(p.look.galactic).toBe(false);
     const [ax, ay, az] = solarSystemAt(r.time).find((b) => b.info.id === 'earth')!.axes;
     const toWorld = (d: V): V => [0, 1, 2].map((k) => ax[k]! * d[0] + ay[k]! * d[1] + az[k]! * d[2]) as V;
     expect(toWorld(rot(wheel.quat, [0, 0, -1]))[2]).toBeCloseTo(-1, 6);

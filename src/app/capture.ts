@@ -289,15 +289,19 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
         if (b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom) continue;
         const x = (b.left - R.left) * sx, y = (b.top - R.top) * sy, bw = b.width * sx, bh = b.height * sy;
         out.globalAlpha = Number(cs.opacity) * (st.alpha ?? 1);
-        if (el.classList.contains('fly-marker')) {
+        // Dots: a body's marker, and a body's disc on the chart wheel.
+        if (el.classList.contains('fly-marker') || el.dataset.kind === 'dot') {
           out.fillStyle = cs.backgroundColor;
           out.beginPath();
           out.arc(x + bw / 2, y + bh / 2, bw / 2, 0, Math.PI * 2);
           out.fill();
           continue;
         }
-        const text = el.textContent?.trim();
-        if (!text) continue;
+        // As shown: capitals where the style asks for them (constellation, house and angle
+        // names), so a picture or a cross-fade never shows them in another case.
+        const raw = el.textContent?.trim();
+        if (!raw) continue;
+        const text = cs.textTransform === 'uppercase' ? raw.toUpperCase() : cs.textTransform === 'lowercase' ? raw.toLowerCase() : cs.textTransform === 'capitalize' ? raw.replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : raw;
         if (!transparent(cs.backgroundColor)) {
           out.fillStyle = cs.backgroundColor;
           out.beginPath();
@@ -305,6 +309,8 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
           out.fill();
         }
         out.font = `${cs.fontStyle} ${cs.fontWeight} ${(parseFloat(cs.fontSize) || 11) * sy}px ${cs.fontFamily}`;
+        const ls = parseFloat(cs.letterSpacing);
+        (out as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = Number.isFinite(ls) && ls !== 0 ? `${ls * sy}px` : '0px';
         out.textBaseline = 'middle';
         out.textAlign = 'left';
         const tx = x + (parseFloat(cs.paddingLeft) || 0) * sx, ty = y + bh / 2;
