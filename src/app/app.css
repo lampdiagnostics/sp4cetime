@@ -1257,7 +1257,8 @@ select option {
    ☰ More at the bottom. More opens the rest, one box at a time under tabs:
    Time (zoom, speed, play), Space (places, bodies, elements), Display (theme, views).
    The date stays at the top left as plain text. */
-@media (max-width: 720px), (max-height: 520px) {
+/* Every screen (owner, 3 Nov 2026: computers take the phones' compact layout too). */
+@media all {
   :root {
     --gap: 8px;
   }
@@ -1966,4 +1967,11 @@ select option {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: min(720px, calc(100vw - 32px));
+}
+/* Computers: the same compact dock, but a panel's width, at the bottom right (not the whole screen). */
+@media (min-width: 900px) {
+  .dock {
+    left: auto;
+    width: min(640px, calc(100vw - 2 * var(--gap)));
+  }
 }

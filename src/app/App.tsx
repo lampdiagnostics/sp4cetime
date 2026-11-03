@@ -623,7 +623,7 @@ export function App() {
   const dockOpenRef = useRef(dockOpen);
   dockOpenRef.current = dockOpen;
   const onEmptyTap = useCallback((): void => {
-    if (dockOpenRef.current && window.matchMedia?.('(max-width: 720px), (max-height: 520px)').matches) {
+    if (dockOpenRef.current) {
       setDockOpen(false);
       try {
         localStorage.setItem(DOCK_KEY, 'closed');
