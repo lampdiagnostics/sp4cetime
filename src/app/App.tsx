@@ -628,12 +628,13 @@ export function App() {
       {/* A path's dissolve between looks (a picture of the old look, fading out). */}
       <canvas ref={veilRef} className="veil" aria-hidden="true" />
 
-      {/* Presentation mode: the point's box (in captures, with its caption). */}
+      {/* Presentation mode: no box on screen; the caption for screen readers only. */}
       {showing && shownPoint && (
-        // One line (owner, 3 Nov 2026): the point's words only, no step counter or details.
-        <section className="pointbox one-line" aria-live="polite" aria-label="This point of the path" title={`${showing.path.name} · ${VIEW_NAME[shownPoint.view]} · ${formatTime(shownPoint.present, 1)}${shownPoint.where ? ` · ${shownPoint.where}` : ''}`}>
-          <p className="pb-caption">{shownPoint.caption || showing.path.name}</p>
-        </section>
+        // No text box at the top (owner, 3 Nov 2026): the view speaks for itself. The point's words
+        // are still read out to screen readers.
+        <p className="visually-hidden" aria-live="polite">
+          {shownPoint.caption || showing.path.name}
+        </p>
       )}
 
       {starsigns && (
