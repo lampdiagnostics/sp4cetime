@@ -518,7 +518,7 @@ export function setVideoSize(s: VideoSize): void {
 /** A video of what is on screen, until stopped: hi-res (up to 4K wide) or small (720p, for X). */
 export async function recordVideo(
   getShot: () => Shot | null,
-  o: { fps: number; watermark: boolean; size?: VideoSize },
+  o: { fps: number; watermark: boolean; size?: VideoSize; onBlob?: (video: Blob, ext: string) => void },
   onDone: () => void,
 ): Promise<Recording | null> {
   const fmt = videoFormat();
@@ -559,7 +559,12 @@ export async function recordVideo(
     holdQuality(false);
     live.getTracks().forEach((t) => t.stop());
     stream.getTracks().forEach((t) => t.stop());
-    if (chunks.length) download(new Blob(chunks, { type: fmt.mime.split(';')[0] ?? fmt.mime }), fmt.ext);
+    if (chunks.length) {
+      const video = new Blob(chunks, { type: fmt.mime.split(';')[0] ?? fmt.mime });
+      // Handed back (the Starsigns package zips it), or saved to Downloads.
+      if (o.onBlob) o.onBlob(video, fmt.ext);
+      else download(video, fmt.ext);
+    }
     onDone();
   };
   // Draw at the video's frame rate (not every screen frame), on the screen's own frames.

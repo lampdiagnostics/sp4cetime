@@ -2042,3 +2042,33 @@ select option {
 .astro-dialog .astro-system.row select {
   align-self: center;
 }
+/* The coffee button before its live link exists: shown, not clickable. */
+.astro-dialog .coffee.coffee-soon {
+  opacity: 0.6;
+  cursor: default;
+}
+.astro-dialog .astro-files {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The scale legend: bottom right, just above ☰ More, on phones and computers. */
+.scale-corner {
+  position: fixed;
+  right: var(--gap, 12px);
+  bottom: calc(var(--gap, 12px) + 46px);
+  z-index: 19;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+}
+.scale-corner .scale {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.chrome-2 ~ .scale-corner,
+body:has(.chrome-2) .scale-corner,
+body:has(.dock[data-open='true']) .scale-corner {
+  display: none;
+}

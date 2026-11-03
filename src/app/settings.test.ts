@@ -11,12 +11,12 @@ const store = new Map<string, string>();
 describe('Opening the app', () => {
   afterEach(() => store.clear());
 
-  it('always opens round, in Dark Mode, centred on the Sun, whatever was chosen last time', () => {
+  it('opens in Dark Mode, centred on the Sun, round or full as last chosen', () => {
     store.set('sp4cetime.settings.v1', JSON.stringify({ themeId: 'bright', round: false, focus: 'mars', planets: ['jupiter'], spirals: false, scale: 'true' }));
     store.set('sp4cetime.settings.fix040', '1');
     const s = loadSettings();
     expect(s.themeId).toBe('dark');
-    expect(s.round).toBe(true);
+    expect(s.round).toBe(false);
     expect(s.focus).toBe('sun');
     // What is drawn is remembered.
     expect(s.planets).toEqual(['jupiter']);

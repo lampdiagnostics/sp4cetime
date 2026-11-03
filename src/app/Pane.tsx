@@ -589,13 +589,6 @@ export function Pane(p: Props) {
             ❚❚ Pause
           </button>
         </div>
-        {(() => {
-          // The space grid's scale: a bar between two of its dashed lines, with how many km apart they are.
-          const b = in3D ? flyHud?.bar : spaceBar;
-          if (b && b.km > 0 && b.px > 2) return <ScaleBar km={b.km} px={b.px} color={theme.distanceGrid} />;
-          const t = in3D ? flyHud?.statement : spaceStatement;
-          return t ? <span className="scale">{t}</span> : null;
-        })()}
         {in3D && flyHud?.hint && <p className="note fly-hint">{flyHud.hint}</p>}
         <HelpButton>
           {in3D ? (
@@ -735,6 +728,21 @@ export function Pane(p: Props) {
         </div>
       )}
       {selected && p.boxesHost && createPortal(boxes, p.boxesHost)}
+      {/* The space grid's scale, at the bottom right corner on every screen (owner, 3 Nov 2026),
+          above ☰ More: a bar between two of its dashed lines, with how many km apart they are. */}
+      {selected &&
+        p.boxesHost &&
+        createPortal(
+          <div className="scale-corner">
+            {(() => {
+              const b = in3D ? flyHud?.bar : spaceBar;
+              if (b && b.km > 0 && b.px > 2) return <ScaleBar km={b.km} px={b.px} color={theme.distanceGrid} />;
+              const t = in3D ? flyHud?.statement : spaceStatement;
+              return t ? <span className="scale">{t}</span> : null;
+            })()}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

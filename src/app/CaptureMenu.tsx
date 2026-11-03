@@ -32,12 +32,14 @@ export interface PresentControls {
   readonly message: string;
 }
 
-export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
+export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, focusPath }: {
   getShot: () => Shot | null;
   onPlay: (on: boolean) => void;
   in3D: boolean;
   /** Paths: Presentation mode lives in the Capture button (presentations are made to be captured). */
   present: PresentControls;
+  /** Open ▷ Present with this path selected (a new ✶ Starsigns path). */
+  focusPath?: { id: string; n: number } | null;
   /** A path recording (◉ Record): its length so far and ■ Stop (it also stops at the path's end). */
   pathRecording: { clock: string; stop: () => void } | null;
 }) {
@@ -82,6 +84,13 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording }: {
       window.removeEventListener('keydown', close);
     };
   }, [open]);
+
+  // A new path (✶ Create Path): open ▷ Present with it chosen, ready to run.
+  useEffect(() => {
+    if (!focusPath) return;
+    setChosen(focusPath.id);
+    setOpenMenu('present');
+  }, [focusPath?.n]);
 
   // The video's running time.
   useEffect(() => {

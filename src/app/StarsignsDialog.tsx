@@ -9,7 +9,7 @@ import { starsignsCard } from '../core/starsignsPdf';
 import { fromUnixMs } from '../core/time';
 import { COFFEE_URL, saveBytes, SHOP_OPEN, shopLink } from './shop';
 import { formatOffset, localToUtc } from './zones';
-import { getVideoSize } from './capture';
+import { getVideoSize, setVideoSize, type VideoSize } from './capture';
 
 const DEG = Math.PI / 180;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -42,6 +42,10 @@ export interface StarsignsActions {
   play: (path: Path, capture: boolean) => void;
   /** Save the path as a .sp4ce.json file (free). */
   download: (path: Path) => void;
+  /** ✶ Create Path: save it and list it in ▷ Present, ready to run. */
+  create: (path: Path) => void;
+  /** The package: fly and record the path, then one .zip with the PDF, the video and the path token. */
+  pack: (path: Path, pdf: Uint8Array, size: VideoSize, base: string) => void;
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -68,7 +72,9 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   const [lonText, setLonText] = useState('');
   const [where, setWhere] = useState<Where | null>(null);
   const [system, setSystem] = useState<HouseSystem>('whole');
-  const [paper, setPaper] = useState<'letter' | 'a4'>(() => (/^en-(US|CA)$/.test(navigator.language) ? 'letter' : 'a4'));
+  // The package's PDF is one 8.5 × 11 in page, landscape (owner, 3 Nov 2026).
+  const paper = 'letter' as const;
+  const [size, setSize] = useState<VideoSize>(getVideoSize);
   const [places, setPlaces] = useState<Place[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -185,14 +191,14 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
         aria-labelledby="astro-title"
         onSubmit={(e) => {
           e.preventDefault();
-          go(false);
+          const p = path();
+          if (p) actions.create(p);
         }}
       >
         <button type="button" className="astro-x" onClick={onClose} aria-label="Close (Esc)" title="Close (Esc)">
           ×
         </button>
         <h2 id="astro-title">✶ Starsigns</h2>
-        <p className="note">The sky for a moment and a place: the planets in their signs, and the twelve houses around that spot. It starts at now and here.</p>
 
         <div className="row astro-when">
           <label>
@@ -323,13 +329,25 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
         <button type="submit" className="visually-hidden" tabIndex={-1} disabled={!reading}>
           Go
         </button>
+        {/* ✶ Create Path (owner, 3 Nov 2026; it was ▶ Go): the path is saved and opens in ▷ Present,
+            where its Present button runs it. */}
         <div className="row astro-go">
-          <GoButton disabled={!reading} onGo={() => go(false)} onRecord={() => go(true)} />
-          <Coffee />
+          <button
+            type="button"
+            className="go-big"
+            disabled={!reading}
+            onClick={() => {
+              const p = path();
+              if (p) actions.create(p);
+            }}
+            title="Make the path of this sky: it opens in ▷ Present, ready to run"
+          >
+            <span aria-hidden="true">✶</span> Create Path
+          </button>
         </div>
 
-        {/* No table of signs and houses here (owner, 3 Nov 2026): the path shows them in the sky,
-            and the card prints them. Only the house system is chosen here. */}
+        {/* No explanations or tables here (owner, 3 Nov 2026): the path shows the signs and houses
+            in the sky, and the package's PDF prints them. */}
         <label className="astro-system row">
           Houses
           <select value={system} onChange={(e) => setSystem(e.target.value as HouseSystem)} title="Whole Sign: each house is one whole sign, from the sign rising in the east. Equal: twelve 30° houses from the exact rising degree.">
@@ -342,187 +360,53 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
           {moment?.noTime && <span className="hint">No time given: noon is used, so the houses are only a guide.</span>}
         </label>
 
-        {reading && (
-          <div className="row astro-files">
-            <button
-              type="button"
-              onClick={() => {
-                const b = card();
-                if (b) saveBytes(b, `${fileBase}-card.pdf`, 'application/pdf');
-              }}
-              title="The inside of a birthday card: the wheel and every sign and house. Print it, fold it in half."
-            >
-              ⤓ The card (PDF)
-            </button>
-            <select value={paper} onChange={(e) => setPaper(e.target.value as 'letter' | 'a4')} aria-label="Card size">
-              <option value="letter">5 × 7 in (Letter)</option>
-              <option value="a4">A6 (A4)</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                const p = path();
-                if (p) actions.download(p);
-              }}
-              title="The path as a small .sp4ce.json file: anyone can play it at sp4cetime.org (⤒ Upload in the Present menu)"
-            >
-              ⤓ Path token (.json)
-            </button>
-            <Coffee />
-          </div>
-        )}
-        {reading && <p className="note">All free: hold ▶ Go and choose ◉ Record for the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
-
-        <div className="astro-buy">
-          <div className="row">
-            <button
-              type="button"
-              className="primary"
-              disabled={!SHOP_OPEN || !where}
-              onClick={() => {
-                if (!where) return;
-                if (!moment) return;
-                window.open(
-                  shopLink(
-                    {
-                      occasion: 'birthday',
-                      names: '',
-                      message: '',
-                      day: moment.t.day,
-                      sec: moment.t.sec,
-                      when: `${moment.whenText}${moment.noTime ? '' : ` (${where.zone ? formatOffset(moment.offset) : 'UTC'})`}`.slice(0, 48),
-                      noTime: moment.noTime,
-                      place: where.label.slice(0, 80),
-                      lat: where.lat,
-                      lon: where.lon,
-                      system,
-                      paper,
-                      style: 'night',
-                    },
-                    { date, time: moment.noTime ? '' : time, zone: where.zone },
-                  ),
-                  '_blank',
-                  'noopener',
-                );
-              }}
-            >
-              ✶ Customize
-            </button>
-          </div>
-          <span className="note">
-            {SHOP_OPEN
-              ? 'At sp4cetime.store: cards, calendars, screensavers and phone backgrounds for birthdays, a new baby, a wedding or this very moment, and Starsigns readouts by email. Your details travel in the link only.'
-              : 'Coming soon at sp4cetime.store: cards, calendars, screensavers and phone backgrounds for birthdays, a new baby, a wedding or this very moment, and Starsigns readouts by email.'}
-          </span>
+        {/* Two buttons (owner, 3 Nov 2026): the package (the PDF, 8.5 × 11 in landscape; the video,
+            hi-res or small; the path token) and a coffee. */}
+        <div className="row astro-files">
+          <button
+            type="button"
+            className="primary"
+            disabled={!reading}
+            onClick={() => {
+              const p = path();
+              const b = card();
+              if (p && b) actions.pack(p, b, size, fileBase);
+            }}
+            title="Flies your sky while recording it, then downloads one .zip: the PDF (8.5 × 11 in, landscape), the video (.mp4) and the path token (.json)"
+          >
+            ⤓ Download package
+          </button>
+          <select
+            value={size}
+            onChange={(e) => {
+              const v = e.target.value as VideoSize;
+              setSize(v);
+              setVideoSize(v);
+            }}
+            aria-label="Video size"
+            title="Hi-res for desktop screens (up to 4K), or small for X (720p)"
+          >
+            <option value="hires">Video: hi-res</option>
+            <option value="small">Video: small, for X</option>
+          </select>
+          <Coffee />
         </div>
       </form>
     </div>
   );
 }
 
-/** "☕ Buy us a coffee!" beside each free download: a Stripe Payment Link, any amount (hidden until COFFEE_URL is set). */
+/** "☕ Buy me a coffee": a Stripe Payment Link, any amount (owner, 3 Nov 2026: always shown; until the live link is set, it says so). */
 function Coffee() {
-  if (!COFFEE_URL) return null;
+  if (!COFFEE_URL)
+    return (
+      <span className="coffee coffee-soon" role="link" aria-disabled="true" title="Coming soon: pay what you like, through Stripe">
+        ☕ Buy me a coffee
+      </span>
+    );
   return (
-    <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener" title="Free to download; a coffee keeps sp4cetime going (pay what you like, through Stripe)">
-      ☕ Buy us a coffee!
+    <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener" title="Pay what you like, through Stripe: it keeps sp4cetime going">
+      ☕ Buy me a coffee
     </a>
-  );
-}
-
-/**
- * ▶ Go (owner, 2 Nov 2026): one green button, gently pulsing. A tap (or Return) flies the
- * path; touching and holding it (or a right-click, or ↓) offers ◉ Record, which flies it
- * while recording a video that stops by itself at the end.
- */
-function GoButton({ disabled, onGo, onRecord }: { disabled: boolean; onGo: () => void; onRecord: () => void }) {
-  const [menu, setMenu] = useState(false);
-  const timer = useRef<number | null>(null);
-  const held = useRef(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const cancel = (): void => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
-  };
-  useEffect(() => {
-    button.current?.focus();
-    return cancel;
-  }, []);
-  return (
-    <div className="go-wrap">
-      <button
-        ref={button}
-        type="button"
-        className="go-big"
-        disabled={disabled}
-        aria-haspopup="menu"
-        aria-expanded={menu}
-        title="Tap to fly your sky · hold to record it as a video"
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          held.current = false;
-          cancel();
-          timer.current = window.setTimeout(() => {
-            held.current = true;
-            setMenu(true);
-            navigator.vibrate?.(15);
-          }, 480);
-        }}
-        onPointerUp={cancel}
-        onPointerLeave={cancel}
-        onPointerCancel={cancel}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          cancel();
-          setMenu(true);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setMenu(true);
-          }
-        }}
-        onClick={() => {
-          if (held.current) {
-            held.current = false;
-            return;
-          }
-          if (menu) setMenu(false);
-          else onGo();
-        }}
-      >
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-          <path d="M7 4.5v15l12.5-7.5z" fill="currentColor" />
-        </svg>
-        <span>Go</span>
-      </button>
-      {menu && (
-        <div
-          className="go-menu"
-          role="menu"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              setMenu(false);
-              button.current?.focus();
-            }
-          }}
-        >
-          <button type="button" role="menuitem" className="go-record" autoFocus onClick={() => (setMenu(false), onRecord())}>
-            ◉ Record{' '}
-            <span className="hint">
-              fly it and save the video ({getVideoSize() === 'small' ? 'small, for X' : 'hi-res'}; change in ◉ Capture); stops by itself at the end
-            </span>
-          </button>
-          <button type="button" role="menuitem" onClick={() => (setMenu(false), onGo())}>
-            ▶ Just go
-          </button>
-          <button type="button" role="menuitem" onClick={() => setMenu(false)}>
-            Cancel
-          </button>
-        </div>
-      )}
-      <span className="hint go-hint">tap to fly · hold to record</span>
-    </div>
   );
 }

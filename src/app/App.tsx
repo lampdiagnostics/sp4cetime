@@ -3,14 +3,15 @@ import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
-import { drawShot, recordVideo, type Shot, stageIn, viewStages } from './capture';
+import { drawShot, recordVideo, type Shot, stageIn, viewStages, type VideoSize } from './capture';
 import type { StarsignsActions } from './StarsignsDialog';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
-import { newPathId, type Path, type PathPoint, type PointLook, pointLabel } from '../core/path';
+import { newPathId, type Path, pathFileName, type PathPoint, type PointLook, pointLabel } from '../core/path';
 import { formatTime } from '../core/time';
 import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
-import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath } from './pathStore';
+import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath, sp4ceText } from './pathStore';
+import { zipParts } from '../core/zip';
 import { type DialogResult, PathDialog } from './PathDialog';
 
 /** The Starsigns dialog loads when first opened (it is not needed to see the map). */
@@ -279,7 +280,8 @@ export function App() {
     },
     applyLook: (look) => {
       const now = lookNow();
-      if (lookKey(look) === lookKey(now)) return;
+      if (lookKey({ ...look, round: now.round }) === lookKey(now)) return;
+      look = { ...look, round: now.round };
       // Picking out another body is not a new look: no cross-fade (its snapshot's labels
       // flickered in another size and case under the live ones).
       if (lookKey({ ...look, highlight: null }) === lookKey({ ...now, highlight: null })) {
@@ -287,7 +289,8 @@ export function App() {
         return;
       }
       dissolve();
-      const { chrome: c, measure: _m, ...rest } = look;
+      // Round or full is the visitor's alone (owner, 3 Nov 2026): a path never changes it.
+      const { chrome: c, measure: _m, round: _r, ...rest } = look;
       update(rest);
       setChrome(c);
     },
@@ -310,6 +313,8 @@ export function App() {
   const [making, setMaking] = useState<Path | null>(null);
   const [dialog, setDialog] = useState<{ starting: boolean; point: PathPoint } | null>(null);
   const [starsigns, setStarsigns] = useState(false);
+  /** A path to show selected in ▷ Present's menu, opened (after ✶ Create Path). */
+  const [focusPath, setFocusPath] = useState<{ id: string; n: number } | null>(null);
   const confirmPoint = (r: DialogResult): void => {
     if (!dialog) return;
     const pt: PathPoint = { ...dialog.point, caption: r.caption };
@@ -360,7 +365,8 @@ export function App() {
     const before = beforePresent.current;
     beforePresent.current = null;
     if (before) {
-      setSettings(before.settings);
+      // Your settings back as they were, except round or full: that is whatever you last chose.
+      setSettings((s) => ({ ...before.settings, round: s.round }));
       setChrome(before.chrome);
     }
   }, []);
@@ -377,10 +383,12 @@ export function App() {
     },
     [goToPoint],
   );
+  /** ▷ Present (in its menu) runs the path by itself (owner, 3 Nov 2026); arrow keys take over point by point. */
   const startPresenting = (id: string): void => {
     const path = findPath(id);
-    if (path) goToPoint(path, 0);
+    if (path) presentRun.current(path);
   };
+  const presentRun = useRef<(p: Path) => void>(() => {});
 
   // Keys: Return (make a path's point, or in Presentation mode go on), → and ← (present), Esc (stop).
   /** Return, or the + Point button: what is on screen now becomes the next point. */
@@ -534,7 +542,7 @@ export function App() {
     const id = window.setInterval(() => setRecNow(performance.now()), 250);
     return () => window.clearInterval(id);
   }, [recording]);
-  const autoPlay = async (path: Path, record: boolean, from = 0): Promise<void> => {
+  const autoPlay = async (path: Path, record: boolean, from = 0, opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void } = {}): Promise<void> => {
     const run = ++playing.current;
     setAuto(true);
     const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
@@ -564,7 +572,10 @@ export function App() {
       if (playing.current === run) setAuto(false);
       return;
     }
-    const rec = record ? await recordVideo(() => getShot(), { fps: 30, watermark: true }, () => {}) : null;
+    const rec = record
+      ? await recordVideo(() => getShot(), { fps: 30, watermark: true, ...(opts.size ? { size: opts.size } : {}), ...(opts.onVideo ? { onBlob: opts.onVideo } : {}) }, () => {})
+      : null;
+    if (record && !rec) opts.onNoVideo?.();
     if (record && !rec) {
       setRecording((r) => (r && r.run === run ? null : r));
       stopRec.current = null;
@@ -610,6 +621,7 @@ export function App() {
       setAuto(false);
     }
   };
+  presentRun.current = (p: Path) => void autoPlay(p, false);
   // Shift (owner, 3 Nov 2026): one tap plays the path by itself, the next stops it. After an
   // arrow key took over, Shift plays on by itself from the point shown.
   presentKey.current = () => {
@@ -634,12 +646,57 @@ export function App() {
       void autoPlay(path, capture);
     },
     download: (path) => exportPath(path),
+    // ✶ Create Path (owner, 3 Nov 2026): saved, then listed in ▷ Present, ready to run.
+    create: (path) => {
+      setStarsigns(false);
+      void savePath(path).then(() => {
+        refreshPaths();
+        setFocusPath({ id: path.id, n: Date.now() });
+      });
+    },
+    // The package (owner, 3 Nov 2026): fly and record the path, then one .zip of the PDF, the
+    // video and the path token (without the video if this browser cannot record).
+    pack: (path, pdf, size, base) => {
+      setStarsigns(false);
+      void savePath(path).then(refreshPaths);
+      const zip = (video: { data: Uint8Array; ext: string } | null): void => {
+        const c = new Date();
+        const parts = zipParts(
+          [
+            { name: `${base}.pdf`, data: pdf },
+            ...(video ? [{ name: `${base}.${video.ext}`, data: video.data }] : []),
+            { name: pathFileName(path.name), data: new TextEncoder().encode(sp4ceText(path)) },
+          ],
+          { year: c.getFullYear(), month: c.getMonth() + 1, day: c.getDate(), hour: c.getHours(), minute: c.getMinutes() },
+        );
+        const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: 'application/zip' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${base}-package.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      };
+      void autoPlay(path, true, 0, {
+        size,
+        onVideo: (v, ext) => void v.arrayBuffer().then((b) => zip({ data: new Uint8Array(b), ext })),
+        onNoVideo: () => zip(null),
+      });
+    },
   };
 
   const round = settings.round;
-  // Phones open full screen (the round window is a tap away, top right).
+  // A phone's first visit opens full screen; after that, as last chosen (the ◯/▭ button, top right).
   useEffect(() => {
-    if (phone) update({ round: false });
+    let first = false;
+    try {
+      first = !localStorage.getItem('sp4cetime.settings.v1');
+    } catch {
+      /* no storage: treat as a first visit */
+      first = true;
+    }
+    if (phone && first) update({ round: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [boxesHost, setBoxesHost] = useState<HTMLDivElement | null>(null);
@@ -752,6 +809,7 @@ export function App() {
           onPlay={play}
           in3D={in3D}
           present={present}
+          focusPath={focusPath}
           pathRecording={recording ? { clock: recording.start ? formatClock(Math.max(0, recNow - recording.start)) : 'ready…', stop: () => stopRec.current?.() } : null}
         />
         {showing && autoPlaying && (

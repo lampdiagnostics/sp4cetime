@@ -90,7 +90,8 @@ export function loadSettings(): Settings {
       moon: typeof data.moon === 'boolean' ? data.moon : DEFAULT_SETTINGS.moon,
       rings: typeof data.rings === 'boolean' ? data.rings : DEFAULT_SETTINGS.rings,
       labels: typeof data.labels === 'boolean' ? data.labels : DEFAULT_SETTINGS.labels,
-      round: DEFAULT_SETTINGS.round,
+      // Round or full: only the visitor changes it (the ◯/▭ button), and it is remembered (owner, 3 Nov 2026).
+      round: typeof data.round === 'boolean' ? data.round : DEFAULT_SETTINGS.round,
       spirals: typeof data.spirals === 'boolean' ? data.spirals : DEFAULT_SETTINGS.spirals,
       timeGrid: typeof data.timeGrid === 'boolean' ? data.timeGrid : DEFAULT_SETTINGS.timeGrid,
       distanceGrid: typeof data.distanceGrid === 'boolean' ? data.distanceGrid : DEFAULT_SETTINGS.distanceGrid,
