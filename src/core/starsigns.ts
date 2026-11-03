@@ -149,7 +149,6 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const toWorld = (d: Vec3): Vec3 => add(add(scale(ax, d[0]), scale(ay, d[1])), scale(az, d[2]));
 
   const chart: ChartLook = { lat: r.lat, lon: r.lon, system: o.system, place: o.placeName };
-  // Full screen, names and the zodiac; nothing else (no spirals, orbits, grids or figures), so the sky reads clearly.
   // Everything on screen stays as the visitor chose it in the menus (owner, 3 Nov 2026: nothing is
   // taken away for clarity). The path sets only what its poses need: the place's houses on the
   // sky, the body picked out, Earth see-through at the end; and, at the owner's request, no Milky
