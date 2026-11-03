@@ -27,7 +27,6 @@ import { BODIES, type BodyId, moonGeocentric, solarSystemAt } from './bodies';
 import type { Vec3 } from './geometry';
 import { eclipticDirOfDate, formatSignDeg, houseLabel, signOf } from './houses';
 import type { ChartLook, FlyState, Path, PathPoint, PointLook } from './path';
-import { PLANET_IDS } from './planets';
 import type { Reading } from './reading';
 
 const EARTH_R = BODIES.find((b) => b.id === 'earth')!.radiusKm;
@@ -151,24 +150,13 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
 
   const chart: ChartLook = { lat: r.lat, lon: r.lon, system: o.system, place: o.placeName };
   // Full screen, names and the zodiac; nothing else (no spirals, orbits, grids or figures), so the sky reads clearly.
-  const look = (withChart: boolean, highlight: BodyId | null = null, ground = false, seeThrough = false): PointLook => ({
+  // Everything on screen stays as the visitor chose it in the menus (owner, 3 Nov 2026: nothing is
+  // taken away for clarity). The path sets only what its poses need: the place's houses on the
+  // sky, the body picked out, Earth see-through at the end; and, at the owner's request, no Milky
+  // Way direction marks ("l 270° · behind the Sun").
+  const look = (withChart: boolean, highlight: BodyId | null = null, _ground = false, seeThrough = false): PointLook => ({
     ...o.look,
-    round: false,
-    chrome: 1,
-    zodiac: true,
-    labels: true,
-    moon: true,
-    planets: [...PLANET_IDS],
-    coastlines: true,
-    spirals: false,
-    rings: false,
-    timeGrid: false,
-    distanceGrid: false,
-    // At the place (and see-through), the constellations too: the night sky as it is.
-    constellations: ground,
-    // No Milky Way direction marks ("l 270° · behind the Sun", the anticentre): not part of a chart.
     galactic: false,
-    strobe: false,
     chart: withChart ? chart : null,
     highlight,
     seeThrough,

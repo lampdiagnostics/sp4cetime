@@ -97,6 +97,12 @@ describe('The Starsigns path', () => {
     expect(ground.look.seeThrough).toBe(false);
     expect(ground.look.constellations).toBe(true);
     for (const p of pts) expect(p.look.galactic).toBe(false);
+    // Nothing else is taken away: every point keeps the visitor's own choices (time marks, spirals, orbits, planets, round, controls).
+    for (const p of pts) {
+      for (const k of ['timeGrid', 'spirals', 'rings', 'distanceGrid', 'constellations', 'planets', 'round', 'chrome', 'labels', 'zodiac'] as const) {
+        expect(p.look[k]).toEqual(DEFAULT_LOOK[k]);
+      }
+    }
     const [ax, ay, az] = solarSystemAt(r.time).find((b) => b.info.id === 'earth')!.axes;
     const toWorld = (d: V): V => [0, 1, 2].map((k) => ax[k]! * d[0] + ay[k]! * d[1] + az[k]! * d[2]) as V;
     expect(toWorld(rot(wheel.quat, [0, 0, -1]))[2]).toBeCloseTo(-1, 6);
