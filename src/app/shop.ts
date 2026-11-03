@@ -1,11 +1,12 @@
 /**
- * The Starsigns package (ADR-0018): the path is free to play; the video and the PDF
- * are US$1.99 on sp4cetime.shop. Until the shop is open, the paid download works only in
+ * The Starsigns package (ADR-0018): the path is free to play, record (◉ Capture) and
+ * download; personalising it (a name, artwork) and the clean video, card and pictures are
+ * US$1.49 on sp4cetime.shop. Until the shop is open, the paid download works only in
  * development (`npm run dev`), so the owner can try it; everyone else sees "opens soon".
  */
 
 export const SHOP_URL = 'https://sp4cetime.shop/';
-export const PRICE = 'US$1.99';
+export const PRICE = 'US$1.49';
 /** Turned on once sp4cetime.shop takes payments. */
 export const SHOP_OPEN = false;
 /** The full package can be made here without paying: only while developing. */

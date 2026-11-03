@@ -248,7 +248,7 @@ export function App() {
     return {
       themeId: st.themeId, round: st.round, chrome: chromeRef.current, planets: st.planets, moon: st.moon, rings: st.rings,
       labels: st.labels, spirals: st.spirals, timeGrid: st.timeGrid, distanceGrid: st.distanceGrid,
-      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, chart: st.chart, strobe: st.strobe,
+      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, chart: st.chart, highlight: st.highlight, strobe: st.strobe,
       strobeSteps: st.strobeSteps, focus: st.focus, measure: pane.current?.snapshot().measure ?? 'near',
     };
   };
@@ -489,27 +489,25 @@ export function App() {
     await hold(2500);
     for (let i = 1; i < path.points.length && live(); i++) {
       if (!(await arrive(i))) break;
-      await hold(i === path.points.length - 1 ? 3000 : 3800);
+      // A body picked out is a quick beat; a new view is held long enough to take in.
+      const pt = path.points[i]!;
+      await hold(i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200);
     }
     rec?.stop();
     if (playing.current === run) playing.current++;
   };
   const starsignsActions: StarsignsActions = {
     base: () => keyRef.current.pointNow(),
-    play: (path) => {
+    play: (path, capture) => {
       setStarsigns(false);
       void savePath(path).then(refreshPaths);
-      void autoPlay(path, false);
+      void autoPlay(path, capture);
     },
+    download: (path) => exportPath(path),
     makePackage: (path, pdf, fileBase) => {
       setStarsigns(false);
       void savePath(path).then(refreshPaths);
       void autoPlay(path, true).then(() => saveBytes(pdf, `${fileBase}.pdf`, 'application/pdf'));
-    },
-    go: (t) => {
-      // The map goes to that moment, time held still there.
-      deps.setClock(t, 1, false);
-      setStarsigns(false);
     },
   };
 

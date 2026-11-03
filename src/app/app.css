@@ -1534,23 +1534,93 @@ select option {
   color-scheme: light;
 }
 .astro-places {
-  margin: -4px 0 0;
+  margin: 0;
   padding: 4px;
   list-style: none;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
+  background: var(--panel);
+}
+:root:not([data-ui='light']) .astro-places {
+  background: rgba(14, 18, 32, 0.98);
+}
+.astro-dialog {
+  position: relative;
+}
+.path-dialog .astro-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.path-dialog .astro-x:hover {
+  color: var(--text);
   background: var(--button);
 }
-.astro-places button {
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  padding: 6px 8px;
+.astro-dialog .hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-dim);
 }
-.astro-places button:hover,
-.astro-places button:focus-visible {
+.astro-place {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* The place completer: a list under the box, like a transit app's. */
+.astro-places {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: 54px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.astro-places li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.astro-places li b {
+  font-weight: 600;
+}
+.astro-places li span {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.astro-places li.active {
   background: var(--pressed);
+}
+.astro-coords {
+  align-items: flex-end;
+}
+.astro-coords label {
+  flex: 1;
+  min-width: 110px;
+}
+.path-dialog .astro-here {
+  padding: 6px 10px;
+  font-size: 16px;
+}
+.astro-go .go {
+  min-width: 96px;
+}
+.astro-files {
+  align-items: center;
 }
 .astro-system select {
   align-self: flex-start;
@@ -1626,4 +1696,72 @@ select option {
 .astro-buy button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Starsigns: a body picked out (a soft pulsing ring, its name bright), and the 3D chart wheel's labels. */
+.fly-halo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  border: 2px solid var(--sky-zodiac, rgba(240, 198, 116, 0.9));
+  box-shadow: 0 0 18px var(--sky-zodiac, rgba(240, 198, 116, 0.6));
+  pointer-events: none;
+  animation: fly-halo 1.2s ease-out infinite;
+}
+@keyframes fly-halo {
+  0% { opacity: 0.95; scale: 0.7; }
+  70% { opacity: 0.25; scale: 1.25; }
+  100% { opacity: 0; scale: 1.35; }
+}
+.fly-label.hl {
+  color: var(--sky-zodiac, #f0c674);
+  font-size: 13px;
+  font-weight: 700;
+  animation: fly-pop 0.5s ease-out;
+}
+/* A pop by size, not scale: these names are placed by transform, which a scale would shift. */
+@keyframes fly-pop {
+  0% { font-size: 20px; }
+  100% { font-size: 13px; }
+}
+.fly-wheel-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--sky-zodiac, rgba(240, 198, 116, 0.9));
+  text-shadow: 0 0 4px var(--label-halo, #000);
+}
+.fly-wheel-label[data-kind='house'] {
+  color: var(--sky-label, rgba(150, 175, 230, 0.8));
+  font-size: 10px;
+}
+.fly-wheel-label[data-kind='angle'] {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.fly-wheel-label[data-kind='body'] {
+  color: var(--text, #e8ecf6);
+}
+.fly-wheel-label.dim {
+  opacity: 0.3;
+}
+.fly-wheel-label.hl {
+  color: var(--sky-zodiac, #f0c674);
+  font-size: 13.5px;
+  font-weight: 700;
+  animation: fly-pop 0.5s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fly-halo,
+  .fly-label.hl,
+  .fly-wheel-label.dim {
+  opacity: 0.3;
+}
+.fly-wheel-label.hl {
+    animation: none;
+  }
 }

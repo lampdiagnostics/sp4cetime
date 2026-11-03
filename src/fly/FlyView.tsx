@@ -37,6 +37,8 @@ import {
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
+import { WHEEL_RADII } from '../core/starsigns';
+import { createWheel } from './wheel';
 import { createSky, loadSky, type SkyChart, type SkyLabel } from './sky';
 import { createGalaxy, galaxyFade, GAL_NORTH, loadGalaxyMap, RULER_STATEMENT, warpOutVantage } from './galaxy';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
@@ -453,6 +455,13 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       markerHost?.appendChild(m);
       markers.set(b.id, m);
     }
+    // A body picked out by a Starsigns path: a soft pulsing ring around it.
+    const halo = document.createElement('div');
+    halo.className = 'fly-halo';
+    halo.style.display = 'none';
+    markerHost?.appendChild(halo);
+    // The chart wheel around Earth (Starsigns, step 4).
+    const wheel = createWheel(scene.scene, labelHost);
     const labels = new Map<BodyId, HTMLDivElement>();
     for (const b of BODIES) {
       const el = document.createElement('div');
@@ -994,6 +1003,29 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         ),
         ...galaxyLabels.map((g) => ({ ...g, kind: 'galaxy' as const })),
       ];
+      // Near the ground, the sky takes the colour of the hour: blue by day, through twilight, to black at night
+      // (stars and names stay on top). Faded out by 120 km up.
+      {
+        const e = find(bodies, 'earth');
+        const off = sub3(pos, e.pos);
+        const altKm = len3(off) - e.info.radiusKm;
+        if (altKm < 120 && far <= 0.5) {
+          const upv = unit3(off);
+          const s = unit3(sub3(find(bodies, 'sun').pos, pos));
+          const alt = (Math.asin(Math.max(-1, Math.min(1, upv[0] * s[0] + upv[1] * s[1] + upv[2] * s[2]))) * 180) / Math.PI;
+          const tw = Math.min(1, Math.max(0, (alt + 12) / 20)); // −12° (night) → +8° (day)
+          const ink = L.theme.sky.ink;
+          // Night (the theme's sky) → twilight violet → day blue, smoothly.
+          const mix = (p: string, q: string, k: number): string => {
+            const c = (h: string, i: number): number => parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16);
+            return `#${[0, 1, 2].map((i) => Math.round(c(p, i) + (c(q, i) - c(p, i)) * k).toString(16).padStart(2, '0')).join('')}`;
+          };
+          const twilight = ink ? '#e4dcef' : '#25305e', day = ink ? '#cfe1f6' : '#3f7cc4';
+          const colour = tw > 0.5 ? mix(twilight, day, (tw - 0.5) * 2) : twilight;
+          const amount = (tw > 0.5 ? 1 : tw * 2) * (1 - Math.max(0, Math.min(1, (altKm - 20) / 100)));
+          scene.setDaylight(colour, amount);
+        } else scene.setDaylight('#000000', 0);
+      }
       scene.setFov(lensFov);
       scene.setNear(Math.min(1000, Math.max(0.01, nearest(pos, bodies).altitude * 1e-4)));
       scene.render(bodies, pos, quat);
@@ -1056,6 +1088,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const s = signOfLon(lon);
         return chart ? `${s.glyph} ${formatSignDeg(lon)} · house ${houseOf(lon, chart.cusps)}` : `${s.glyph} ${s.name}`;
       };
+      // The wheel: with a chart on, once Earth is well below (more than 6 of its radii away).
+      const earthB = find(trueBodies, 'earth');
+      const earthShown = find(bodies, 'earth');
+      const fromEarth = len3(sub3(pos, earthShown.pos)) / earthShown.info.radiusKm;
+      const wheelOn = !!(ch && chart) && far <= 0.5 && fromEarth > 6;
+      let haloShown = false;
       const placed: Array<[number, number]> = [];
       for (const b of bodies) {
         const el = labels.get(b.info.id);
@@ -1090,8 +1128,21 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const offView = rawX < 0 || rawX > W || rawY < 0 || rawY > H;
         const lx = big && offView ? 16 : Math.min(Math.max(rawX, 8), W - 180);
         const ly = big && offView ? H * 0.5 : Math.min(Math.max(rawY, 16), H - 16);
-        // Don't stack names: a body right beside one already named (the Moon by Earth, from afar) stays unnamed.
-        if (placed.some(([x, y]) => Math.abs(x - lx) < 60 && Math.abs(y - ly) < 12)) {
+        // Don't stack names: a body right beside one already named (the Moon by Earth, from afar) stays unnamed
+        // (unless it is the one picked out).
+        const picked = L.overlays.highlight === b.info.id;
+        el.classList.toggle('hl', picked);
+        if (picked && !wheelOn) {
+          const hx = ((v3.x + 1) / 2) * W, hy = ((1 - v3.y) / 2) * H;
+          const size = Math.max(34, Math.min(0.6 * H, 2 * pxR + 24));
+          halo.style.display = 'block';
+          halo.style.width = halo.style.height = `${size}px`;
+          // Placed by left/top: its pulse scales it, which would also move a transform's offset.
+          halo.style.left = `${hx - size / 2}px`;
+          halo.style.top = `${hy - size / 2}px`;
+          haloShown = true;
+        }
+        if (!picked && placed.some(([x, y]) => Math.abs(x - lx) < 60 && Math.abs(y - ly) < 12)) {
           el.style.display = 'none';
           continue;
         }
@@ -1105,6 +1156,34 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         el.style.transform = `translate(${lx}px, ${ly}px)`;
         if (el.textContent !== text) el.textContent = text;
       }
+      if (!haloShown) halo.style.display = 'none';
+      wheel.update(
+        wheelOn && chart
+          ? {
+              centre: [earthShown.pos[0] - pos[0], earthShown.pos[1] - pos[1], earthShown.pos[2] - pos[2]],
+              radiusKm: WHEEL_RADII * earthShown.info.radiusKm,
+              shift: skyNow.lonShift,
+              cusps: chart.cusps,
+              asc: chart.asc,
+              mc: chart.mc,
+              bodies: trueBodies
+                .filter((b) => b.info.id !== 'earth')
+                .map((b) => {
+                  const lon = lonOfDateFromVector([b.pos[0] - earthB.pos[0], b.pos[1] - earthB.pos[1], b.pos[2] - earthB.pos[2]], skyNow);
+                  const picked = L.overlays.highlight === b.info.id;
+                  const sg = signOfLon(lon);
+                  return { id: b.info.id, lon, text: picked ? `${b.info.name} · ${formatSignDeg(lon)} · house ${houseOf(lon, chart.cusps)}` : `${b.info.name} ${Math.floor(sg.deg)}°` };
+                }),
+              highlight: L.overlays.highlight ?? null,
+              zodiac: L.theme.sky.zodiac,
+              accent: L.theme.sky.labelZodiac,
+            }
+          : null,
+        cam,
+        inv,
+        W,
+        H,
+      );
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
       const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift, chart: skyChart }) : [];
@@ -1271,6 +1350,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       markers.forEach((el) => el.remove());
       gridLabels.forEach((el) => el.remove());
       skyLabels.forEach((el) => el.remove());
+      halo.remove();
+      wheel.dispose();
       disposed = true;
       sky?.dispose();
       galaxy?.dispose();

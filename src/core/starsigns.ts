@@ -1,20 +1,24 @@
 /**
  * Starsigns (0.4.0, ADR-0018): a reading becomes a path anyone can play for free, flown
- * like any other (ADR-0017), and recorded as the video of the paid package.
+ * like any other (ADR-0017), and recorded as the video. The owner's four steps
+ * (2 November 2026):
  *
- *   START    the calendar at the moment, time held still
- *   POINT 1  Earth from space, the planets labelled with their signs against the zodiac
- *   POINT 2  high over the place (a town at its centre)
- *   POINT 3  standing there, facing the Ascendant on the eastern horizon, houses on the sky
- *   POINT 4  looking up to the Midheaven
- *   END      Earth and the whole zodiac again
+ *   1. SIGNS FROM ABOVE: where clicking Earth's name takes you, above its north pole,
+ *      facing the Sun, the zodiac around the horizon.
+ *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
+ *      body picked out in turn (it pulses; its caption gives its sign and degree).
+ *   3. THE SKY OVER THE PLACE: down to the place (a town at its centre), looking straight
+ *      up: the zodiac and the houses overhead, the sky coloured for that hour.
+ *   4. THE WHEEL: Earth drops away below; seen from above, the zodiac is a wheel around it,
+ *      the Ascendant on the left as on the printed chart, every body at its longitude,
+ *      picked out in turn with its sign and house.
  *
  * Pure: the caller passes the look and calendar to start from, an id and a date.
  */
 
-import { BODIES, solarSystemAt } from './bodies';
+import { BODIES, type BodyId, moonGeocentric, solarSystemAt } from './bodies';
 import type { Vec3 } from './geometry';
-import { eclipticDirOfDate, formatSignDeg, signOf } from './houses';
+import { eclipticDirOfDate, formatSignDeg, houseLabel, signOf } from './houses';
 import type { ChartLook, FlyState, Path, PathPoint, PointLook } from './path';
 import { PLANET_IDS } from './planets';
 import type { Reading } from './reading';
@@ -78,16 +82,54 @@ export interface StarsignsOptions {
   readonly placeLabel: string;
   /** The short place name for labels ("Winnipeg"). */
   readonly placeName: string;
-  /** "14 July 1985, 3:20 pm" as the person entered it (local time). */
+  /** "14 July 1985, 3:20 pm" as entered (local time). */
   readonly whenText: string;
-  /** Whose sky, if they gave a name. */
+  /** Whose sky (set on the shop's customisation page; none in the free path). */
   readonly name?: string;
   readonly system: 'whole' | 'equal';
-  /** No birth time: signs only (no houses, no ground view). */
+  /** No time was given: noon was used, so the houses are only a guide. */
   readonly noTime?: boolean;
   /** The look and calendar to start from (what is on screen), changed only where the path needs it. */
   readonly look: PointLook;
   readonly calendar: PathPoint['calendar'];
+}
+
+/** The 3D chart wheel's outer radius around Earth, in Earth radii (src/fly/wheel.ts draws it). */
+export const WHEEL_RADII = 12;
+/** How far out the camera sees the whole wheel from, Earth radii. */
+const WHEEL_VIEW_RADII = 30;
+/** Half the angle a view of planets may span (so each group fits even on a narrow screen). */
+const GROUP_HALF_DEG = 28;
+
+/**
+ * Split directions (unit vectors near the ecliptic) into as few groups as possible, each
+ * spanning at most 2 × halfDeg of longitude; returns the indices of each group, in order.
+ */
+export function groupDirections(dirs: readonly Vec3[], halfDeg: number): number[][] {
+  const lon = dirs.map((d) => ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360);
+  const order = dirs.map((_, i) => i).sort((a, b) => lon[a]! - lon[b]!);
+  let best: number[][] = [];
+  for (let s = 0; s < order.length; s++) {
+    const groups: number[][] = [];
+    let cur: number[] = [];
+    let start = 0;
+    for (let k = 0; k < order.length; k++) {
+      const i = order[(s + k) % order.length]!;
+      const span = (lon[i]! - start + 360) % 360;
+      if (cur.length === 0) {
+        cur = [i];
+        start = lon[i]!;
+      } else if (span <= 2 * halfDeg) cur.push(i);
+      else {
+        groups.push(cur);
+        cur = [i];
+        start = lon[i]!;
+      }
+    }
+    if (cur.length) groups.push(cur);
+    if (best.length === 0 || groups.length < best.length) best = groups;
+  }
+  return best;
 }
 
 export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
@@ -101,8 +143,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const toWorld = (d: Vec3): Vec3 => add(add(scale(ax, d[0]), scale(ay, d[1])), scale(az, d[2]));
 
   const chart: ChartLook = { lat: r.lat, lon: r.lon, system: o.system, place: o.placeName };
-  // Full screen, names and the zodiac; in 3D nothing else (no spirals, orbits, grids or figures), so the sky reads clearly.
-  const look = (withChart: boolean, inCalendar = false): PointLook => ({
+  // Full screen, names and the zodiac; nothing else (no spirals, orbits, grids or figures), so the sky reads clearly.
+  const look = (withChart: boolean, highlight: BodyId | null = null): PointLook => ({
     ...o.look,
     round: false,
     chrome: 1,
@@ -111,85 +153,100 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     moon: true,
     planets: [...PLANET_IDS],
     coastlines: true,
-    spirals: inCalendar,
-    rings: inCalendar,
-    timeGrid: inCalendar,
+    spirals: false,
+    rings: false,
+    timeGrid: false,
     distanceGrid: false,
     constellations: false,
     strobe: false,
-    chart: withChart && !o.noTime ? chart : null,
+    chart: withChart ? chart : null,
+    highlight,
   });
-  const point = (p: Partial<PathPoint> & Pick<PathPoint, 'view' | 'caption'>, withChart = false): PathPoint => ({
+  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = ''): PathPoint => ({
+    view: 'fly',
     present: t,
     speed: 1,
     playing: false,
     calendar: { ...o.calendar, offset: { day: 0, sec: 0 } },
-    fly: null,
-    look: look(withChart, p.view === 'calendar'),
-    where: '',
+    fly,
+    look: look(withChart, highlight),
+    caption,
+    where,
     facing: '',
-    ...p,
   });
-
-  const sun = r.bodies.find((b) => b.id === 'sun')!;
-  const moon = r.bodies.find((b) => b.id === 'moon')!;
   const whose = o.name ? `${o.name}’s sky` : 'Your sky';
-  const sign = (lon: number): string => signOf(lon).name;
+  const sign = (id: BodyId): string => r.bodies.find((b) => b.id === id)!.sign.name;
+  const noon = o.noTime ? ' (no time given: noon)' : '';
 
-  // POINT 1 and END: Earth from space, the Sun just beside it (its sign behind Earth), north up.
-  const toSun = unit(scale(earth.pos, -1));
-  const space = (dist: number, turn: number): FlyState => {
-    const a = turn * DEG;
-    const side: Vec3 = [toSun[0] * Math.cos(a) - toSun[1] * Math.sin(a), toSun[0] * Math.sin(a) + toSun[1] * Math.cos(a), 0];
-    const rel = add(scale(unit(side), -dist * EARTH_R), [0, 0, dist * EARTH_R * 0.18]);
-    return { anchor: 'earth', frame: 'inertial', rel, quat: lookQuat(unit(scale(rel, -1)), [0, 0, 1]), fov: 70, up: [0, 0, 1] };
-  };
-
-  // The place on Earth, in Earth's own axes: straight up, north and east.
-  const lat = r.lat * DEG, lon = r.lon * DEG;
-  const n: Vec3 = [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
-  const north: Vec3 = [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)];
-  const upWorld = unit(toWorld(n));
-  const over: FlyState = {
-    anchor: 'earth',
-    frame: 'body',
-    rel: scale(n, EARTH_R + 2_500),
-    // Looking down, a little to the north, north at the top.
-    quat: lookQuat(unit(add(scale(n, -1), scale(north, 0.25))), north),
-    fov: 60,
-    up: upWorld,
-  };
-  /** Standing in the place (1 km up, above the rooftops), looking toward a sky direction, raised a little. */
-  const stand = (dirWorld: Vec3, raise: number, fov: number): FlyState => {
-    const d = toBody(dirWorld);
-    // Level part of the direction, then raised by `raise` degrees above the horizon (at least).
-    const h = unit(add(d, scale(n, -dot(d, n))));
-    const alt = Math.max(Math.asin(Math.max(-1, Math.min(1, dot(d, n)))), raise * DEG);
-    const look = unit(add(scale(h, Math.cos(alt)), scale(n, Math.sin(alt))));
-    return { anchor: 'earth', frame: 'body', rel: scale(n, EARTH_R + 1), quat: lookQuat(look, n), fov, up: upWorld };
-  };
-
-  const top3 = r.bodies
-    .filter((b) => b.id !== 'sun' && b.id !== 'moon')
-    .slice(0, 3)
-    .map((b) => `${b.name} in ${b.sign.name}`)
-    .join(', ');
+  // 1. Above Earth's north pole, as when its name is clicked, facing the Sun (just above the middle of the view).
+  const n = unit(az);
+  const above = scale(n, EARTH_R * 1.4);
+  const toSun = unit(scale(add(earth.pos, above), -1));
+  const down = scale(n, -1);
+  // Tilted up toward the Sun (it stays in view even in a northern summer), Earth's limb along the bottom.
+  const tilt = Math.min(85 * DEG, Math.max(0, Math.acos(Math.max(-1, Math.min(1, dot(toSun, down)))) - 15 * DEG));
+  const sideways = unit(cross(cross(down, toSun), down));
+  const forward = add(scale(down, Math.cos(tilt)), scale(sideways, Math.sin(tilt)));
+  const pole: FlyState = { anchor: 'earth', frame: 'inertial', rel: above, quat: lookQuat(forward, n), fov: 84, up: n };
   const points: PathPoint[] = [
-    point({ view: 'calendar', caption: `${whose}: ${o.whenText} · ${o.placeLabel}`, where: o.placeLabel }),
-    point({ view: 'fly', fly: space(7, 28), caption: `The Sun in ${sign(sun.lon)}, the Moon in ${sign(moon.lon)}; ${top3}` }),
+    point(pole, `${whose} · ${o.whenText}${noon} · ${o.placeLabel}`, false),
   ];
-  if (!o.noTime) {
-    const asc = eclipticDirOfDate(r.chart.asc, 0, r.chart.sky);
-    const mc = eclipticDirOfDate(r.chart.mc, 0, r.chart.sky);
-    points.push(
-      point({ view: 'fly', fly: over, caption: o.placeLabel, where: o.placeLabel }, true),
-      point(
-        { view: 'fly', fly: stand(asc, 12, 80), caption: `Rising: ${formatSignDeg(r.chart.asc)}. House 1 begins on the eastern horizon`, where: o.placeLabel, facing: 'east' },
-        true,
-      ),
-      point({ view: 'fly', fly: stand(mc, 20, 80), caption: `Midheaven: ${formatSignDeg(r.chart.mc)}, the top of the sky`, where: o.placeLabel, facing: 'the meridian' }, true),
-    );
+
+  // 2. The planets: as few views as hold them all, each centred on its group; each body picked out in turn.
+  const geo = (id: BodyId): Vec3 => {
+    if (id === 'moon') return unit(moonGeocentric(t) as Vec3);
+    const b = bodies.find((x) => x.info.id === id)!;
+    return unit([b.pos[0] - earth.pos[0], b.pos[1] - earth.pos[1], b.pos[2] - earth.pos[2]]);
+  };
+  const ids = r.bodies.map((b) => b.id);
+  const dirs = ids.map(geo);
+  for (const g of groupDirections(dirs, GROUP_HALF_DEG)) {
+    const centre = unit(g.reduce<Vec3>((acc, i) => add(acc, dirs[i]!), [0, 0, 0]));
+    const view: FlyState = { ...pole, quat: lookQuat(centre, n) };
+    const names = g.map((i) => r.bodies[i]!.name);
+    points.push(point(view, names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!, false));
+    for (const i of g) {
+      const b = r.bodies[i]!;
+      points.push(point(view, `${b.name} · ${formatSignDeg(b.lon)}${b.retrograde ? ' · retrograde' : ''}`, false, b.id));
+    }
   }
-  points.push(point({ view: 'fly', fly: space(10, -20), caption: `${whose} · ${o.whenText} · Starsigns by sp4cetime.org` }));
+
+  // 3. Down to the place, looking straight up: the zodiac and the houses overhead (the MC at the top of the view).
+  const lat = r.lat * DEG, lon = r.lon * DEG;
+  const up: Vec3 = [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
+  const north: Vec3 = [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)];
+  const mcBody = toBody(eclipticDirOfDate(r.chart.mc, 0, r.chart.sky));
+  let toMc = add(mcBody, scale(up, -dot(mcBody, up)));
+  if (Math.hypot(...toMc) < 1e-6) toMc = north;
+  const upWorld = unit(toWorld(up));
+  points.push(
+    point(
+      { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + 1), quat: lookQuat(up, unit(toMc)), fov: 100, up: upWorld },
+      `The sky over ${o.placeName}${noon}: rising ${formatSignDeg(r.chart.asc)}, Midheaven ${formatSignDeg(r.chart.mc)}`,
+      true,
+      null,
+      o.placeLabel,
+    ),
+  );
+  // Rising straight up from the place, Earth dropping away below.
+  points.push(
+    point(
+      { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R * 4), quat: lookQuat(scale(up, -1), north), fov: 60, up: upWorld },
+      `Rising above ${o.placeName}`,
+      true,
+      null,
+      o.placeLabel,
+    ),
+  );
+
+  // 4. The wheel: from above the ecliptic, Earth in the middle, the Ascendant on the left (as on the printed chart).
+  const asc = eclipticDirOfDate(r.chart.asc, 0, r.chart.sky);
+  const top: Vec3 = [asc[1], -asc[0], 0]; // the Midheaven's side
+  const wheel: FlyState = { anchor: 'earth', frame: 'inertial', rel: [0, 0, EARTH_R * WHEEL_VIEW_RADII], quat: lookQuat([0, 0, -1], top), fov: 60, up: [0, 0, 1] };
+  points.push(point(wheel, `${whose}: the Sun in ${sign('sun')}, the Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true));
+  for (const b of r.bodies) {
+    points.push(point(wheel, `${b.name} · ${formatSignDeg(b.lon)} · house ${houseLabel(b.house)}`, true, b.id));
+  }
+  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeLabel} · Starsigns by sp4cetime.org`, true));
   return { id: o.id, name: `Starsigns · ${o.name ? `${o.name}, ` : ''}${o.whenText}`, created: o.created, points, finished: true };
 }

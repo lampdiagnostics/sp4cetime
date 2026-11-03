@@ -50,6 +50,8 @@ export interface FlyScene {
   setStyle(s: SkyStyle): void;
   /** Earth's line skin (coastlines, lakes, borders): loaded the first time it is shown. */
   setEarthLines(on: boolean): void;
+  /** Near the ground, the sky's colour for the hour (blue by day, black by night): a colour and how much of it (0–1). */
+  setDaylight(colour: string, amount: number): void;
   dispose(): void;
 }
 
@@ -239,6 +241,8 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   }
 
   let lines: THREE.Group | null = null;
+  const baseSky = new THREE.Color(0x000000);
+  const dayTint = new THREE.Color();
   const basis = new THREE.Matrix4();
   const tmp = new THREE.Vector3();
   return {
@@ -300,8 +304,17 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
     },
+    setDaylight(colour, amount) {
+      const bg = scene.background as THREE.Color;
+      if (amount <= 0.001) {
+        if (!bg.equals(baseSky)) bg.copy(baseSky);
+        return;
+      }
+      bg.copy(baseSky).lerp(dayTint.set(colour), Math.min(1, amount));
+    },
     setStyle(s) {
-      scene.background = threeColour(s.background, false);
+      baseSky.copy(threeColour(s.background, false));
+      scene.background = baseSky.clone();
       // Light added to a light sky vanishes: on paper the glow is laid over it instead.
       if (sunGlow) {
         sunGlow.blending = s.ink ? THREE.NormalBlending : THREE.AdditiveBlending;

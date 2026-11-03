@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOOK, parseSp4ceFile, toSp4ceFile } from './path';
 import { readingAt } from './reading';
-import { lookQuat, starsignsPath } from './starsigns';
+import { groupDirections, lookQuat, starsignsPath } from './starsigns';
 import { fromCivil } from './time';
 
 type V = [number, number, number];
@@ -31,41 +31,69 @@ describe('Camera orientation', () => {
   });
 });
 
+describe('Grouping the planets into views', () => {
+  it('covers every body once, each group within the span, in as few groups as a sweep allows', () => {
+    fc.assert(
+      fc.property(fc.array(fc.double({ min: 0, max: 360, noNaN: true }), { minLength: 1, maxLength: 10 }), (lons) => {
+        const dirs = lons.map((l) => [Math.cos((l * Math.PI) / 180), Math.sin((l * Math.PI) / 180), 0] as V);
+        const g = groupDirections(dirs, 28);
+        expect(g.flat().sort((a, b) => a - b)).toEqual(lons.map((_, i) => i));
+        for (const grp of g) {
+          const ls = grp.map((i) => lons[i]!);
+          const first = ls[0]!;
+          for (const l of ls) expect((l - first + 360) % 360).toBeLessThanOrEqual(56 + 1e-9);
+        }
+        // Never more groups than a fixed 56° tiling of the circle needs.
+        expect(g.length).toBeLessThanOrEqual(7);
+      }),
+    );
+  });
+});
+
 describe('The Starsigns path', () => {
   const t = fromCivil(1985, 7, 14, 20 * 3600 + 20 * 60);
   const r = readingAt(t, 49.883, -97.166, 'whole');
   const base = { look: DEFAULT_LOOK, calendar: { offset: { day: 0, sec: 0 }, secondsPerPixel: 0.1, roll: -0.4, yaw: 0.2, spaceZoom: 1, panY: 0 } };
   const path = starsignsPath(r, { ...base, id: 's1', created: '2026-11-02T00:00:00Z', placeLabel: 'Winnipeg, Manitoba, Canada', placeName: 'Winnipeg', whenText: '14 July 1985, 3:20 pm', system: 'whole' });
+  const pts = path.points;
 
-  it('goes from the calendar to Earth, the town, its horizon and its Midheaven, and ends', () => {
-    expect(path.points.map((p) => p.view)).toEqual(['calendar', 'fly', 'fly', 'fly', 'fly', 'fly']);
+  it('starts above Earth’s north pole, as clicking its name does, and stays in 3D, time held', () => {
+    expect(pts.every((p) => p.view === 'fly' && p.present === t && !p.playing)).toBe(true);
+    const f = pts[0]!.fly!;
+    expect(f.anchor).toBe('earth');
+    expect(Math.hypot(...f.rel)).toBeCloseTo(6_371 * 1.4, 0);
     expect(path.finished).toBe(true);
-    expect(path.points.every((p) => p.present === t && !p.playing)).toBe(true);
-    expect(path.points[3]!.caption).toContain('Rising: 6° Scorpio');
-    expect(path.points[3]!.look.chart).toMatchObject({ lat: 49.883, lon: -97.166, system: 'whole' });
-    expect(path.points[1]!.look.chart).toBeNull();
   });
 
-  it('stands on the ground in the town, looking above the horizon', () => {
-    for (const p of path.points.slice(3, 5)) {
-      const f = p.fly!;
-      expect(f.frame).toBe('body');
-      expect(Math.hypot(...f.rel)).toBeCloseTo(6_372, 0);
-      const look = rot(f.quat, [0, 0, -1]);
-      const up = f.rel.map((x) => x / Math.hypot(...f.rel)) as V;
-      expect(look[0] * up[0] + look[1] * up[1] + look[2] * up[2]).toBeGreaterThan(Math.sin((11 * Math.PI) / 180));
-    }
+  it('picks out every body twice: by sign over the world, and by house on the wheel', () => {
+    const lit = pts.filter((p) => p.look.highlight).map((p) => p.look.highlight);
+    for (const b of r.bodies) expect(lit.filter((x) => x === b.id)).toHaveLength(2);
+    const mars = pts.filter((p) => p.look.highlight === 'mars');
+    expect(mars[0]!.caption).toBe('Mars · 23° Cancer');
+    expect(mars[1]!.caption).toContain('house 9 · Travel and learning');
+    // Signs first (no chart), then houses (with the chart).
+    expect(mars[0]!.look.chart).toBeNull();
+    expect(mars[1]!.look.chart).toMatchObject({ lat: 49.883, system: 'whole' });
+  });
+
+  it('stands in the town looking straight up, then puts the Ascendant on the left of the wheel', () => {
+    const ground = pts.find((p) => p.caption.startsWith('The sky over Winnipeg'))!;
+    const f = ground.fly!;
+    expect(f.frame).toBe('body');
+    const up = f.rel.map((x) => x / Math.hypot(...f.rel)) as V;
+    const look = rot(f.quat, [0, 0, -1]);
+    expect(look[0] * up[0] + look[1] * up[1] + look[2] * up[2]).toBeCloseTo(1, 6);
+    const wheel = pts[pts.length - 1]!.fly!;
+    const left = rot(wheel.quat, [-1, 0, 0]);
+    const ascLon = (Math.atan2(left[1], left[0]) * 180) / Math.PI;
+    const want = r.chart.asc - r.chart.sky.lonShift;
+    expect(Math.abs(((ascLon - want + 540) % 360) - 180)).toBeLessThan(0.01);
+    expect(rot(wheel.quat, [0, 0, -1])[2]).toBeCloseTo(-1, 6);
   });
 
   it('is a path like any other: written to a .sp4ce.json file and read back', () => {
     const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path))));
-    expect(back.points).toHaveLength(path.points.length);
-    expect(back.points[3]!.look.chart).toMatchObject({ system: 'whole', place: 'Winnipeg' });
-  });
-
-  it('without a birth time: signs only, no ground view, no houses', () => {
-    const p = starsignsPath(r, { ...base, id: 's2', created: '', placeLabel: 'Winnipeg', placeName: 'Winnipeg', whenText: '14 July 1985', system: 'whole', noTime: true });
-    expect(p.points).toHaveLength(3);
-    expect(p.points.every((x) => x.look.chart === null)).toBe(true);
+    expect(back.points).toHaveLength(pts.length);
+    expect(back.points.map((p) => p.look.highlight)).toEqual(pts.map((p) => p.look.highlight));
   });
 });

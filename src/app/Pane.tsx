@@ -271,6 +271,7 @@ export function Pane(p: Props) {
       galactic: settings.galactic,
       coastlines: settings.coastlines,
       chart: settings.chart,
+      highlight: settings.highlight,
     }),
     [settings],
   );

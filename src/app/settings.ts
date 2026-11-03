@@ -1,3 +1,4 @@
+import type { BodyId } from '../core/bodies';
 import type { ChartLook } from '../core/path';
 import { PLANET_IDS, type PlanetId } from '../core/planets';
 
@@ -25,6 +26,8 @@ export interface Settings {
   readonly coastlines: boolean;
   /** A Starsigns chart on the sky (horizon and houses), or none. Not kept between visits. */
   readonly chart: ChartLook | null;
+  /** A body picked out by a Starsigns path (pulsing), or none. Not kept between visits. */
+  readonly highlight: BodyId | null;
   /** Strobe: the solar system's frozen poses behind the present, and how many a year. */
   readonly strobe: boolean;
   readonly strobeSteps: number;
@@ -46,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   galactic: true,
   coastlines: true,
   chart: null,
+  highlight: null,
   strobe: false,
   strobeSteps: 5.2,
   focus: 'sun',
@@ -81,6 +85,7 @@ export function loadSettings(): Settings {
       galactic: typeof data.galactic === 'boolean' ? data.galactic : DEFAULT_SETTINGS.galactic,
       coastlines: typeof data.coastlines === 'boolean' ? data.coastlines : DEFAULT_SETTINGS.coastlines,
       chart: null,
+      highlight: null,
       strobe: typeof data.strobe === 'boolean' ? data.strobe : DEFAULT_SETTINGS.strobe,
       strobeSteps:
         typeof data.strobeSteps === 'number' && data.strobeSteps >= STROBE_MIN && data.strobeSteps <= STROBE_MAX

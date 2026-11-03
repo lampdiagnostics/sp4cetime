@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PdfDoc, textWidth, winAnsi } from './pdf';
+import { PdfDoc, textWidth, winAnsi, wrapText } from './pdf';
 import { readingAt } from './reading';
-import { starsignsPdf } from './starsignsPdf';
+import { starsignsCard, starsignsPdf } from './starsignsPdf';
 import { fromCivil } from './time';
 
 const asText = (b: Uint8Array): string => Array.from(b, (c) => String.fromCharCode(c)).join('');
@@ -66,5 +66,29 @@ describe('The Starsigns sheet', () => {
     checkXref(s);
     expect(s).toContain('PREVIEW');
     expect(s).toContain('/MediaBox [0 0 595.28 841.89]');
+  });
+});
+
+describe('The Starsigns card', () => {
+  const r = readingAt(fromCivil(1985, 7, 14, 20 * 3600 + 20 * 60), 49.883, -97.166, 'whole');
+  const o = { whenText: '14 July 1985, 3:20 pm', placeLabel: 'Winnipeg, Manitoba, Canada', coordsText: '49°52′59″ N · 97°09′58″ W', systemName: 'Whole Sign' };
+  it('is two landscape pages (outside, inside) with houses by name', () => {
+    const s = asText(starsignsCard(r, { ...o, paper: 'letter', preview: false }));
+    checkXref(s);
+    expect(s).toContain('/Count 2');
+    expect(s).toContain('/MediaBox [0 0 792 612]');
+    expect(s).toContain('(9 · Travel and learning) Tj');
+    expect(s).not.toContain('PREVIEW');
+  });
+  it('makes an A6 card on A4, marked when a preview', () => {
+    const s = asText(starsignsCard(r, { ...o, paper: 'a4', preview: true }));
+    checkXref(s);
+    expect(s).toContain('/MediaBox [0 0 841.89 595.28]');
+    expect(s).toContain('PREVIEW');
+  });
+  it('wraps text to a width', () => {
+    const lines = wrapText('one two three four five six seven eight nine ten', 60, 10);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const l of lines) expect(textWidth(l, 10)).toBeLessThanOrEqual(60);
   });
 });

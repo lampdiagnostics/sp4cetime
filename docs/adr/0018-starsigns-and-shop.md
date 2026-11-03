@@ -1,25 +1,25 @@
 # ADR-0018: Starsigns, a free path; its video and PDF sold on sp4cetime.shop
 
-Status: accepted in part (2 November 2026). The path, the PDF and the recording are built; the shop and its payment provider are the owner's to set up.
+Status: accepted in part (2 November 2026; revised the same evening). The path, the card and the recording are built; the shop, its customisation page and its payment provider are the owner's to set up.
 
 ## Context
 
-0.4.0 adds **✶ Starsigns** (owner, 2 November 2026; first called "the Astrology gift"). A dialog takes a date, a local time and a place (a town is taken at its centre: "Winnipeg" projects from the middle of town). It makes a **path** (ADR-0017) that anyone can play for free: the **signs**, the planets floating over the world seen from space, then the **houses**, seen from the place itself. The **video** of that path and a **printable, customisable PDF** (every body's sign, degree and house, the Ascendant and Midheaven, a chart wheel, links to read more) are the paid package: **US$1.99** on **sp4cetime.shop**.
+0.4.0 adds **✶ Starsigns** (owner, 2 November 2026; first called "the Astrology gift"). A dialog takes a date, a local time and a place (a town is taken at its centre: "Winnipeg" projects from the middle of town). It makes a **path** (ADR-0017) that anyone can play for free: the **signs**, the planets floating over the world seen from space, then the **houses**, seen from the place itself. Playing it, recording it (◉ Capture, watermarked), saving it as `.sp4ce.json` and previewing the **folding birthday card** (PDF) are free. **Personalising** it (a name, artwork) with the clean video, card and pictures is the paid package: **US$1.49** on **sp4cetime.shop** (revised from $0.99, then $1.99).
 
 This keeps DECISIONS §1: the free instrument shows real positions, signs and houses, labelled as astronomy and astrology; what is sold is the finished film and sheet, never a truer picture.
 
 ## Decision
 
-1. **A path like any other.** `src/core/starsigns.ts` turns a reading (`src/core/reading.ts`) into a six-point path: START, the calendar at the moment; Earth from space with the planets labelled by sign; high over the place; standing there facing the Ascendant on the eastern horizon, the houses drawn on the sky; looking up to the Midheaven; END, Earth and the zodiac. It is saved with the person's other paths (Present, ⤓ Download as `.sp4ce.json`), so it is free to keep, share and replay. Its points carry the chart (`look.chart`: place, house system), so they restore it (CLAUDE.md rule 16).
+1. **A path like any other.** `src/core/starsigns.ts` turns a reading (`src/core/reading.ts`) into the owner's four steps: above Earth's north pole facing the Sun; the planets in as few views as hold them (`groupDirections`), each picked out in turn (`look.highlight`); down to the place looking straight up (the sky coloured by the Sun's altitude); up, Earth dropping away, to the 3D chart wheel (`src/fly/wheel.ts`), each body picked out with its house. It is saved with the person's other paths (Present, ⤓ Download as `.sp4ce.json`), so it is free to keep, share and replay. Its points carry the chart (`look.chart`: place, house system), so they restore it (CLAUDE.md rule 16).
 2. **The house overlay** belongs to the instrument: in 3D, with a chart on, the place's horizon, the 12 house boundaries, ASC and MC are drawn on the sky, and each body's label gains its degree and house ("Mars · ♋ 23° Cancer · house 9"). Elements › Starsigns houses turns it off.
 3. **The package.** The video is the path played on its own and recorded by Capture (`recordVideo`; a hold at each point; about 30–40 seconds; captions and the @sp4cetime.org mark included). The PDF is written by our own small writer (`src/core/pdf.ts`, standard fonts, no dependency) and laid out in `src/core/starsignsPdf.ts`; a free preview carries a PREVIEW mark.
-4. **The shop sells and unlocks.** "⤓ Get the video and the PDF · US$1.99" opens `sp4cetime.shop` with the order in the URL *fragment* (`#starsigns=…`), which browsers never send to a server: no birth data reaches a server, a log or the payment provider. After paying, the shop page makes the same package in the browser (the same code) and downloads it. One small Cloudflare Worker route asks the provider whether the checkout was paid (the secret key lives in the Worker's settings). Until the shop takes payments (`SHOP_OPEN` in `src/app/shop.ts`), the button says the shop opens soon; in development (`npm run dev`) it makes the package without paying, so the owner can try it.
+4. **The shop personalises and unlocks.** "✶ Personalise and download · US$1.49" opens `sp4cetime.shop` with the order in the URL *fragment* (`#starsigns=…`), which browsers never send to a server: no birth data reaches a server, a log or the payment provider. After paying, the shop page makes the same package in the browser (the same code) and downloads it. One small Cloudflare Worker route asks the provider whether the checkout was paid (the secret key lives in the Worker's settings). Until the shop takes payments (`SHOP_OPEN` in `src/app/shop.ts`), the button says the shop opens soon; in development (`npm run dev`) it makes the package without paying, so the owner can try it.
 5. **Honesty.** The code is open source, so the paywall is a convenience, not a lock: people pay for the finished package and to support the project. Anyone can play the path and record it with ◉ Capture themselves; the shop says so.
 6. **The first server code** is that one Worker route, on the shop's domain; sp4cetime.org stays static. No accounts, no database: the provider's record is the receipt.
 
 ## Payment provider (owner to choose)
 
-Approximate fees on a **US$1.99** sale (the providers' pages, November 2026; check before signing up):
+Approximate fees on a **US$1.99** sale (at US$1.49 the fixed parts weigh more: Stripe keeps about US$1.18, Lemon Squeezy or Paddle about US$0.92, Gumroad about US$0.50) (the providers' pages, November 2026; check before signing up):
 
 | Provider | Fee | Kept of US$1.99 | Sales tax |
 | --- | --- | --- | --- |
@@ -34,4 +34,4 @@ Recommendation: **Stripe**, Managed Payments if open to a Canadian seller (tax h
 
 - Built: `houses.ts`, `places.ts` (Natural Earth towns with time zones), `reading.ts`, `starsigns.ts`, `pdf.ts`, `starsignsPdf.ts`; `src/app/zones.ts`, `StarsignsDialog.tsx` (loaded on first open), `shop.ts`; the chart overlay in `src/fly/sky.ts` and `FlyView.tsx`.
 - Found on the way: Earth was drawn turned up to 180° for dates before 2000 (its pole's reported right ascension flips); fixed in `bodies.ts` and tested against astronomy-engine's Sun altitudes, 1600–2400.
-- To do: the shop page and Worker, the provider account, terms, refunds and a privacy note (the owner's accounts and words; Claude prepares, the owner approves anything that publishes or touches money); a partner's horoscope text if one is chosen.
+- To do: hospitals first in the place search (a CC0 or CC BY list the owner downloads); a sped-up GIF and SVG pictures; the shop page with its customisation (name, artwork) and Worker, the provider account, terms, refunds and a privacy note (the owner's accounts and words; Claude prepares, the owner approves anything that publishes or touches money); a partner's horoscope text if one is chosen.

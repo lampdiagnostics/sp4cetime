@@ -77,6 +77,8 @@ export interface PointLook {
   readonly coastlines: boolean;
   /** A Starsigns chart (horizon and houses) on the sky in 3D, or none; 0.4.0. */
   readonly chart: ChartLook | null;
+  /** One body picked out (it pulses and its name stands out), or none; 0.4.0. */
+  readonly highlight: BodyId | null;
   readonly strobe: boolean;
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
@@ -121,7 +123,7 @@ export const SP4CE_VERSION = 2;
 /** The look a new visit opens with; a file lists only what differs from it. */
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
-  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null,
+  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null,
   strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
 };
 
@@ -270,6 +272,7 @@ function parseLook(o: Obj, where: string): PointLook {
     // New in 0.4.0: files written before it take the default.
     coastlines: o.coastlines === undefined ? DEFAULT_LOOK.coastlines : bool(o, 'coastlines', where),
     chart: o.chart === undefined || o.chart === null ? null : parseChart(obj(o, 'chart', where), `${where} chart`),
+    highlight: o.highlight === undefined || o.highlight === null ? null : oneOf(o, 'highlight', where, BODIES.map((b) => b.id)),
     strobe: bool(o, 'strobe', where),
     strobeSteps: num(o, 'strobeSteps', where, (x) => x >= 1 && x <= 24),
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),

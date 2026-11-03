@@ -155,3 +155,18 @@ export class PdfDoc {
     return bytes;
   }
 }
+
+/** Break text into lines no wider than `width` points (at word boundaries). */
+export function wrapText(s: string, width: number, size: number, font: Font = 'regular'): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const word of s.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && textWidth(next, size, font) > width) {
+      out.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) out.push(line);
+  return out;
+}

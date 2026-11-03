@@ -212,3 +212,26 @@ export function zenithDir(t: Time, lat: number, lonEast: number): [number, numbe
   const s = -sky.lonShift * DEG;
   return [x * Math.cos(s) - ye * Math.sin(s), x * Math.sin(s) + ye * Math.cos(s), ze];
 }
+
+/**
+ * What each house is about, in the astrological tradition (short modern names; the Latin
+ * ones of the Renaissance in brackets in the docs). For labels and the printed sheet; they
+ * are astrology, and the sheet says so.
+ */
+export const HOUSE_NAMES: readonly string[] = [
+  'Self', // I, Vita
+  'Possessions', // II, Lucrum
+  'Communication', // III, Fratres
+  'Home', // IV, Genitor
+  'Pleasure', // V, Nati
+  'Health and work', // VI, Valetudo
+  'Partnership', // VII, Uxor
+  'Transformation', // VIII, Mors
+  'Travel and learning', // IX, Pietas
+  'Career', // X, Regnum
+  'Friendship', // XI, Benefacta
+  'The unseen', // XII, Carcer
+];
+
+/** "10 · Career". */
+export const houseLabel = (h: number): string => `${h} · ${HOUSE_NAMES[h - 1] ?? ''}`;
