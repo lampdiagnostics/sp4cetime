@@ -256,6 +256,8 @@ export interface PaintOptions {
   /** The page's boxes, from snapshotPage. */
   readonly overlay: readonly Snap[];
   readonly watermark: boolean;
+  /** Leave out the views' moving names and dots (the cross-fade between looks: the live ones stay on top). */
+  readonly noLabels?: boolean;
 }
 
 /** Paint the shot into `out`, w × h px: the views, their moving names, the page's HTML, the watermark. */
@@ -277,7 +279,7 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
     const src = drawsBlank(st.canvas) ? readBack(st.canvas) : st.canvas;
     out.globalAlpha = st.alpha ?? 1;
     out.drawImage(src, (r.left - R.left) * sx, (r.top - R.top) * sy, r.width * sx, r.height * sy);
-    for (const host of st.overlays) {
+    for (const host of o.noLabels ? [] : st.overlays) {
       if (!shown(getComputedStyle(host))) continue;
       const halo = getComputedStyle(host).getPropertyValue('--label-halo').trim() || 'rgba(0,0,0,0.85)';
       for (const el of Array.from(host.children) as HTMLElement[]) {

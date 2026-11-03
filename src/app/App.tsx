@@ -235,7 +235,9 @@ export function App() {
     v.height = Math.round(window.innerHeight * dpr);
     const ctx = v.getContext('2d');
     if (!ctx) return;
-    drawShot(shot, ctx, v.width, v.height, { overlay: [], watermark: false });
+    // No names in the fading picture: a picture of them never quite matches the live ones
+    // (they jumped in size or case as the new look came in); the new names fade in instead.
+    drawShot(shot, ctx, v.width, v.height, { overlay: [], watermark: false, noLabels: true });
     v.style.transition = 'none';
     v.style.opacity = '1';
     void v.offsetWidth;

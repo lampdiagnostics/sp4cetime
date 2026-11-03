@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatSignDeg, HOUSE_SYSTEMS, houseLabel, houseOf, type HouseSystem } from '../core/houses';
+import { HOUSE_SYSTEMS, type HouseSystem } from '../core/houses';
 import type { Path, PathPoint } from '../core/path';
 import { nearestPlace, parseCoordinate, parsePlaces, type Place, placeForZone, placeLabel, searchPlaces } from '../core/places';
 import { readingAt, type Reading } from '../core/reading';
@@ -328,61 +328,19 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
           <Coffee />
         </div>
 
-        {reading && (
-          <details className="astro-pdf" open>
-            <summary>Signs and houses</summary>
-            <table className="astro-table">
-              <thead>
-                <tr>
-                  <th scope="col">Body</th>
-                  <th scope="col">Sign</th>
-                  <th scope="col">House</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reading.bodies.map((b) => (
-                  <tr key={b.id}>
-                    <th scope="row">{b.name}</th>
-                    <td>
-                      {b.sign.glyph} {formatSignDeg(b.lon)}
-                      {b.retrograde && <span className="rx" title="Retrograde: seen from Earth, moving backward along the zodiac"> ℞</span>}
-                    </td>
-                    <td>{houseLabel(b.house)}</td>
-                  </tr>
-                ))}
-                <tr className="angle">
-                  <th scope="row">Ascendant</th>
-                  <td>{formatSignDeg(reading.chart.asc)}</td>
-                  <td>{houseLabel(1)}</td>
-                </tr>
-                <tr className="angle">
-                  <th scope="row">Midheaven</th>
-                  <td>{formatSignDeg(reading.chart.mc)}</td>
-                  <td>{houseLabel(houseOf(reading.chart.mc, reading.chart.cusps))}</td>
-                </tr>
-              </tbody>
-            </table>
-            <label className="astro-system">
-              Houses
-              <select value={system} onChange={(e) => setSystem(e.target.value as HouseSystem)}>
-                {HOUSE_SYSTEMS.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hint">
-                {system === 'whole'
-                  ? 'Whole Sign: each house is one whole sign, starting with the sign rising in the east.'
-                  : 'Equal: twelve 30° houses, starting at the exact rising degree.'}
-              </span>
-            </label>
-            <p className="note">
-              Positions are astronomy; houses and their meanings are astrology. Signs are counted from the equinox of that date.
-              {moment?.noTime && ' No time given, so noon is used: the houses (and maybe the Moon’s sign) need the birth time.'}
-            </p>
-          </details>
-        )}
+        {/* No table of signs and houses here (owner, 3 Nov 2026): the path shows them in the sky,
+            and the card prints them. Only the house system is chosen here. */}
+        <label className="astro-system row">
+          Houses
+          <select value={system} onChange={(e) => setSystem(e.target.value as HouseSystem)} title="Whole Sign: each house is one whole sign, from the sign rising in the east. Equal: twelve 30° houses from the exact rising degree.">
+            {HOUSE_SYSTEMS.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+              </option>
+            ))}
+          </select>
+          {moment?.noTime && <span className="hint">No time given: noon is used, so the houses are only a guide.</span>}
+        </label>
 
         {reading && (
           <div className="row astro-files">

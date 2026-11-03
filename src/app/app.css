@@ -2029,3 +2029,16 @@ select option {
 .float-tools .capture.present {
   position: static;
 }
+/* Starsigns: the house system on one line ("Houses [Whole Sign]"). */
+.astro-dialog .astro-system.row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+}
+.astro-dialog .astro-system.row select {
+  align-self: center;
+}
