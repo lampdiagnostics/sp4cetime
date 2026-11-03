@@ -561,7 +561,7 @@ export function App() {
       starsignsNext.current = make;
     },
   };
-  /** What ▶ Go flies: the Starsigns sky set in its dialog, else your latest path, else the example. */
+  /** What ▶ Go flies: the Starsigns sky set in its dialog, else your latest path, else an example (none ship now). */
   const starsignsNext = useRef<(() => Path | null) | null>(null);
   const pathToGo = (): { path: Path; starsigns: boolean } | null => {
     const s = starsignsNext.current?.();
@@ -577,7 +577,11 @@ export function App() {
       return;
     }
     const g = pathToGo();
-    if (!g) return;
+    // Nothing to fly yet: ✶ Starsigns makes a path from now and here.
+    if (!g) {
+      if (!record) setStarsigns(true);
+      return;
+    }
     if (g.starsigns) {
       starsignsNext.current = null;
       starsignsActions.play(g.path, record);

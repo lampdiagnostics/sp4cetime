@@ -9,7 +9,7 @@ const VIDEO_FPS = 30;
 
 /**
  * ▶ Go and capture (owner, 2 Nov 2026). The button is a green ▶ Go: a tap flies the path
- * (the Starsigns sky set in its dialog, else your latest path, else the example); touching
+ * (the Starsigns sky set in its dialog, else your latest path; with none, ✶ Starsigns opens); touching
  * and holding it (or right-click, or ↓) opens this menu: ◉ Record (fly the path recording,
  * the length shown beside ■ Stop, stopping by itself at the end), then capture what is on
  * screen (the view, its names, and the boxes if they are showing), straight to Downloads:

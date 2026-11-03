@@ -41,7 +41,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | `shop/`, `vite.shop.config.ts`, `wrangler.store.jsonc` | sp4cetime.store (ADR-0019): the shop page (`Shop.tsx`, `DesignForm.tsx`, `make.ts` makes each product's files in the browser) and its Worker (`worker.ts`: Stripe Checkout, paid orders, the readout webhook and email). Core: `catalog.ts` (products, prices, designs, astrologers), `transits.ts` (readouts), `almanac.ts` + `calendarPdf.ts`, `wallArt.ts` + `screensaver.ts`. `npm run dev:shop`, `npm run build:shop`. |
 | `content/themes/*.json` | Themes as data, validated by `parseTheme`. |
 | `public/sky`, `public/textures` | Star catalogue, Milky Way, galaxy model, Earth and Moon maps, Earth's coastline and border lines (`scripts/build_earth_lines.py`), with licences and credits. |
-| `public/paths/` | Example paths as `.sp4ce.json` files, listed in `index.json` (shown under Examples in the Present menu). |
+| `public/paths/` | Example paths as `.sp4ce.json` files, listed in `index.json` (shown under Examples in the Present menu). Empty since 0.4.0 (owner took down "A first tour"); the loader still reads any listed. |
 | `docs/ROADMAP.md`, `docs/SPHERES.md` | To-do lists by version and the four modes (Galactic, Planetary, Cellular, Atomic); the draft spheres-and-skins model. |
 
 ## Rules

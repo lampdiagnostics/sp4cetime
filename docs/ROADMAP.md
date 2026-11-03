@@ -20,7 +20,7 @@ The spheres model ([SPHERES.md](SPHERES.md)) is what joins them: a cell and an a
 Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 - [x] The instrument: the calendar, Fly mode, the real sky, the whole galaxy with Sgr A* and the Local Group, three themes, true scale only, capture (screenshot, GIF, video).
 - [x] Paths: Return makes a path; Present in the Capture button; flights between points (calendar, Fly, galaxy, looks dissolving); point box with captions.
-- [x] Paths are light, readable `.sp4ce.json` files (version 2): download, upload, ✎ Continue; an example path ships in `public/paths/`.
+- [x] Paths are light, readable `.sp4ce.json` files (version 2): download, upload, ✎ Continue; example paths can ship in `public/paths/` ("A first tour" was taken down in 0.4.0).
 - [x] Smooth video recording (even frames, 1080p by default, "Sharp" for 4K).
 - [x] Smooth on more devices: drawing resolution adapts to the device; dead code removed.
 - [x] Beta basics: Beta label, accuracy tier shown, About / privacy / feedback (hello@sp4cetime.org), link preview image, `_headers`, `robots.txt`, no public source maps.
