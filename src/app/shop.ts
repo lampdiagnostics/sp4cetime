@@ -1,37 +1,29 @@
 /**
  * sp4cetime.org shows no prices (owner, 2 November 2026): Starsigns' path, video, card and
- * path file are free; ✶ Customize goes to sp4cetime.shop (cards and videos for occasions,
- * names, artwork, GIFs, posters, screen savers, templates; later others' templates and
- * paths); ☕ Buy us a coffee! is a Stripe Payment Link (ADR-0018).
+ * path token are free; ✶ Customize goes to sp4cetime.store (cards, calendars, screensavers,
+ * phone backgrounds, readouts; ADR-0019); ☕ Buy us a coffee! is a Stripe Payment Link.
  */
 
-export const SHOP_URL = 'https://sp4cetime.shop/';
-/** Turned on once sp4cetime.shop is up (until then ✶ Customize says it is coming). */
+import { type Design, encodeDesign } from '../core/catalog';
+
+export const SHOP_URL = 'https://sp4cetime.store/';
+/** Turned on once sp4cetime.store takes live payments (until then ✶ Customize says it is coming). */
 export const SHOP_OPEN = false;
 /**
- * "☕ Buy us a coffee!": a Stripe Payment Link where the buyer chooses the amount (the
- * owner makes it in the Stripe dashboard and pastes its https://buy.stripe.com/… address
- * here). Empty: the button is not shown.
+ * "☕ Buy us a coffee!": a Stripe Payment Link where the buyer chooses the amount (made in the
+ * Stripe dashboard, product "Buy us a coffee (sp4cetime)", lookup key coffee). Paste the live
+ * https://donate.stripe.com/… address here; empty hides the button.
  */
 export const COFFEE_URL = '';
 
-/** What the shop needs to make the same package, carried in the link's fragment (never sent to a server). */
-export interface ShopOrder {
-  readonly date: string;
-  readonly time: string | null;
-  readonly place: { readonly label: string; readonly name: string; readonly lat: number; readonly lon: number; readonly zone: string | null };
-  readonly name: string;
-  readonly system: 'whole' | 'equal';
-  readonly pdf: { readonly title: string; readonly paper: 'letter' | 'a4'; readonly style: 'paper' | 'night' };
-}
-
-export function shopLink(order: ShopOrder): string {
-  const json = JSON.stringify(order);
+/** The design and the clock time as typed, in the link's fragment (never sent to a server). */
+export function shopLink(design: Design, local: { date: string; time: string; zone: string | null }): string {
+  const json = JSON.stringify({ design: JSON.parse(encodeDesign(design)), ...local });
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-  return `${SHOP_URL}#starsigns=${b64}`;
+  return `${SHOP_URL}make/card#starsigns=${b64}`;
 }
 
 /** Save bytes as a file. */

@@ -56,7 +56,7 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * wheel). Place: type it (a completer like a transit app's: arrows, Tab or Enter, a tap),
  * or type latitude and longitude and the nearest town fills in. A blank time means noon.
  * The video (Go + Capture), the card's inside (PDF) and the path are free; ✶ Customize goes to
- * sp4cetime.shop (occasions, names, artwork). No prices on this site. Never in a capture.
+ * sp4cetime.store (occasions, names, artwork). No prices on this site. Never in a capture.
  */
 export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
   const start = useMemo(today, []);
@@ -327,6 +327,7 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
           <button type="button" disabled={!reading} onClick={() => go(true)} title="Fly the path and record it as a video (◉ Capture, with the @sp4cetime.org mark)">
             ▷ Go + ◉ Capture
           </button>
+          <Coffee />
         </div>
 
         {reading && (
@@ -409,11 +410,12 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
               }}
               title="The path as a small .sp4ce.json file: anyone can play it at sp4cetime.org (⤒ Upload in the Present menu)"
             >
-              ⤓ The path (.json)
+              ⤓ Path token (.json)
             </button>
+            <Coffee />
           </div>
         )}
-        {reading && <p className="note">All free: ▷ Go + ◉ Capture saves the video; the card and the path download here.</p>}
+        {reading && <p className="note">All free: ▷ Go + ◉ Capture saves the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
 
         <div className="astro-buy">
           <div className="row">
@@ -423,15 +425,26 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
               disabled={!SHOP_OPEN || !where}
               onClick={() => {
                 if (!where) return;
+                if (!moment) return;
                 window.open(
-                  shopLink({
-                    date,
-                    time: moment?.noTime ? null : time,
-                    place: { label: where.label, name: where.name, lat: where.lat, lon: where.lon, zone: where.zone },
-                    name: '',
-                    system,
-                    pdf: { title: 'Starsigns', paper, style: 'paper' },
-                  }),
+                  shopLink(
+                    {
+                      occasion: 'birthday',
+                      names: '',
+                      message: '',
+                      day: moment.t.day,
+                      sec: moment.t.sec,
+                      when: `${moment.whenText}${moment.noTime ? '' : ` (${where.zone ? formatOffset(moment.offset) : 'UTC'})`}`.slice(0, 48),
+                      noTime: moment.noTime,
+                      place: where.label.slice(0, 80),
+                      lat: where.lat,
+                      lon: where.lon,
+                      system,
+                      paper,
+                      style: 'night',
+                    },
+                    { date, time: moment.noTime ? '' : time, zone: where.zone },
+                  ),
                   '_blank',
                   'noopener',
                 );
@@ -439,19 +452,24 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
             >
               ✶ Customize
             </button>
-            {COFFEE_URL && (
-              <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener">
-                ☕ Buy us a coffee!
-              </a>
-            )}
           </div>
           <span className="note">
             {SHOP_OPEN
-              ? 'At sp4cetime.shop: cards and videos for birthdays, a new baby, a wedding or this very moment, with names and artwork. Your details travel in the link only.'
-              : 'Coming soon at sp4cetime.shop: cards and videos for birthdays, a new baby, a wedding or this very moment, with names and artwork.'}
+              ? 'At sp4cetime.store: cards, calendars, screensavers and phone backgrounds for birthdays, a new baby, a wedding or this very moment, and Starsigns readouts by email. Your details travel in the link only.'
+              : 'Coming soon at sp4cetime.store: cards, calendars, screensavers and phone backgrounds for birthdays, a new baby, a wedding or this very moment, and Starsigns readouts by email.'}
           </span>
         </div>
       </form>
     </div>
+  );
+}
+
+/** "☕ Buy us a coffee!" beside each free download: a Stripe Payment Link, any amount (hidden until COFFEE_URL is set). */
+function Coffee() {
+  if (!COFFEE_URL) return null;
+  return (
+    <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener" title="Free to download; a coffee keeps sp4cetime going (pay what you like, through Stripe)">
+      ☕ Buy us a coffee!
+    </a>
   );
 }

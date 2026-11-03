@@ -1,0 +1,25 @@
+// sp4cetime.store (ADR-0019): the shop page (dist-shop) and its Worker (Stripe, email).
+// Build: `npm run build:shop`. Deploy: `npx wrangler deploy -c wrangler.store.jsonc`,
+// or connect the repo in Cloudflare (Workers Builds) with those two commands.
+// Secrets, set by the owner (never committed): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
+{
+  "name": "sp4cetime-store",
+  "main": "shop/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist-shop",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "SITE_URL": "https://sp4cetime.store",
+    "MAIL_FROM": "readouts@sp4cetime.store",
+    "PORTAL_URL": "",
+    "COFFEE_URL": ""
+  },
+  // Cloudflare Email Service (Email Sending, beta): onboard sp4cetime.store under
+  // Compute › Email Service › Email Sending. Sending to anyone needs the Workers Paid plan.
+  "send_email": [{ "name": "EMAIL" }],
+  "routes": [{ "pattern": "sp4cetime.store", "custom_domain": true }, { "pattern": "www.sp4cetime.store", "custom_domain": true }]
+}

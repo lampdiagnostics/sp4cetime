@@ -34,10 +34,10 @@ export interface Reading {
 }
 
 /** The order astrologers list them in: the Sun and the Moon, then outward. */
-const ORDER: readonly BodyId[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
+export const ORDER: readonly BodyId[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
 
 /** Geocentric ecliptic longitudes of date, degrees, for every body but Earth. */
-function longitudes(t: Time): Map<BodyId, number> {
+export function longitudes(t: Time): Map<BodyId, number> {
   const sky = skyOfDate(t);
   const all = solarSystemAt(t);
   const earth = all.find((b) => b.info.id === 'earth')!.pos;

@@ -10,3 +10,8 @@ coverage/
 # Transfer files used when working from a linked cloud session
 *.bundle
 .sp-*.tgz
+
+# sp4cetime.store build (shared files are copied in at build time)
+dist-shop/
+shop/public/places.json
+shop/public/favicon.svg

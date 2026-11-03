@@ -17,7 +17,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'shop/**/*.test.ts'],
     environment: 'node',
     // Property tests run hundreds of cases; CI machines are slower and run files side by side.
     testTimeout: 20_000,

@@ -7,7 +7,7 @@
  */
 
 import { formatSignDeg, houseLabel, houseOf } from './houses';
-import { PdfDoc, PdfPage, type RGB, wrapText } from './pdf';
+import { PdfDoc, PdfPage, type RGB, textWidth, wrapText } from './pdf';
 import type { Reading } from './reading';
 
 export interface SheetOptions {
@@ -46,7 +46,7 @@ export function starsignsPdf(r: Reading, o: SheetOptions): Uint8Array {
   if (night) p.rect(0, 0, W, H, { fill: [0.03, 0.04, 0.08] });
   // The preview mark goes under everything, so the sheet stays readable.
   if (o.preview) {
-    for (const k of [0.32, 0.62]) p.text(W / 2, H * k, 'PREVIEW  ·  sp4cetime.shop', { size: 44, font: 'bold', color: night ? [0.2, 0.17, 0.11] : [0.93, 0.9, 0.85], align: 'center', angle: 30 });
+    for (const k of [0.32, 0.62]) p.text(W / 2, H * k, 'PREVIEW  ·  sp4cetime.store', { size: 44, font: 'bold', color: night ? [0.2, 0.17, 0.11] : [0.93, 0.9, 0.85], align: 'center', angle: 30 });
   }
   const M = 48;
   let y = H - M - 10;
@@ -177,6 +177,17 @@ function wheel(
   }
 }
 
+/** The chart wheel at (cx, cy), radius R, Ascendant on the left (for other sheets: the calendar's cover, the table sheet). */
+export function drawWheel(p: PdfPage, r: Reading, cx: number, cy: number, R: number, noTime: boolean, colours?: { ink: RGB; dim: RGB; faint: RGB; accent: RGB }): void {
+  const c = colours ?? { ink: [0.08, 0.09, 0.12], dim: [0.38, 0.4, 0.46], faint: [0.8, 0.81, 0.85], accent: [0.72, 0.42, 0.05] };
+  const at = (lon: number, rad: number): [number, number] => {
+    const a = ((180 + lon - r.chart.asc) * Math.PI) / 180;
+    return [cx + rad * Math.cos(a), cy + rad * Math.sin(a)];
+  };
+  const o: SheetOptions = { title: '', paper: 'letter', style: 'paper', preview: false, whenText: '', placeLabel: '', coordsText: '', systemName: '', noTime };
+  wheel(p, r, o, { cx, cy, R, at, ...c });
+}
+
 export interface CardOptions {
   /** Letter: a 5 × 7 in card (folded from 10 × 7 in); A4: an A6 card (folded from A5). */
   readonly paper: 'letter' | 'a4';
@@ -187,6 +198,8 @@ export interface CardOptions {
   readonly systemName: string;
   /** 'inside': one page, the inside only (the free card on sp4cetime.org); 'both' (default): outside and inside. */
   readonly sides?: 'inside' | 'both';
+  /** sp4cetime.store's personalised card: the occasion's title and the names on the front, a message on the back. */
+  readonly cover?: { readonly title: string; readonly names: string; readonly message: string };
 }
 
 /**
@@ -195,7 +208,7 @@ export interface CardOptions {
  * the moment and place) and the back (left half: where it came from). Inside, in landscape:
  * the wheel on the left, every body's sign and house (by name) on the right, honest notes
  * and where to read more. Crop marks show the card's edge; a dashed line the fold.
- * Personalised versions (a name, artwork) are made on sp4cetime.shop.
+ * Personalised versions (a name, artwork) are made on sp4cetime.store.
  */
 export function starsignsCard(r: Reading, o: CardOptions): Uint8Array {
   const letter = o.paper === 'letter';
@@ -217,7 +230,7 @@ export function starsignsCard(r: Reading, o: CardOptions): Uint8Array {
     p.line(x0 + half, y0 + CH + 4, x0 + half, y0 + CH + 18, { color: dim, width: 0.4 });
     p.line(x0 + half, y0 - 4, x0 + half, y0 - 18, { color: dim, width: 0.4 });
     p.line(x0 + half, y0, x0 + half, y0 + CH, { color: faint, width: 0.3, dash: [2, 3] });
-    if (o.preview) p.text(x0 + CW / 2, y0 + CH * 0.42, 'PREVIEW  ·  sp4cetime.shop', { size: 40 * k, font: 'bold', color: [0.93, 0.9, 0.85], align: 'center', angle: 24 });
+    if (o.preview) p.text(x0 + CW / 2, y0 + CH * 0.42, 'PREVIEW  ·  sp4cetime.store', { size: 40 * k, font: 'bold', color: [0.93, 0.9, 0.85], align: 'center', angle: 24 });
   };
   const sheet: SheetOptions = { title: 'Starsigns', paper: o.paper, style: 'paper', preview: false, whenText: o.whenText, placeLabel: o.placeLabel, coordsText: o.coordsText, systemName: o.systemName };
   const wheelAt = (p: PdfPage, cx: number, cy: number, R: number, plain: boolean): void => {
@@ -236,8 +249,20 @@ export function starsignsCard(r: Reading, o: CardOptions): Uint8Array {
   out.text(x0 + half / 2, y0 + 28 * k, 'Positions are astronomy · houses are astrology', { size: 7.5 * k, color: dim, align: 'center' });
   out.link(x0 + half / 2 - 60 * k, y0 + 36 * k, x0 + half / 2 + 60 * k, y0 + 50 * k, 'https://sp4cetime.org');
   const fx = x0 + half + half / 2;
-  out.text(fx, y0 + CH - 70 * k, 'Starsigns', { size: 34 * k, font: 'bold', color: ink, align: 'center' });
-  out.text(fx, y0 + CH - 92 * k, 'the sky at your moment', { size: 11 * k, color: accent, align: 'center' });
+  const cv = o.cover;
+  const title = cv?.title || 'Starsigns';
+  let ts = 34 * k;
+  while (ts > 16 * k && textWidth(title, ts, 'bold') > half - 40 * k) ts -= 1;
+  out.text(fx, y0 + CH - 70 * k, title, { size: ts, font: 'bold', color: ink, align: 'center' });
+  out.text(fx, y0 + CH - 92 * k, cv?.names || 'the sky at your moment', { size: (cv?.names ? 14 : 11) * k, font: cv?.names ? 'bold' : 'regular', color: accent, align: 'center' });
+  if (cv?.message) {
+    const lines = wrapText(cv.message, half - 90 * k, 13 * k);
+    let my = y0 + CH / 2 + ((lines.length - 1) * 18 * k) / 2;
+    for (const l of lines) {
+      out.text(x0 + half / 2, my, l, { size: 13 * k, color: ink, align: 'center' });
+      my -= 18 * k;
+    }
+  }
   wheelAt(out, fx, y0 + CH / 2 - 12 * k, 112 * k, true);
   out.text(fx, y0 + 66 * k, o.whenText, { size: 10.5 * k, color: ink, align: 'center' });
   out.text(fx, y0 + 50 * k, o.placeLabel, { size: 9.5 * k, color: dim, align: 'center' });

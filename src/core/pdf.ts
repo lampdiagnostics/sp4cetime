@@ -99,6 +99,14 @@ export class PdfPage {
     this.ops.push(`${o.fill ? `${col(o.fill)} rg ` : ''}${o.stroke ? `${col(o.stroke)} RG ${f2(o.width ?? 0.5)} w ` : ''}[] 0 d ${path} ${paint}`);
   }
 
+  /** A closed polygon. */
+  poly(pts: ReadonlyArray<readonly [number, number]>, o: { fill?: RGB; stroke?: RGB; width?: number }): void {
+    if (pts.length < 3) return;
+    const path = pts.map(([x, y], i) => `${f2(x)} ${f2(y)} ${i === 0 ? 'm' : 'l'}`).join(' ');
+    const paint = o.fill && o.stroke ? 'b' : o.fill ? 'f' : 's';
+    this.ops.push(`${o.fill ? `${col(o.fill)} rg ` : ''}${o.stroke ? `${col(o.stroke)} RG ${f2(o.width ?? 0.5)} w ` : ''}[] 0 d ${path} h ${paint}`);
+  }
+
   /** A clickable web link over a rectangle. */
   link(x0: number, y0: number, x1: number, y1: number, url: string): void {
     this.links.push({ x0, y0, x1, y1, url });

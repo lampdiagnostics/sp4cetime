@@ -16,5 +16,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "content", "vite.config.ts"]
+  "include": ["src", "content", "shop", "vite.config.ts", "vite.shop.config.ts"]
 }

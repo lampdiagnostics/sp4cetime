@@ -1768,7 +1768,7 @@ select option {
 .astro-buy .row {
   align-items: center;
 }
-.astro-buy .coffee {
+.astro-dialog .coffee {
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--panel-border);
@@ -1777,6 +1777,6 @@ select option {
   text-decoration: none;
   font-size: 13px;
 }
-.astro-buy .coffee:hover {
+.astro-dialog .coffee:hover {
   background: var(--button-hover);
 }
