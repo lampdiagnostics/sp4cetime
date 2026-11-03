@@ -208,6 +208,9 @@ interface Flight {
   done?: (arrived: boolean) => void;
 }
 
+/** The see-through wheel's distance along the ecliptic pole from the camera, km (any size: it is drawn on top). */
+const SKY_WHEEL_KM = 50_000;
+
 export default function FlyView({ active, focused = true, theme, overlays, clock, spanSeconds, measure, command, onTimeZoom, onHud, onApi, onEmptyTap }: Props) {
   const live = useRef({ active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud, onEmptyTap });
   live.current = { active, focused, theme, overlays, clock, spanSeconds, measure, onTimeZoom, onHud, onEmptyTap };
@@ -990,6 +993,9 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const galaxyLabels = galaxy ? galaxy.update(now, pos, pxAngle, scene.renderer.getPixelRatio()) : [];
       const o = L.overlays;
       scene.setEarthLines(o.coastlines ?? true);
+      // Starsigns' last pose: Earth see-through, as if it were not under your feet.
+      const seeThrough = !!o.seeThrough;
+      scene.setBodyVisible('earth', !seeThrough);
       const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
         ...paths.update(
           far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
@@ -1009,7 +1015,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         const e = find(bodies, 'earth');
         const off = sub3(pos, e.pos);
         const altKm = len3(off) - e.info.radiusKm;
-        if (altKm < 120 && far <= 0.5) {
+        if (altKm < 120 && far <= 0.5 && !L.overlays.seeThrough) {
           const upv = unit3(off);
           const s = unit3(sub3(find(bodies, 'sun').pos, pos));
           const alt = (Math.asin(Math.max(-1, Math.min(1, upv[0] * s[0] + upv[1] * s[1] + upv[2] * s[2]))) * 180) / Math.PI;
@@ -1039,6 +1045,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       // Every body's outline on screen: labels never show through a body or its rings.
       const discs: Disc[] = [];
       for (const b of bodies) {
+        if (b.info.id === 'earth' && L.overlays.seeThrough) continue;
         const rel = new THREE.Vector3(b.pos[0] - pos[0], b.pos[1] - pos[1], b.pos[2] - pos[2]);
         const d = rel.length();
         const relCam = rel.clone().applyQuaternion(inv);
@@ -1092,12 +1099,18 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const earthB = find(trueBodies, 'earth');
       const earthShown = find(bodies, 'earth');
       const fromEarth = len3(sub3(pos, earthShown.pos)) / earthShown.info.radiusKm;
-      const wheelOn = !!(ch && chart) && far <= 0.5 && fromEarth > 6;
+      const seeThroughNow = !!L.overlays.seeThrough;
+      const wheelOn = !!(ch && chart) && far <= 0.5 && (fromEarth > 6 || seeThroughNow);
       let haloShown = false;
       const placed: Array<[number, number]> = [];
       for (const b of bodies) {
         const el = labels.get(b.info.id);
         if (!el) continue;
+        if (b.info.id === 'earth' && seeThroughNow) {
+          el.style.display = 'none';
+          markers.get('earth')?.style.setProperty('display', 'none');
+          continue;
+        }
         const rel = new THREE.Vector3(b.pos[0] - pos[0], b.pos[1] - pos[1], b.pos[2] - pos[2]);
         const d = rel.length();
         v3.copy(rel).project(cam);
@@ -1160,8 +1173,11 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       wheel.update(
         wheelOn && chart
           ? {
-              centre: [earthShown.pos[0] - pos[0], earthShown.pos[1] - pos[1], earthShown.pos[2] - pos[2]],
-              radiusKm: WHEEL_RADII * earthShown.info.radiusKm,
+              // Around Earth from afar; see-through, around the ecliptic's south pole as seen from where
+              // you stand (beneath your feet), 38° out, so the whole ring and every body fit in view
+              // (the signs in their true directions around the pole: the printed chart's view).
+              centre: seeThroughNow ? [0, 0, -SKY_WHEEL_KM] : [earthShown.pos[0] - pos[0], earthShown.pos[1] - pos[1], earthShown.pos[2] - pos[2]],
+              radiusKm: seeThroughNow ? SKY_WHEEL_KM * Math.tan((38 * Math.PI) / 180) : WHEEL_RADII * earthShown.info.radiusKm,
               shift: skyNow.lonShift,
               cusps: chart.cusps,
               asc: chart.asc,

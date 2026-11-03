@@ -50,6 +50,8 @@ export interface FlyScene {
   setStyle(s: SkyStyle): void;
   /** Earth's line skin (coastlines, lakes, borders): loaded the first time it is shown. */
   setEarthLines(on: boolean): void;
+  /** Show or hide a body's globe (Earth, see-through in Starsigns' last pose). */
+  setBodyVisible(id: BodyId, on: boolean): void;
   /** Near the ground, the sky's colour for the hour (blue by day, black by night): a colour and how much of it (0–1). */
   setDaylight(colour: string, amount: number): void;
   dispose(): void;
@@ -246,6 +248,10 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   const basis = new THREE.Matrix4();
   const tmp = new THREE.Vector3();
   return {
+    setBodyVisible(id, on) {
+      const m = meshes.get(id);
+      if (m && m.visible !== on) m.visible = on;
+    },
     setEarthLines(on) {
       if (on && !lines) {
         lines = earthLines(import.meta.env.BASE_URL);

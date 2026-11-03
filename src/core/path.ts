@@ -79,6 +79,8 @@ export interface PointLook {
   readonly chart: ChartLook | null;
   /** One body picked out (it pulses and its name stands out), or none; 0.4.0. */
   readonly highlight: BodyId | null;
+  /** Earth see-through (Starsigns' last pose): standing at the place as if the planet were not there, the chart wheel around the sky overhead; 0.4.0. */
+  readonly seeThrough: boolean;
   readonly strobe: boolean;
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
@@ -123,7 +125,7 @@ export const SP4CE_VERSION = 2;
 /** The look a new visit opens with; a file lists only what differs from it. */
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
-  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null,
+  labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null, seeThrough: false,
   strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
 };
 
@@ -273,6 +275,7 @@ function parseLook(o: Obj, where: string): PointLook {
     coastlines: o.coastlines === undefined ? DEFAULT_LOOK.coastlines : bool(o, 'coastlines', where),
     chart: o.chart === undefined || o.chart === null ? null : parseChart(obj(o, 'chart', where), `${where} chart`),
     highlight: o.highlight === undefined || o.highlight === null ? null : oneOf(o, 'highlight', where, BODIES.map((b) => b.id)),
+    seeThrough: o.seeThrough === undefined ? false : bool(o, 'seeThrough', where),
     strobe: bool(o, 'strobe', where),
     strobeSteps: num(o, 'strobeSteps', where, (x) => x >= 1 && x <= 24),
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),

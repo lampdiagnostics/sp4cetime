@@ -1,3 +1,4 @@
+import { solarSystemAt } from './bodies';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOOK, parseSp4ceFile, toSp4ceFile } from './path';
@@ -83,12 +84,28 @@ describe('The Starsigns path', () => {
     const up = f.rel.map((x) => x / Math.hypot(...f.rel)) as V;
     const look = rot(f.quat, [0, 0, -1]);
     expect(look[0] * up[0] + look[1] * up[1] + look[2] * up[2]).toBeCloseTo(1, 6);
-    const wheel = pts[pts.length - 1]!.fly!;
-    const left = rot(wheel.quat, [-1, 0, 0]);
+    // The last pose: still in the town (body frame, same spot), Earth see-through, looking up the
+    // ecliptic's north pole with the Ascendant on the left (as on the printed chart).
+    const last = pts[pts.length - 1]!;
+    const wheel = last.fly!;
+    expect(wheel.frame).toBe('body');
+    expect(wheel.rel).toEqual(f.rel);
+    expect(last.look.seeThrough).toBe(true);
+    expect(ground.look.seeThrough).toBe(false);
+    expect(ground.look.constellations).toBe(true);
+    const [ax, ay, az] = solarSystemAt(r.time).find((b) => b.info.id === 'earth')!.axes;
+    const toWorld = (d: V): V => [0, 1, 2].map((k) => ax[k]! * d[0] + ay[k]! * d[1] + az[k]! * d[2]) as V;
+    expect(toWorld(rot(wheel.quat, [0, 0, -1]))[2]).toBeCloseTo(-1, 6);
+    // The Midheaven at the top, as on the printed chart.
+    const topV = toWorld(rot(wheel.quat, [0, 1, 0]));
+    const topLon = (Math.atan2(topV[1], topV[0]) * 180) / Math.PI;
+    expect(Math.abs(((topLon - (r.chart.mc - r.chart.sky.lonShift) + 540) % 360) - 180)).toBeLessThan(45);
+    const left = toWorld(rot(wheel.quat, [-1, 0, 0]));
     const ascLon = (Math.atan2(left[1], left[0]) * 180) / Math.PI;
     const want = r.chart.asc - r.chart.sky.lonShift;
-    expect(Math.abs(((ascLon - want + 540) % 360) - 180)).toBeLessThan(0.01);
-    expect(rot(wheel.quat, [0, 0, -1])[2]).toBeCloseTo(-1, 6);
+    expect(Math.abs(((ascLon - want + 540) % 360) - 180)).toBeLessThan(0.05);
+    // One short line each.
+    for (const p of pts) expect(p.caption.length).toBeLessThan(110);
   });
 
   it('is a path like any other: written to a .sp4ce.json file and read back', () => {

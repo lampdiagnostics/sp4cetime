@@ -247,7 +247,7 @@ export function App() {
     return {
       themeId: st.themeId, round: st.round, chrome: chromeRef.current, planets: st.planets, moon: st.moon, rings: st.rings,
       labels: st.labels, spirals: st.spirals, timeGrid: st.timeGrid, distanceGrid: st.distanceGrid,
-      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, chart: st.chart, highlight: st.highlight, strobe: st.strobe,
+      constellations: st.constellations, zodiac: st.zodiac, galactic: st.galactic, coastlines: st.coastlines, chart: st.chart, highlight: st.highlight, seeThrough: st.seeThrough, strobe: st.strobe,
       strobeSteps: st.strobeSteps, focus: st.focus, measure: pane.current?.snapshot().measure ?? 'near',
     };
   };
@@ -471,6 +471,11 @@ export function App() {
   const playing = useRef(0);
   /** True while a path plays itself (▶ Go). */
   const autoRun = useRef(false);
+  const [autoPlaying, setAutoPlaying] = useState(false);
+  const setAuto = (on: boolean): void => {
+    autoRun.current = on;
+    setAutoPlaying(on);
+  };
   /** While a Starsigns path records: when it started (for the timer) and how to stop it. */
   const [recording, setRecording] = useState<{ start: number; run: number } | null>(null);
   const [recNow, setRecNow] = useState(0);
@@ -482,7 +487,7 @@ export function App() {
   }, [recording]);
   const autoPlay = async (path: Path, record: boolean): Promise<void> => {
     const run = ++playing.current;
-    autoRun.current = true;
+    setAuto(true);
     const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
     const arrive = async (i: number): Promise<boolean> => {
       goToPoint(path, i);
@@ -501,13 +506,13 @@ export function App() {
         setRecording(null);
         if (playing.current === run) {
           playing.current++;
-          autoRun.current = false;
+          setAuto(false);
         }
       };
     }
     if (!(await arrive(0))) {
       if (record) setRecording((r) => (r && r.run === run ? null : r));
-      if (playing.current === run) autoRun.current = false;
+      if (playing.current === run) setAuto(false);
       return;
     }
     const rec = record ? await recordVideo(() => getShot(), { fps: 30, watermark: true }, () => {}) : null;
@@ -532,7 +537,7 @@ export function App() {
         finish();
         if (playing.current === run) {
           playing.current++;
-          autoRun.current = false;
+          setAuto(false);
         }
       };
     }
@@ -546,7 +551,7 @@ export function App() {
     finish();
     if (playing.current === run) {
       playing.current++;
-      autoRun.current = false;
+      setAuto(false);
     }
   };
   const starsignsActions: StarsignsActions = {
@@ -625,19 +630,9 @@ export function App() {
 
       {/* Presentation mode: the point's box (in captures, with its caption). */}
       {showing && shownPoint && (
-        <section className="pointbox" aria-live="polite" aria-label="This point of the path">
-          <div className="pb-head">
-            <b>{pointLabel(showing.index, showing.path.points.length, showing.path.finished)}</b>
-            <span>
-              {showing.index + 1} of {showing.path.points.length} · {showing.path.name}
-            </span>
-          </div>
-          {shownPoint.caption && <p className="pb-caption">{shownPoint.caption}</p>}
-          <p className="pb-facts">
-            {VIEW_NAME[shownPoint.view]} · {formatTime(shownPoint.present, 1)}
-            {shownPoint.where && <> · {shownPoint.where}</>}
-          </p>
-          {shownPoint.facing && <p className="pb-facts">{shownPoint.facing}</p>}
+        // One line (owner, 3 Nov 2026): the point's words only, no step counter or details.
+        <section className="pointbox one-line" aria-live="polite" aria-label="This point of the path" title={`${showing.path.name} · ${VIEW_NAME[shownPoint.view]} · ${formatTime(shownPoint.present, 1)}${shownPoint.where ? ` · ${shownPoint.where}` : ''}`}>
+          <p className="pb-caption">{shownPoint.caption || showing.path.name}</p>
         </section>
       )}
 
@@ -680,7 +675,14 @@ export function App() {
           present={present}
           pathRecording={recording ? { clock: recording.start ? formatClock(Math.max(0, recNow - recording.start)) : 'ready…', stop: () => stopRec.current?.() } : null}
         />
-        {showing && (
+        {showing && autoPlaying && (
+          <div className="path-status" role="status">
+            <button type="button" onClick={stopPresenting} title="Stop (Esc)">
+              ■ Stop
+            </button>
+          </div>
+        )}
+        {showing && !autoPlaying && (
           <div className="path-status" role="status">
             ▷ {pointLabel(showing.index, showing.path.points.length, showing.path.finished)} · {showing.index + 1}/{showing.path.points.length}
             <span className="note">

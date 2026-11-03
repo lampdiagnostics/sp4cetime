@@ -31,6 +31,8 @@ export interface OverlayOptions {
   readonly chart?: ChartLook | null;
   /** A body picked out (pulsing). */
   readonly highlight?: BodyId | null;
+  /** Earth see-through: hidden, and the chart wheel drawn around the sky overhead. */
+  readonly seeThrough?: boolean;
 }
 
 export interface OverlayLabel {

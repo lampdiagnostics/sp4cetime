@@ -128,14 +128,20 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
       w.cusps.forEach((c, i) => items.push({ p: at(c + 15 - w.shift, R_HOUSE - 0.07), text: String(i + 1), kind: 'house' }));
       items.push({ p: at(w.asc - w.shift, 1.12), text: 'ASC', kind: 'angle' }, { p: at(w.mc - w.shift, 1.12), text: 'MC', kind: 'angle' });
       const sorted = [...w.bodies].sort((a, b) => a.lon - b.lon);
-      const used: number[] = [];
+      // Names on an outer ring; one too close to the last there drops to an inner ring, and only if
+      // both are taken does it slide along.
+      const near = (x: number, y: number): boolean => Math.abs(((x - y + 540) % 360) - 180) < 9;
+      const last = [-1e9, -1e9];
       for (const b of sorted) {
         let lon = b.lon;
-        for (const u of used) if (Math.abs(((lon - u + 540) % 360) - 180) < 8) lon = u + 8;
-        used.push(lon);
-        // The one picked out sits a little further in, clear of its neighbours.
+        let ring = 0;
+        if (near(lon, last[0]!)) {
+          if (!near(lon, last[1]!)) ring = 1;
+          else lon = last[0]! + 9;
+        }
+        last[ring] = lon;
         const hl = b.id === w.highlight;
-        items.push({ p: at((hl ? b.lon : lon) - w.shift, R_SIGN - (hl ? 0.24 : 0.16)), text: b.text, kind: 'body', hl });
+        items.push({ p: at(lon - w.shift, R_SIGN - (ring ? 0.27 : 0.15)), text: b.text, kind: 'body', hl });
       }
       items.forEach((it, i) => {
         const el = label(i);

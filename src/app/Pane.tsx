@@ -272,6 +272,7 @@ export function Pane(p: Props) {
       coastlines: settings.coastlines,
       chart: settings.chart,
       highlight: settings.highlight,
+      seeThrough: settings.seeThrough,
     }),
     [settings],
   );

@@ -8,10 +8,14 @@
  *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
  *      body picked out in turn (it pulses; its caption gives its sign and degree).
  *   3. THE SKY OVER THE PLACE: down to the place (a town at its centre), looking straight
- *      up: the zodiac and the houses overhead, the sky coloured for that hour.
- *   4. THE WHEEL: Earth drops away below; seen from above, the zodiac is a wheel around it,
- *      the Ascendant on the left as on the printed chart, every body at its longitude,
- *      picked out in turn with its sign and house.
+ *      up: the constellations, the zodiac and the houses overhead, the sky coloured for that hour.
+ *   4. THE WHOLE ZODIAC (owner, 3 Nov 2026): still standing at the place, the planet drops
+ *      away beneath your feet (see-through), and looking down past them toward the ecliptic's
+ *      south pole the whole zodiac is a ring around the sky, exactly as on the printed chart
+ *      (Ascendant on the left, Midheaven at the top; looking up the north pole shows it
+ *      mirrored), every body at its longitude, picked out in turn with its sign and house.
+ *
+ * Captions are one short line each (the point box is one line high).
  *
  * Pure: the caller passes the look and calendar to start from, an id and a date.
  */
@@ -96,8 +100,6 @@ export interface StarsignsOptions {
 
 /** The 3D chart wheel's outer radius around Earth, in Earth radii (src/fly/wheel.ts draws it). */
 export const WHEEL_RADII = 12;
-/** How far out the camera sees the whole wheel from, Earth radii. */
-const WHEEL_VIEW_RADII = 30;
 /** Half the angle a view of planets may span (so each group fits even on a narrow screen). */
 const GROUP_HALF_DEG = 28;
 
@@ -144,7 +146,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
 
   const chart: ChartLook = { lat: r.lat, lon: r.lon, system: o.system, place: o.placeName };
   // Full screen, names and the zodiac; nothing else (no spirals, orbits, grids or figures), so the sky reads clearly.
-  const look = (withChart: boolean, highlight: BodyId | null = null): PointLook => ({
+  const look = (withChart: boolean, highlight: BodyId | null = null, ground = false, seeThrough = false): PointLook => ({
     ...o.look,
     round: false,
     chrome: 1,
@@ -157,19 +159,21 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     rings: false,
     timeGrid: false,
     distanceGrid: false,
-    constellations: false,
+    // At the place (and see-through), the constellations too: the night sky as it is.
+    constellations: ground,
     strobe: false,
     chart: withChart ? chart : null,
     highlight,
+    seeThrough,
   });
-  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = ''): PathPoint => ({
+  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false): PathPoint => ({
     view: 'fly',
     present: t,
     speed: 1,
     playing: false,
     calendar: { ...o.calendar, offset: { day: 0, sec: 0 } },
     fly,
-    look: look(withChart, highlight),
+    look: look(withChart, highlight, ground, seeThrough),
     caption,
     where,
     facing: '',
@@ -189,7 +193,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const forward = add(scale(down, Math.cos(tilt)), scale(sideways, Math.sin(tilt)));
   const pole: FlyState = { anchor: 'earth', frame: 'inertial', rel: above, quat: lookQuat(forward, n), fov: 84, up: n };
   const points: PathPoint[] = [
-    point(pole, `${whose} · ${o.whenText}${noon} · ${o.placeLabel}`, false),
+    point(pole, `${whose} · ${o.whenText}${noon} · ${o.placeName}`, false),
   ];
 
   // 2. The planets: as few views as hold them all, each centred on its group; each body picked out in turn.
@@ -222,31 +226,25 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   points.push(
     point(
       { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + 1), quat: lookQuat(up, unit(toMc)), fov: 100, up: upWorld },
-      `The sky over ${o.placeName}${noon}: rising ${formatSignDeg(r.chart.asc)}, Midheaven ${formatSignDeg(r.chart.mc)}`,
+      `The sky over ${o.placeName}${noon} · rising ${formatSignDeg(r.chart.asc)}`,
       true,
       null,
       o.placeLabel,
-    ),
-  );
-  // Rising straight up from the place, Earth dropping away below.
-  points.push(
-    point(
-      { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R * 4), quat: lookQuat(scale(up, -1), north), fov: 60, up: upWorld },
-      `Rising above ${o.placeName}`,
       true,
-      null,
-      o.placeLabel,
     ),
   );
 
-  // 4. The wheel: from above the ecliptic, Earth in the middle, the Ascendant on the left (as on the printed chart).
-  const asc = eclipticDirOfDate(r.chart.asc, 0, r.chart.sky);
-  const top: Vec3 = [asc[1], -asc[0], 0]; // the Midheaven's side
-  const wheel: FlyState = { anchor: 'earth', frame: 'inertial', rel: [0, 0, EARTH_R * WHEEL_VIEW_RADII], quat: lookQuat([0, 0, -1], top), fov: 60, up: [0, 0, 1] };
-  points.push(point(wheel, `${whose}: the Sun in ${sign('sun')}, the Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true));
+  // 4. Still at the place, the planet see-through: looking down past your feet to the ecliptic's
+  //    south pole, the whole zodiac rings the view as on the printed chart (Ascendant left, MC top).
+  const poleBody = unit(toBody([0, 0, -1]));
+  const ascBody = toBody(eclipticDirOfDate(r.chart.asc, 0, r.chart.sky));
+  // A camera's right is up × back; with up = pole × asc and back = −pole, right = −asc: the Ascendant on the left.
+  const wheelUp = unit(cross(poleBody, ascBody));
+  const wheel: FlyState = { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + 1), quat: lookQuat(poleBody, wheelUp), fov: 90, up: upWorld };
+  points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true));
   for (const b of r.bodies) {
-    points.push(point(wheel, `${b.name} · ${formatSignDeg(b.lon)} · house ${houseLabel(b.house)}`, true, b.id));
+    points.push(point(wheel, `${b.name} · ${formatSignDeg(b.lon)} · house ${houseLabel(b.house)}`, true, b.id, o.placeLabel, true, true));
   }
-  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeLabel} · Starsigns by sp4cetime.org`, true));
+  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeName} · sp4cetime.org`, true, null, o.placeLabel, true, true));
   return { id: o.id, name: `Starsigns · ${o.name ? `${o.name}, ` : ''}${o.whenText}`, created: o.created, points, finished: true };
 }
