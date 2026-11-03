@@ -469,8 +469,20 @@ export function App() {
 
   // ✶ Starsigns: a path played on its own (a hold at each point), and for the package, recorded.
   const playing = useRef(0);
+  /** True while a path plays itself (▶ Go). */
+  const autoRun = useRef(false);
+  /** While a Starsigns path records: when it started (for the timer) and how to stop it. */
+  const [recording, setRecording] = useState<{ start: number; run: number } | null>(null);
+  const [recNow, setRecNow] = useState(0);
+  const stopRec = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!recording) return;
+    const id = window.setInterval(() => setRecNow(performance.now()), 250);
+    return () => window.clearInterval(id);
+  }, [recording]);
   const autoPlay = async (path: Path, record: boolean): Promise<void> => {
     const run = ++playing.current;
+    autoRun.current = true;
     const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
     const arrive = async (i: number): Promise<boolean> => {
       goToPoint(path, i);
@@ -482,9 +494,48 @@ export function App() {
       return false;
     };
     const hold = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-    if (!(await arrive(0))) return;
+    if (record) {
+      setRecording({ start: 0, run });
+      stopRec.current = () => {
+        stopRec.current = null;
+        setRecording(null);
+        if (playing.current === run) {
+          playing.current++;
+          autoRun.current = false;
+        }
+      };
+    }
+    if (!(await arrive(0))) {
+      if (record) setRecording((r) => (r && r.run === run ? null : r));
+      if (playing.current === run) autoRun.current = false;
+      return;
+    }
     const rec = record ? await recordVideo(() => getShot(), { fps: 30, watermark: true }, () => {}) : null;
-    if (record && !rec) setMessage('This browser would not record a video; the PDF is saved anyway.');
+    if (record && !rec) {
+      setRecording((r) => (r && r.run === run ? null : r));
+      stopRec.current = null;
+      setMessage('This browser would not record a video; the path plays anyway.');
+    }
+    let stopped = false;
+    const finish = (): void => {
+      if (stopped) return;
+      stopped = true;
+      rec?.stop();
+      stopRec.current = null;
+      setRecording((r) => (r && r.run === run ? null : r));
+    };
+    if (rec) {
+      setRecording({ start: performance.now(), run });
+      setRecNow(performance.now());
+      // ■ Stop: end the recording now and stop moving on through the path.
+      stopRec.current = () => {
+        finish();
+        if (playing.current === run) {
+          playing.current++;
+          autoRun.current = false;
+        }
+      };
+    }
     await hold(2500);
     for (let i = 1; i < path.points.length && live(); i++) {
       if (!(await arrive(i))) break;
@@ -492,8 +543,11 @@ export function App() {
       const pt = path.points[i]!;
       await hold(i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200);
     }
-    rec?.stop();
-    if (playing.current === run) playing.current++;
+    finish();
+    if (playing.current === run) {
+      playing.current++;
+      autoRun.current = false;
+    }
   };
   const starsignsActions: StarsignsActions = {
     base: () => keyRef.current.pointNow(),
@@ -503,6 +557,31 @@ export function App() {
       void autoPlay(path, capture);
     },
     download: (path) => exportPath(path),
+    ready: (make) => {
+      starsignsNext.current = make;
+    },
+  };
+  /** What ▶ Go flies: the Starsigns sky set in its dialog, else your latest path, else the example. */
+  const starsignsNext = useRef<(() => Path | null) | null>(null);
+  const pathToGo = (): { path: Path; starsigns: boolean } | null => {
+    const s = starsignsNext.current?.();
+    if (s) return { path: s, starsigns: true };
+    const p = present.paths[0] ?? present.examples[0];
+    return p ? { path: p, starsigns: false } : null;
+  };
+  const goPath = (record: boolean): void => {
+    // Already presenting by hand: a tap is "next".
+    if (!record && autoRun.current) return;
+    if (!record && showing) {
+      stepPath(1);
+      return;
+    }
+    const g = pathToGo();
+    if (!g) return;
+    if (g.starsigns) {
+      starsignsNext.current = null;
+      starsignsActions.play(g.path, record);
+    } else void autoPlay(g.path, record);
   };
 
   const round = !phone && settings.round;
@@ -605,7 +684,7 @@ export function App() {
       )}
 
       {/* Always on screen, never in a capture: the eye (also the H key) and Capture. */}
-      <div className="float-tools" data-no-capture>
+      <div className={starsigns ? 'float-tools above' : 'float-tools'} data-no-capture>
         <button
           type="button"
           className="chrome-toggle"
@@ -619,7 +698,14 @@ export function App() {
             {chrome === 2 && <path d="M4 4l16 16" />}
           </svg>
         </button>
-        <CaptureMenu getShot={getShot} onPlay={play} in3D={in3D} present={present} />
+        <CaptureMenu
+          getShot={getShot}
+          onPlay={play}
+          in3D={in3D}
+          present={present}
+          go={{ onGo: () => goPath(false), onRecord: () => goPath(true) }}
+          pathRecording={recording ? { clock: recording.start ? formatClock(Math.max(0, recNow - recording.start)) : 'ready…', stop: () => stopRec.current?.() } : null}
+        />
         {showing && (
           <div className="path-status" role="status">
             ▷ {pointLabel(showing.index, showing.path.points.length, showing.path.finished)} · {showing.index + 1}/{showing.path.points.length}
@@ -667,6 +753,9 @@ export function App() {
         <button type="button" aria-pressed={in3D} onClick={() => pane.current?.show(in3D ? 'calendar' : 'fly')} title={in3D ? 'Back to the galactic calendar' : 'Fly through the solar system in 3D'}>
           {in3D ? 'Calendar' : '✦ Fly'}
         </button>
+        <button type="button" className="astro-button" onClick={() => setStarsigns(true)} aria-label="Starsigns" title="Starsigns: the planets' signs and houses for a date, a time and a place">
+          <span className="twinkle" aria-hidden="true">✶</span>
+        </button>
       </div>
 
       {/* The boxes. On wide screens they sit in the corners; on phones and short windows
@@ -693,7 +782,7 @@ export function App() {
           {live && rate === 1 ? '● Now' : 'Back to now'}
         </button>
         <button type="button" className="astro-button" onClick={() => setStarsigns(true)} title="Starsigns: the planets' signs and houses for a date, a time and a place">
-          ✶ Starsigns
+          <span className="twinkle" aria-hidden="true">✶</span> Starsigns
         </button>
         <label className="select">
           <span className="visually-hidden">Theme</span>
@@ -731,4 +820,10 @@ export function App() {
       </div>
     </div>
   );
+}
+
+/** "0:07", "1:42": a recording's length. */
+function formatClock(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

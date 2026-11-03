@@ -1285,6 +1285,15 @@ select option {
   .top-bar button[aria-pressed='true']:not(.primary) {
     background: var(--pressed);
   }
+  /* ✶ Starsigns: at the top on phones (owner, 2 Nov 2026), so not again under ☰ More. */
+  .top-bar .astro-button {
+    width: 36px;
+    padding: 0;
+    font-size: 18px;
+  }
+  .dock .corner.tr .astro-button {
+    display: none;
+  }
 
   /* Top left: the date, as text. */
   .dock .corner.tl {
@@ -1292,7 +1301,7 @@ select option {
     top: var(--gap);
     left: var(--gap);
     z-index: 24;
-    max-width: calc(100vw - 3 * var(--gap) - 190px);
+    max-width: calc(100vw - 3 * var(--gap) - 232px);
     flex-direction: row;
     flex-wrap: wrap;
     align-items: baseline;
@@ -1779,4 +1788,151 @@ select option {
 }
 .astro-dialog .coffee:hover {
   background: var(--button-hover);
+}
+
+/* ✶ twinkles, as a star does. */
+.twinkle {
+  display: inline-block;
+  color: var(--accent);
+  animation: twinkle 2.6s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); text-shadow: 0 0 0 transparent; }
+  20% { opacity: 0.55; transform: scale(0.82) rotate(-8deg); }
+  45% { opacity: 1; transform: scale(1.18) rotate(6deg); text-shadow: 0 0 8px var(--accent); }
+  70% { opacity: 0.8; transform: scale(0.95) rotate(0deg); text-shadow: 0 0 3px var(--accent); }
+}
+
+/* ▶ Go (bottom of the screen, in place of ◉ Capture): one green button that wants to be pressed; hold it for ◉ Record. */
+.go-big {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 22px 0 18px;
+  border-radius: 24px;
+  border: none;
+  background: #1fa45a;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  animation: go-pulse 1.8s ease-in-out infinite;
+}
+.go-big:hover:not(:disabled) {
+  background: #23b865;
+}
+.go-big:disabled {
+  background: #3d5a49;
+  opacity: 0.6;
+  animation: none;
+  cursor: default;
+}
+@keyframes go-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(31, 164, 90, 0.55); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(31, 164, 90, 0); }
+}
+
+/* While recording: a red dot, the length so far, ■ Stop. */
+.rec-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5484d;
+  animation: rec-blink 1s steps(2, start) infinite;
+}
+@keyframes rec-blink {
+  to { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twinkle,
+  .go-big,
+  .rec-dot {
+    animation: none;
+  }
+}
+
+.float-tools .capture > button.go-big {
+  height: 44px;
+  padding: 0 20px 0 16px;
+  border-radius: 22px;
+  border: none;
+  background: #1fa45a;
+  color: #fff;
+  font-size: 17px;
+}
+.float-tools .capture > button.go-big:hover {
+  background: #23b865;
+}
+/* ▶ Go stays reachable while ✶ Starsigns is open. */
+.float-tools.above {
+  z-index: 80;
+}
+.path-dialog-backdrop:has(.astro-dialog) {
+  padding-bottom: 72px;
+}
+.rec-status button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--button);
+  color: var(--text);
+}
+.capture-popover .record-path {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-weight: 700;
+}
+.capture-popover .record-path .note {
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.astro-go-note {
+  margin: 4px 0 2px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.astro-go-note .coffee {
+  margin-left: 6px;
+  white-space: nowrap;
+}
+/* Phones: ▶ Go sits at the bottom left, so its menu opens from the left edge. */
+@media (max-width: 720px), (max-height: 520px) {
+  .popover.capture-popover {
+    left: 0;
+    transform: none;
+    width: min(300px, calc(100vw - 2 * var(--gap)));
+  }
+}
+.go-inline {
+  color: #1fa45a;
+}
+/* The recording timer stays bright while the rest is dimmed for a clean picture (it is never recorded). */
+.float-tools > .capture:has(.rec-status) {
+  opacity: 1;
+}
+.rec-status button {
+  color: #ff6b6b;
+  border-color: rgba(255, 80, 80, 0.6);
 }

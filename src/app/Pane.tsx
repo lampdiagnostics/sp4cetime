@@ -622,11 +622,11 @@ export function Pane(p: Props) {
             <li>
               Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,
               the moment, how time runs, the look). Travel and press Return for each next point, with a caption if you like; tick “Stop after this
-              point” for END. ◉ Capture · ▷ Present plays a saved path: the view flies from point to point; Return or → next, ← back, Esc stops. Look
+              point” for END. ▶ Go (bottom) plays your latest path by itself; hold ▶ Go › Present to step through any saved path: the view flies from point to point; Return or → next, ← back, Esc stops. Look
               around at a point and the next press flies you back to it first. Paths are small .sp4ce.json files: Download yours to keep them, Upload one to
               present it or ✎ Continue it (this browser keeps a copy too).
             </li>
-            <li>◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
+            <li>▶ Go (bottom): tap to fly the path (✶ Starsigns, or your latest); touch and hold for ◉ Record (the path as a video, stopping by itself at the end; ■ Stop beside its running time) and capture, straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Go button, with an @sp4cetime.org watermark unless you turn it off.</li>
           </ul>
           <h3>About this beta</h3>
           <ul>

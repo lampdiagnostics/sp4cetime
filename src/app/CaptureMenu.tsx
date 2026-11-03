@@ -8,8 +8,11 @@ const GIF_FPS = 15;
 const VIDEO_FPS = 30;
 
 /**
- * Capture what is on screen (the view, its names, and the boxes if they are showing),
- * straight to Downloads:
+ * ▶ Go and capture (owner, 2 Nov 2026). The button is a green ▶ Go: a tap flies the path
+ * (the Starsigns sky set in its dialog, else your latest path, else the example); touching
+ * and holding it (or right-click, or ↓) opens this menu: ◉ Record (fly the path recording,
+ * the length shown beside ■ Stop, stopping by itself at the end), then capture what is on
+ * screen (the view, its names, and the boxes if they are showing), straight to Downloads:
  * - P a screenshot (in every view);
  * - G a GIF: time plays for 5 seconds while it records, then pauses;
  * - V a video: from V until V again, or a click on the running time.
@@ -31,14 +34,24 @@ export interface PresentControls {
   readonly message: string;
 }
 
-export function CaptureMenu({ getShot, onPlay, in3D, present }: {
+export function CaptureMenu({ getShot, onPlay, in3D, present, go, pathRecording }: {
   getShot: () => Shot | null;
   onPlay: (on: boolean) => void;
   in3D: boolean;
   /** Paths: Presentation mode lives in the Capture button (presentations are made to be captured). */
   present: PresentControls;
+  /** ▶ Go (owner, 2 Nov 2026): a tap flies the path (Starsigns, or your latest); ◉ Record flies it recording. */
+  go: { onGo: () => void; onRecord: () => void };
+  /** A path recording (◉ Record): its length so far and ■ Stop (it also stops at the path's end). */
+  pathRecording: { clock: string; stop: () => void } | null;
 }) {
   const [open, setOpen] = useState(false);
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
+  const cancelHold = (): void => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
   const [watermark, setWatermark] = useState(true);
   const [sharp, setSharp] = useState(false);
   const [chosen, setChosen] = useState('');
@@ -164,7 +177,15 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
 
   return (
     <div className="picker capture" ref={root} data-no-capture>
-      {busy?.kind === 'video' ? (
+      {pathRecording ? (
+        <span className="rec-status" role="status">
+          <span className="rec-dot" aria-hidden="true" />
+          <span className="rec-time">{pathRecording.clock}</span>
+          <button type="button" onClick={pathRecording.stop} aria-label="Stop recording" title="Stop recording (it stops by itself at the end of the path)">
+            ■ Stop
+          </button>
+        </span>
+      ) : busy?.kind === 'video' ? (
         <button type="button" className="recording" onClick={video} title="Stop recording (V)">
           ● {clock} · stop
         </button>
@@ -173,12 +194,58 @@ export function CaptureMenu({ getShot, onPlay, in3D, present }: {
           GIF {Math.round(busy.progress * 100)}%
         </button>
       ) : (
-        <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((x) => !x)} title="Screenshot (P), GIF (G) or video (V); present a path">
-          ◉ Capture · ▷ Present
+        <button
+          type="button"
+          className="go-big"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label="Go: fly the path. Hold (or press ↓) to record, capture or choose a path"
+          title="Tap: fly the path · hold: ◉ Record, screenshot, GIF, video, paths"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            held.current = false;
+            cancelHold();
+            holdTimer.current = window.setTimeout(() => {
+              held.current = true;
+              setOpen(true);
+              navigator.vibrate?.(15);
+            }, 480);
+          }}
+          onPointerUp={cancelHold}
+          onPointerLeave={cancelHold}
+          onPointerCancel={cancelHold}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            cancelHold();
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
+          onClick={() => {
+            if (held.current) {
+              held.current = false;
+              return;
+            }
+            if (open) setOpen(false);
+            else go.onGo();
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M7 4.5v15l12.5-7.5z" fill="currentColor" />
+          </svg>
+          <span>Go</span>
         </button>
       )}
       {open && !busy && (
-        <div className="popover capture-popover" id={panelId} role="dialog" aria-label="Capture">
+        <div className="popover capture-popover" id={panelId} role="dialog" aria-label="Record and capture">
+          <button type="button" className="primary record-path" onClick={() => (setOpen(false), go.onRecord())} autoFocus title="Fly the path and record it; stops by itself at the end">
+            ◉ Record <span className="note">fly the path and save it as a video</span>
+          </button>
           <button type="button" onClick={shoot}>
             📷 Screenshot <kbd>P</kbd>
           </button>

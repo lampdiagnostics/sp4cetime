@@ -37,10 +37,12 @@ interface Where {
 export interface StarsignsActions {
   /** The look and calendar now, for the path to start from. */
   base: () => PathPoint | null;
-  /** Save the path and play it (free); with `capture`, record it as a video (◉ Capture, watermarked). */
+  /** Save the path and play it (free); with `capture`, record it as a video (◉ Record, watermarked). */
   play: (path: Path, capture: boolean) => void;
   /** Save the path as a .sp4ce.json file (free). */
   download: (path: Path) => void;
+  /** The path this dialog would make now (or null), for ▶ Go at the bottom of the screen. */
+  ready: (make: (() => Path | null) | null) => void;
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -55,7 +57,7 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * the free path (signs from above, the planets one by one, the sky over the place, the
  * wheel). Place: type it (a completer like a transit app's: arrows, Tab or Enter, a tap),
  * or type latitude and longitude and the nearest town fills in. A blank time means noon.
- * The video (Go + Capture), the card's inside (PDF) and the path are free; ✶ Customize goes to
+ * The dialog has no Go of its own: ▶ Go at the bottom of the screen flies what it shows (hold for ◉ Record). The video, the card's inside (PDF) and the path are free; ✶ Customize goes to
  * sp4cetime.store (occasions, names, artwork). No prices on this site. Never in a capture.
  */
 export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
@@ -72,7 +74,6 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [note, setNote] = useState('');
-  const goRef = useRef<HTMLButtonElement>(null);
   const listOpen = useRef(false);
 
   const fromPlace = (p: Place, how: 'chosen' | 'near', km = 0): void => {
@@ -92,7 +93,6 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   };
 
   useEffect(() => {
-    goRef.current?.focus();
     // Start from this device's place: the largest town in its time zone (no permission asked).
     void loadPlaces(import.meta.env.BASE_URL).then((list) => {
       setPlaces(list);
@@ -167,6 +167,8 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
     });
   };
   const fileBase = `starsigns-${date}`;
+  // ▶ Go (bottom of the screen) flies what this dialog shows, even after it closes.
+  useEffect(() => actions.ready(reading ? path : null));
   const go = (capture: boolean): void => {
     const p = path();
     if (p) actions.play(p, capture);
@@ -320,15 +322,13 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
           )}
         </div>
 
-        <div className="row astro-go">
-          <button ref={goRef} type="submit" className="primary go" disabled={!reading}>
-            ▷ Go
-          </button>
-          <button type="button" disabled={!reading} onClick={() => go(true)} title="Fly the path and record it as a video (◉ Capture, with the @sp4cetime.org mark)">
-            ▷ Go + ◉ Capture
-          </button>
-          <Coffee />
-        </div>
+        {/* Return in any box flies it, as ▶ Go does. */}
+        <button type="submit" className="visually-hidden" tabIndex={-1} disabled={!reading}>
+          Go
+        </button>
+        <p className="astro-go-note">
+          <b className="go-inline">▶ Go</b> at the bottom of the screen flies your sky; hold it for <b>◉ Record</b>. <Coffee />
+        </p>
 
         {reading && (
           <details className="astro-pdf" open>
@@ -415,7 +415,7 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
             <Coffee />
           </div>
         )}
-        {reading && <p className="note">All free: ▷ Go + ◉ Capture saves the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
+        {reading && <p className="note">All free: hold ▶ Go (bottom of the screen) and choose ◉ Record for the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
 
         <div className="astro-buy">
           <div className="row">
@@ -473,3 +473,4 @@ function Coffee() {
     </a>
   );
 }
+
