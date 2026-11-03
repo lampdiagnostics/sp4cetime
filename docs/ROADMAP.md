@@ -50,7 +50,7 @@ Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-starsi
 - [x] Signs from the equinox of the viewed date, in both views (sign lines and names turn with precession; body labels use longitudes of date).
 - [x] Place lookup: type a town, get its centre and time zone (Natural Earth populated places, public domain, 7,342 towns); or latitude and longitude in degrees, minutes, seconds; the local time turned into UTC with the zone's history (daylight saving, skipped and doubled hours).
 - [x] **✶ Starsigns** button and dialog (renamed from Astrology): date, local time (or "I don't know the time"), place; Whole Sign or Equal houses; a table of every body's sign, degree, house and retrograde, the Ascendant and MC; "Go to this moment" sets the map there. (`src/core/reading.ts`, `places.ts`; `src/app/zones.ts`, `AstrologyDialog.tsx`.)
-- [x] Where the button lives: top right on computers; on phones at the top beside Now and Fly, a twinkling ✶ (owner, 2 Nov). ▶ Go replaces ◉ Capture at the bottom (tap: go; hold: ◉ Record and capture).
+- [x] Where the button lives: top right on computers; on phones at the top beside Now and Fly, a twinkling ✶ (owner, 2 Nov). ▶ Go in the dialog (tap: go; hold: ◉ Record); ◉ Capture at the bottom.
 - [x] Fixed on the way: Earth was drawn turned up to 180° for dates before 2000 (now within 0.05° of astronomy-engine, 1600–2400).
 - [x] A **free path** from the reading (six points: calendar, Earth from space with signs, over the place, the Ascendant on the eastern horizon, the Midheaven, END), saved with the person's paths; played on its own.
 - [x] The house overlay in 3D: the place's horizon, house boundaries and numbers, ASC and MC; body labels with degree and house; path points remember it.

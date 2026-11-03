@@ -1803,7 +1803,7 @@ select option {
   70% { opacity: 0.8; transform: scale(0.95) rotate(0deg); text-shadow: 0 0 3px var(--accent); }
 }
 
-/* ▶ Go (bottom of the screen, in place of ◉ Capture): one green button that wants to be pressed; hold it for ◉ Record. */
+/* ▶ Go (in the ✶ Starsigns dialog): one green button that wants to be pressed; hold it for ◉ Record. */
 .go-big {
   display: inline-flex;
   align-items: center;
@@ -1870,25 +1870,6 @@ select option {
   }
 }
 
-.float-tools .capture > button.go-big {
-  height: 44px;
-  padding: 0 20px 0 16px;
-  border-radius: 22px;
-  border: none;
-  background: #1fa45a;
-  color: #fff;
-  font-size: 17px;
-}
-.float-tools .capture > button.go-big:hover {
-  background: #23b865;
-}
-/* ▶ Go stays reachable while ✶ Starsigns is open. */
-.float-tools.above {
-  z-index: 80;
-}
-.path-dialog-backdrop:has(.astro-dialog) {
-  padding-bottom: 72px;
-}
 .rec-status button {
   height: 28px;
   padding: 0 10px;
@@ -1897,37 +1878,6 @@ select option {
   background: var(--button);
   color: var(--text);
 }
-.capture-popover .record-path {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  font-weight: 700;
-}
-.capture-popover .record-path .note {
-  font-weight: 400;
-  font-size: 12px;
-  opacity: 0.85;
-}
-.astro-go-note {
-  margin: 4px 0 2px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-.astro-go-note .coffee {
-  margin-left: 6px;
-  white-space: nowrap;
-}
-/* Phones: ▶ Go sits at the bottom left, so its menu opens from the left edge. */
-@media (max-width: 720px), (max-height: 520px) {
-  .popover.capture-popover {
-    left: 0;
-    transform: none;
-    width: min(300px, calc(100vw - 2 * var(--gap)));
-  }
-}
-.go-inline {
-  color: #1fa45a;
-}
 /* The recording timer stays bright while the rest is dimmed for a clean picture (it is never recorded). */
 .float-tools > .capture:has(.rec-status) {
   opacity: 1;
@@ -1935,4 +1885,71 @@ select option {
 .rec-status button {
   color: #ff6b6b;
   border-color: rgba(255, 80, 80, 0.6);
+}
+
+.go-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.go-hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.go-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  padding: 6px;
+  gap: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+:root:not([data-ui='light']) .go-menu {
+  background: rgba(8, 12, 24, 0.96);
+}
+.go-menu button {
+  text-align: left;
+  padding: 8px 10px;
+}
+.go-menu .go-record {
+  font-weight: 700;
+}
+.go-menu .hint {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.75;
+}
+/* The dialog's button styles must not dull ▶ Go (on phones and computers alike). */
+.astro-dialog .go-big,
+.astro-dialog .go-big:focus,
+.astro-dialog .go-big:focus-visible {
+  height: 48px;
+  padding: 0 22px 0 18px;
+  border-radius: 24px;
+  border: none;
+  background: #1fa45a;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.astro-dialog .go-big:hover:not(:disabled) {
+  background: #23b865;
+}
+.astro-dialog .go-big:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.astro-dialog .go-big:disabled {
+  background: #3d5a49;
 }

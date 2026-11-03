@@ -41,8 +41,6 @@ export interface StarsignsActions {
   play: (path: Path, capture: boolean) => void;
   /** Save the path as a .sp4ce.json file (free). */
   download: (path: Path) => void;
-  /** The path this dialog would make now (or null), for ▶ Go at the bottom of the screen. */
-  ready: (make: (() => Path | null) | null) => void;
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -57,10 +55,10 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * the free path (signs from above, the planets one by one, the sky over the place, the
  * wheel). Place: type it (a completer like a transit app's: arrows, Tab or Enter, a tap),
  * or type latitude and longitude and the nearest town fills in. A blank time means noon.
- * The dialog has no Go of its own: ▶ Go at the bottom of the screen flies what it shows (hold for ◉ Record). The video, the card's inside (PDF) and the path are free; ✶ Customize goes to
+ * ▶ Go (tap) flies the path; holding it offers ◉ Record (the video, stopping by itself at the end; its running time and ■ Stop at the bottom of the screen). The video, the card's inside (PDF) and the path are free; ✶ Customize goes to
  * sp4cetime.store (occasions, names, artwork). No prices on this site. Never in a capture.
  */
-export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => void; actions: StarsignsActions; auto?: { record: boolean } | null }) {
+export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
   const start = useMemo(today, []);
   const [date, setDate] = useState(start.date);
   const [time, setTime] = useState(start.time);
@@ -167,16 +165,6 @@ export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => voi
     });
   };
   const fileBase = `starsigns-${date}`;
-  // ▶ Go (bottom of the screen) flies what this dialog shows, even after it closes.
-  useEffect(() => actions.ready(reading ? path : null));
-  // ▶ Go before the dialog was opened: it opens unseen on now and here, and flies as soon as the sky is read.
-  const fired = useRef(false);
-  useEffect(() => {
-    if (!auto || !reading || fired.current) return;
-    fired.current = true;
-    go(auto.record);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, reading]);
   const go = (capture: boolean): void => {
     const p = path();
     if (p) actions.play(p, capture);
@@ -188,7 +176,7 @@ export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => voi
   };
 
   return (
-    <div className="path-dialog-backdrop" data-no-capture hidden={!!auto} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="path-dialog-backdrop" data-no-capture onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <form
         className="path-dialog astro-dialog"
         role="dialog"
@@ -334,9 +322,10 @@ export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => voi
         <button type="submit" className="visually-hidden" tabIndex={-1} disabled={!reading}>
           Go
         </button>
-        <p className="astro-go-note">
-          <b className="go-inline">▶ Go</b> at the bottom of the screen flies your sky; hold it for <b>◉ Record</b>. <Coffee />
-        </p>
+        <div className="row astro-go">
+          <GoButton disabled={!reading} onGo={() => go(false)} onRecord={() => go(true)} />
+          <Coffee />
+        </div>
 
         {reading && (
           <details className="astro-pdf" open>
@@ -423,7 +412,7 @@ export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => voi
             <Coffee />
           </div>
         )}
-        {reading && <p className="note">All free: hold ▶ Go (bottom of the screen) and choose ◉ Record for the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
+        {reading && <p className="note">All free: hold ▶ Go and choose ◉ Record for the video (.mp4); the card and the path token download here. If you like them, ☕ buy us a coffee.</p>}
 
         <div className="astro-buy">
           <div className="row">
@@ -482,3 +471,96 @@ function Coffee() {
   );
 }
 
+/**
+ * ▶ Go (owner, 2 Nov 2026): one green button, gently pulsing. A tap (or Return) flies the
+ * path; touching and holding it (or a right-click, or ↓) offers ◉ Record, which flies it
+ * while recording a video that stops by itself at the end.
+ */
+function GoButton({ disabled, onGo, onRecord }: { disabled: boolean; onGo: () => void; onRecord: () => void }) {
+  const [menu, setMenu] = useState(false);
+  const timer = useRef<number | null>(null);
+  const held = useRef(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const cancel = (): void => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => {
+    button.current?.focus();
+    return cancel;
+  }, []);
+  return (
+    <div className="go-wrap">
+      <button
+        ref={button}
+        type="button"
+        className="go-big"
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={menu}
+        title="Tap to fly your sky · hold to record it as a video"
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          held.current = false;
+          cancel();
+          timer.current = window.setTimeout(() => {
+            held.current = true;
+            setMenu(true);
+            navigator.vibrate?.(15);
+          }, 480);
+        }}
+        onPointerUp={cancel}
+        onPointerLeave={cancel}
+        onPointerCancel={cancel}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          cancel();
+          setMenu(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setMenu(true);
+          }
+        }}
+        onClick={() => {
+          if (held.current) {
+            held.current = false;
+            return;
+          }
+          if (menu) setMenu(false);
+          else onGo();
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path d="M7 4.5v15l12.5-7.5z" fill="currentColor" />
+        </svg>
+        <span>Go</span>
+      </button>
+      {menu && (
+        <div
+          className="go-menu"
+          role="menu"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setMenu(false);
+              button.current?.focus();
+            }
+          }}
+        >
+          <button type="button" role="menuitem" className="go-record" autoFocus onClick={() => (setMenu(false), onRecord())}>
+            ◉ Record <span className="hint">fly it and save the video; stops by itself at the end</span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => (setMenu(false), onGo())}>
+            ▶ Just go
+          </button>
+          <button type="button" role="menuitem" onClick={() => setMenu(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      <span className="hint go-hint">tap to fly · hold to record</span>
+    </div>
+  );
+}

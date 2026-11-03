@@ -553,42 +553,10 @@ export function App() {
     base: () => keyRef.current.pointNow(),
     play: (path, capture) => {
       setStarsigns(false);
-      setStarsignsAuto(null);
       void savePath(path).then(refreshPaths);
       void autoPlay(path, capture);
     },
     download: (path) => exportPath(path),
-    ready: (make) => {
-      starsignsNext.current = make;
-    },
-  };
-  /**
-   * What ▶ Go flies: always a fresh ✶ Starsigns path (owner, 2 Nov 2026): the sky set in its
-   * dialog, or, if the dialog has not been opened, now and here (the dialog opens unseen,
-   * reads the sky and flies it). Saved paths are under hold ▶ Go › Present.
-   */
-  const starsignsNext = useRef<(() => Path | null) | null>(null);
-  const [starsignsAuto, setStarsignsAuto] = useState<{ record: boolean } | null>(null);
-  // If the sky cannot be read (the town list did not load), show the dialog instead.
-  useEffect(() => {
-    if (!starsignsAuto) return;
-    const id = window.setTimeout(() => {
-      setStarsignsAuto(null);
-      setStarsigns(true);
-    }, 8000);
-    return () => window.clearTimeout(id);
-  }, [starsignsAuto]);
-  const goPath = (record: boolean): void => {
-    // Already presenting by hand: a tap is "next".
-    if (!record && autoRun.current) return;
-    // Presenting a path by hand: a tap is "next" (at its end, Go starts afresh).
-    if (!record && showing && showing.index < showing.path.points.length - 1) {
-      stepPath(1);
-      return;
-    }
-    const s = starsignsNext.current?.();
-    if (s) starsignsActions.play(s, record);
-    else setStarsignsAuto({ record });
   };
 
   const round = !phone && settings.round;
@@ -673,9 +641,9 @@ export function App() {
         </section>
       )}
 
-      {(starsigns || starsignsAuto) && (
+      {starsigns && (
         <Suspense fallback={null}>
-          <StarsignsDialog onClose={() => (setStarsigns(false), setStarsignsAuto(null))} actions={starsignsActions} auto={starsigns ? null : starsignsAuto} />
+          <StarsignsDialog onClose={() => setStarsigns(false)} actions={starsignsActions} />
         </Suspense>
       )}
 
@@ -691,7 +659,7 @@ export function App() {
       )}
 
       {/* Always on screen, never in a capture: the eye (also the H key) and Capture. */}
-      <div className={starsigns ? 'float-tools above' : 'float-tools'} data-no-capture>
+      <div className="float-tools" data-no-capture>
         <button
           type="button"
           className="chrome-toggle"
@@ -710,7 +678,6 @@ export function App() {
           onPlay={play}
           in3D={in3D}
           present={present}
-          go={{ onGo: () => goPath(false), onRecord: () => goPath(true) }}
           pathRecording={recording ? { clock: recording.start ? formatClock(Math.max(0, recNow - recording.start)) : 'ready…', stop: () => stopRec.current?.() } : null}
         />
         {showing && (
