@@ -53,23 +53,33 @@ Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` and releases on GitHub 
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
-## Opening sp4cetime.store
+## Opening sp4cetime.store: the money trail
 
-The shop (ADR-0019) is built and tested against Stripe's sandbox. To take real payments, in order (the owner signs in and types every key or bank detail):
+Where it stands (2 November 2026, v0.4.0): the shop and the coffee buttons are built, tested and on GitHub; everything is set up in Stripe's **sandbox** ("Lamp Diagnostics sandbox", test mode) and works there; nothing takes real money yet. sp4cetime.com, .io and .ai already redirect to sp4cetime.org.
 
-- [ ] **Stripe: activate the account** (dashboard › Activate payments: business details, bank account for payouts). Set the public business name "sp4cetime" and a support email (receipts' reply-to).
-- [ ] **Stripe live mode: the same products and prices** with the same lookup keys (`card` 399, `wedding` 1999, `calendar` 599, `screensaver` 199, `phone` 99, `readout_week` and `readout_month` 399 recurring, `coffee` pay-what-you-like). Sandbox copies exist to compare with.
-- [ ] **Coffee link:** a live Payment Link for `coffee` (submit type: donate); paste its address into `COFFEE_URL` in `src/app/shop.ts` (the ☕ buttons appear on sp4cetime.org) and in `wrangler.store.jsonc`.
-- [ ] **Customer portal:** Stripe › Settings › Billing › Customer portal: allow cancelling; copy its login link into `PORTAL_URL` in `wrangler.store.jsonc`.
-- [ ] **Cloudflare Worker:** Workers & Pages › Create › import the GitHub repo again as a second Worker, **sp4cetime-store**: build command `npm run build:shop`, deploy command `npx wrangler deploy -c wrangler.store.jsonc`. It takes the custom domains sp4cetime.store and www.sp4cetime.store.
-- [ ] **Secrets** (Worker › Settings › Variables and secrets, type Secret): `STRIPE_SECRET_KEY` (a restricted key is best: write access to Checkout Sessions, read to Prices, Subscriptions) and `STRIPE_WEBHOOK_SECRET`.
-- [ ] **Webhook:** Stripe › Developers › Webhooks › add `https://sp4cetime.store/api/stripe-webhook`, event `invoice.paid`; its signing secret is `STRIPE_WEBHOOK_SECRET`.
-- [ ] **Email:** Cloudflare › Email Service › Email Sending › onboard sp4cetime.store (adds SPF, DKIM, DMARC). Sending to anyone needs the Workers Paid plan (US$5/month).
-- [ ] **Open it:** set `SHOP_OPEN = true` in `src/app/shop.ts` (✶ Customize turns on); buy one of each with a real card and refund it.
+How the money moves, once live: a buyer pays on Stripe's own checkout page (card, Apple Pay, Google Pay, Link) → Stripe holds it, minus its fee (about 2.9% + 30¢ a card payment; small payments like a $0.99 background lose about a third) → Stripe pays out to the bank account on a rolling schedule (first payout about a week after the first sale, then every few days). Prices are in US dollars; Stripe converts to Canadian dollars at payout unless a USD bank account is added. Coffees work the same way through a Payment Link and need nothing from the shop.
+
+Step by step, in order. The owner signs in and types every password, key, ID and bank detail; Claude does the rest in the browser or through the Stripe connector:
+
+- [ ] **0. The bank** (owner): call the bank so it accepts deposits from Stripe (Stripe Payments Canada) to the business account, and ask whether it needs anything (a business account, a merchant letter).
+- [ ] **1. Activate Stripe** (owner): dashboard › Activate payments. Business type (sole proprietor, Lamp Diagnostics), the business number if any, identity check, the bank account for payouts. Public details: name "sp4cetime", statement descriptor "SP4CETIME", a support email (receipts reply to it), the website sp4cetime.org.
+- [ ] **2. Connect live mode to Claude** (owner): in the Stripe connector, add the live account (the connector's "manage accounts" link), so the next session can work in live mode.
+- [ ] **3. Live products and prices** (Claude): the same lookup keys as the sandbox (`card` 399, `wedding` 1999, `calendar` 599, `screensaver` 199, `phone` 99, `readout_week` and `readout_month` 399 recurring, `coffee` pay what you like, US$1–500, starting at $5).
+- [ ] **4. Coffee link live** (Claude, then the owner pulls): a live Payment Link for `coffee` (submit type donate, thank-you message); its https://donate.stripe.com/… address into `COFFEE_URL` in `src/app/shop.ts` (and `wrangler.store.jsonc`); commit, and the ☕ buttons appear on sp4cetime.org. **The first money can come from here, before the shop opens.** (Sandbox test link to try now: https://donate.stripe.com/test_dRm6oB0rW9og1HD0YxdfG00, card 4242 4242 4242 4242.)
+- [ ] **5.** **Customer portal** (Claude in the browser, owner approves): Stripe › Settings › Billing › Customer portal: allow cancelling; copy its login link into `PORTAL_URL` in `wrangler.store.jsonc`.
+- [ ] **6.** **Cloudflare Worker** (Claude in the browser, owner approves): Workers & Pages › Create › import the GitHub repo again as a second Worker, **sp4cetime-store**: build command `npm run build:shop`, deploy command `npx wrangler deploy -c wrangler.store.jsonc`. It takes the custom domains sp4cetime.store and www.sp4cetime.store.
+- [ ] **7.** **Secrets** (owner types them) (Worker › Settings › Variables and secrets, type Secret): `STRIPE_SECRET_KEY` (a restricted key is best: write access to Checkout Sessions, read to Prices, Subscriptions) and `STRIPE_WEBHOOK_SECRET`.
+- [ ] **8.** **Webhook** (Claude, owner copies the secret into step 7): Stripe › Developers › Webhooks › add `https://sp4cetime.store/api/stripe-webhook`, event `invoice.paid`; its signing secret is `STRIPE_WEBHOOK_SECRET`.
+- [ ] **9.** **Email** (owner approves the plan; Claude onboards the domain): Cloudflare › Email Service › Email Sending › onboard sp4cetime.store (adds SPF, DKIM, DMARC). Sending to anyone needs the Workers Paid plan (US$5/month).
+- [ ] **10.** **Open it** (Claude, then a real test purchase by the owner): set `SHOP_OPEN = true` in `src/app/shop.ts` (✶ Customize turns on); buy one of each with a real card and refund it.
+- [ ] **11.** **Tax** (owner): GST/HST registration becomes required once sales pass CA$30,000 in four quarters (small supplier); before that, optional. Stripe Tax can add it at checkout later.
+- [ ] **12.** **Words** (owner): short terms, refunds (digital files: refund on request, say within 14 days) and a privacy note in the owner's words, linked from the shop footer.
 
 Run it locally: `npm run dev:shop` (http://localhost:5174; the API needs `npx wrangler dev -c wrangler.store.jsonc` with a `.dev.vars` file holding test keys, never committed).
 
-## 0.4.0: "Stand here" and Starsigns (in progress)
+## 0.4.0: Starsigns and sp4cetime.store (released 2 November 2026)
+
+0.4.0 shipped ✶ Starsigns (free) and the shop (waiting for live payments, above). "Stand here" below, the instrument's ground view, carries on in 0.5.0.
 
 The whole to-do list is in [docs/ROADMAP.md](docs/ROADMAP.md). 0.4.0 has two halves on one engine:
 

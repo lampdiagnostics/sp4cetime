@@ -2,9 +2,9 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
-## 0.4.0 — in progress
+## 0.4.0 — 2026-11-02
 
-"Stand here" and ✶ Starsigns (README.md "0.4.0", ADR-0018). So far:
+✶ Starsigns on sp4cetime.org, free; sp4cetime.store built, waiting for live payments (README.md "Opening sp4cetime.store"; ADR-0018, ADR-0019). The instrument's "Stand here" (ground view with house wedges, a transparent planet) moves to 0.5.0.
 
 - **Signs from the equinox of the date you are looking at.** The zodiac was drawn from the equinox of the year 2000; the equinox slides west about 50″ a year (precession), so by now every sign label was 0.37° off, and in ancient times whole signs off. The sign lines, the sign names and each body's "in ♏ Scorpio" now use the equinox of the viewed date, in the calendar and in 3D.
 - **The maths for houses** (`src/core/houses.ts`): the true tilt of Earth's axis on the date, sidereal time, the Ascendant and the Midheaven, Whole Sign and Equal houses; checked against Meeus's worked examples and astronomy-engine (within about an arcsecond). The Astrology dialog, video and PDF come next.
@@ -17,6 +17,8 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 - **Fixed: a flight that only turns the view** (same place, new direction) could put the camera at NaN for a moment (a turn about a zero-length axis).
 - **sp4cetime.store** (ADR-0019; built and tested in Stripe's sandbox, opening once payments go live): a shop for things made from the sky of a moment. **Starsigns card** (US$3.99: the occasion and names on the front, your message on the back, the sky inside), **Wedding pack** (US$19.99: one design for every guest, Letter and A4, plus a table sheet), **Sky calendar** (US$5.99: twelve months of the Moon's phase and sign, planets changing sign and turning, your day marked), **Screensaver** (US$1.99: an animated page that works offline, and desktop pictures in three sizes), **Phone background** (US$0.99). Each has a live, watermarked preview; a cart; Stripe Checkout; your files are made in your browser right after paying. **Starsigns readouts** by email, every week or month (US$3.99 a readout): the sky now laid over your chart. **Astrologers we like**, linked from the shop and every readout.
 - **☕ Buy us a coffee!** beside each free download in ✶ Starsigns (the video, the card, the path token), pay what you like through Stripe; shown once the live link is set. **⤓ The path (.json)** is now **⤓ Path token (.json)**. **✶ Customize** carries your moment and place to sp4cetime.store.
+- **Domains:** sp4cetime.com, sp4cetime.io and sp4cetime.ai (and their www.) now redirect to sp4cetime.org (Cloudflare Bulk Redirects, permanent, keeping the path).
+- **Stripe, in its sandbox:** the shop's products and prices (lookup keys `card`, `wedding`, `calendar`, `screensaver`, `phone`, `readout_week`, `readout_month`) and a pay-what-you-like coffee link; Stripe accepted the shop's checkout and subscription requests as sent. Live payments wait for the owner's bank and Stripe account.
 - Docs: the 0.4.0 plan (✶ Starsigns free on sp4cetime.org; customising on sp4cetime.shop; a coffee button by Stripe) and the payment options (ADR-0018); version and tag notes brought up to date.
 
 ## 0.3.1 — 2026-11-02

@@ -28,14 +28,14 @@ Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 - [x] Pre-launch review for bugs; fixes in CHANGELOG.md.
 - [x] Pushed to GitHub (public) and live on sp4cetime.org via Cloudflare Workers (README.md "Going live"), with anonymous page counts by Cloudflare Web Analytics.
 
-## 0.4.0 — to-do list
+## 0.4.0 — done 2 November 2026; what is left is the to-do list
 
 Everything not done yet. The first block is the next version; the rest stays on the list until it is picked up.
 
 ### Next: after the launch
 - [ ] Cloudflare Email Routing: hello@sp4cetime.org forwarding to the owner's inbox (rule and destination set; DNS records and the inbox verification to finish).
 - [ ] Tags v0.1.0, v0.2.0, v0.3.0, v0.3.1 and releases on GitHub (Releases page); the owner pushes tags from the Mac (cloud sessions cannot).
-- [ ] Redirect sp4cetime.com, .io and .ai to sp4cetime.org (if owned).
+- [x] Redirect sp4cetime.com, .io and .ai to sp4cetime.org (Cloudflare Bulk Redirects, 0.4.0).
 - [ ] Check the live site on a laptop, a phone and a tablet (Safari, Chrome, Firefox): calendar, Fly, galaxy, themes, round and full, keys, reduced motion, capture, paths.
 - [ ] Announce to a small group (teachers, science communicators, @Geosophyy, @techartist_) with a Capture recording.
 - [ ] More example paths (life of the Sun, Earth's deep history, the planets' retrograde loops).
@@ -62,14 +62,15 @@ Owner, 2 November 2026. Design and payment options in [ADR-0018](adr/0018-starsi
 - [x] The card PDF: folds to 5 × 7 in (Letter) or A6 (A4), inside in landscape; free one-sided (inside only); the two-sided card with a cover kept for the shop.
 - [ ] Hospitals first in the place search: needs a licence-compatible list (Wikidata, CC0; or GeoNames, CC BY) downloaded by the owner (not reachable from the cloud workspace); nearest intersections not needed (town centres are within a fraction of a degree for houses).
 - [ ] A sped-up GIF and SVG pictures (the wheel, the cover) for the package; the shop's customisation page (name, artwork).
-- [ ] ☕ Buy us a coffee!: the owner makes a Stripe Payment Link (customer chooses the amount) and the address goes in `src/app/shop.ts`.
-- [ ] **sp4cetime.store** (owner, 2 Nov 2026), a separate small site on the same engine:
-  - [ ] Customise Starsigns cards and videos for occasions: birthdays, a new baby, a wedding, an anniversary, this very moment; names, messages, artwork; the two-sided card with a cover.
-  - [ ] More formats: sped-up GIFs, print PDFs, SVG posters (the wheel, the sky), screen savers.
+- [x] ☕ Buy us a coffee! beside each free download (built; a sandbox Payment Link works). - [ ] The live link, after the bank and Stripe activation (README.md "the money trail" steps 0–4).
+- [x] **sp4cetime.store** (owner, 2 Nov 2026; ADR-0019), a separate small site on the same engine, built and working in Stripe's sandbox:
+  - [x] Card (occasion, names, message; two-sided), wedding pack, sky calendar, screensaver (animated page and desktop pictures), phone background; live previews, cart, Stripe Checkout, files made after payment.
+  - [x] Starsigns readouts by email (weekly or monthly), astrologers linked.
+  - [ ] **Go live**: README.md "Opening sp4cetime.store: the money trail" (bank, Stripe activation, live prices, coffee link, Worker, secrets, webhook, email, open).
+  - [ ] Later: artwork and video customisation, sped-up GIFs, SVG posters; physical goods (T-shirt, printed calendar) through print on demand.
   - [ ] Templates (e.g. for personality types), then a marketplace where others offer their templates and paths (Library and creator marketplace, DECISIONS §1).
-  - [ ] Stripe Checkout; one Worker route checks payment; downloads made in the browser; terms, refunds and a privacy note in the owner's words.
 
-### Next (0.4.0): "Stand here", the sky over a place (signs and houses)
+### Next (0.5.0): "Stand here", the sky over a place (signs and houses)
 The first example of Planetary mode (a person on Earth's surface is a sphere on its skin). Full design in README.md "0.4.0".
 - [ ] Signs from above, as now (each body's name gives its sign seen from where you are).
 - [ ] Houses dialog: a place (latitude and longitude in degrees, minutes, seconds and fractions; a less precise place taken at its middle point) and a time frame (one moment, time stopped; or a range, e.g. the hour around a birth, playing live or sped up, looping).

@@ -2,7 +2,7 @@
 
 The specifics: what was decided, why, and where it lives in the code. Each architectural decision has a full record in [docs/adr/](docs/adr/); this file is the index plus everything that is not architecture (product, interaction, the owner's stated preferences). History of how it got here is in [CHANGELOG.md](CHANGELOG.md) and `git log`. The original Grok-era decision log is kept in `docs/archive/grok/` for reference only; where it disagrees with this file, this file wins.
 
-Status: 0.3.1, 2 November 2026: the public beta is live on sp4cetime.org and open source on GitHub; 0.3.1 made phones first. In progress: 0.4.0, "Stand here" and ✶ Starsigns (ADR-0018). Versions carry a leading zero until the public launch, which will be 1.0.
+Status: 0.4.0, 2 November 2026: the public beta is live on sp4cetime.org and open source on GitHub; ✶ Starsigns is free there (ADR-0018); sp4cetime.store is built on Stripe and works in its sandbox, live payments waiting on the owner's bank and Stripe activation (ADR-0019; README.md "Opening sp4cetime.store: the money trail"). Next: 0.5.0, "Stand here". Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 1. Product
 
@@ -99,7 +99,8 @@ These came directly from the owner's feedback and should be kept unless they say
 - **✶ Starsigns dialog** (owner, 2 Nov 2026): opens on now and here (device time; the largest town in the device's time zone); **▷ Go** first, no Close button (Esc, a tap outside, or ×); Place, Lat, Lon in three boxes, the place a transit-app completer (arrows, Tab or Enter, a tap), coordinates filling the nearest town; a blank time is noon; no name box (names and artwork are on the shop's page). Houses shown by number and name. Hospitals should head the search when a licence-compatible list is in hand; town centres are fine for houses (see README "0.4.0").
 - **The Starsigns path** (owner, 2 Nov 2026): 1 above Earth's north pole facing the Sun; 2 turning to groups of planets, each picked out subtly and quickly; 3 down to the place looking up, the sky coloured for the hour, stars in front; 4 up, the planet dropping away, to the wheel (the printed chart's view), each body and its house picked out. Go, or Go + Capture (an MP4, free).
 - **The card**: free on the main site, one-sided: the inside of a birthday card (5 × 7 in / A6, landscape: the wheel and the table), to print and fold. The two-sided card with a cover is for the shop.
-- **No prices on sp4cetime.org**: only ☕ Buy us a coffee! and ✶ Customize (to sp4cetime.store).
+- **No prices on sp4cetime.org**: only ☕ Buy us a coffee! (beside each free download: the video, the card, the path token) and ✶ Customize (to sp4cetime.store).
+- **The shop** (owner, 2 Nov 2026): sp4cetime.store (not .shop); payments by Stripe; all digital for now (no T-shirt or printed calendar yet); card US$3.99, a US$19.99 wedding pack instead of bulk tiers, calendar $5.99, screensaver $1.99, phone background $0.99; readouts $3.99 each, weekly or monthly; astrologers linked. The owner expects coffees more than sales.
 - **Measure in arcs** (degrees, minutes, seconds) on interacting spheres, not km.
 - **The real sky** as the background in both modes, like a planetarium dome covering every direction; include the zodiac; mark the Galactic Centre, Anticentre and the halfway points.
 - **Three looks everywhere**: Dark Mode, Bright Mode, Colour Mode, the same in the calendar, Fly mode and the whole galaxy. In Bright the sky is a negative: stars and Milky Way as dark ink, brighter = darker.
@@ -128,7 +129,7 @@ These came directly from the owner's feedback and should be kept unless they say
 - The Sun's galactic path is straight in the model; over tens of Myr it is really an orbit (and bobs through the plane). Deep-time views say so.
 - Today's star positions are shown at all times; stars drift out of their constellations over ~100,000 years.
 - Fly mode needs WebGL; without it, it says so and the calendar still works.
-- Zodiac signs use the J2000 equinox (≈0.4° off today's; more over millennia). Next: equinox of the viewed date for boxes and labels.
-- Phones: one full-screen view; no touch flying yet (ideas: floating thumb stick, gyroscope looking, tap to travel).
+- Shop files are made in the buyer's browser from open code, so they can be made without paying (accepted, ADR-0019). Readout emails need Cloudflare Email Sending (beta) and the Workers Paid plan.
+- Phones: no gyroscope looking or tap to travel yet.
 - Paths: the boxes' colours switch at once on a theme change (only the views dissolve); a path lives in its file and in the browser that made or uploaded it.
 - Not yet built: events and stories (the rest of the Library), sharing links, Pro, accessibility list view, auto-advance and presenter notes for paths, screenshot tests in CI, Sentry/Plausible, autopilot camera for screen savers.
