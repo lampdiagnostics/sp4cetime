@@ -186,3 +186,17 @@ describe('Turning around a body (Option + scroll)', () => {
   });
 });
 
+
+describe('Flights that only turn the view', () => {
+  it('stay where they are (no NaN) when start and end are the same place, or a rounding apart', () => {
+    const c: [number, number, number] = [58_248_775.9, -140_463_484.5, 3833.4];
+    const a: [number, number, number] = [c[0] - 12.729105480015278, c[1] + 3548.1484235823154, c[2] + 8183.286448254123];
+    const b: [number, number, number] = [c[0] - 12.729105481437486, c[1] + 3548.1484235716594, c[2] + 8183.286448254123];
+    for (const e of [0, 0.006, 0.2, 0.5, 0.99, 1]) {
+      for (const p of [warpPoint(c, a, b, e), warpPoint(c, a, a, e)]) {
+        expect(p.every(Number.isFinite)).toBe(true);
+        expect(Math.hypot(p[0] - a[0], p[1] - a[1], p[2] - a[2])).toBeLessThan(1e-3);
+      }
+    }
+  });
+});

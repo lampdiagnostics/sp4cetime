@@ -261,7 +261,9 @@ export function warpPoint(centre: Vec3, from: Vec3, to: Vec3, e: number): Vec3 {
   const cos = Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2]));
   const ang = Math.acos(cos);
   let dir: Vec3;
-  if (ang < 1e-9) dir = ua;
+  // (Nearly) the same direction: blend straight across. A tiny angle from rounding would
+  // otherwise turn about a zero-length axis and give NaN (a flight that only turns the view).
+  if (ang < 1e-6) dir = unit(addv(scale(ua, 1 - e), scale(ub, e)));
   else if (Math.PI - ang < 1e-6) {
     // Opposite directions: turn through any perpendicular.
     const p = unit(Math.abs(ua[0]) < 0.9 ? cross(ua, [1, 0, 0]) : cross(ua, [0, 1, 0]));
