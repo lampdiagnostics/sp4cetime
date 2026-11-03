@@ -60,7 +60,7 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * The dialog has no Go of its own: ▶ Go at the bottom of the screen flies what it shows (hold for ◉ Record). The video, the card's inside (PDF) and the path are free; ✶ Customize goes to
  * sp4cetime.store (occasions, names, artwork). No prices on this site. Never in a capture.
  */
-export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
+export function StarsignsDialog({ onClose, actions, auto }: { onClose: () => void; actions: StarsignsActions; auto?: { record: boolean } | null }) {
   const start = useMemo(today, []);
   const [date, setDate] = useState(start.date);
   const [time, setTime] = useState(start.time);
@@ -169,6 +169,14 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   const fileBase = `starsigns-${date}`;
   // ▶ Go (bottom of the screen) flies what this dialog shows, even after it closes.
   useEffect(() => actions.ready(reading ? path : null));
+  // ▶ Go before the dialog was opened: it opens unseen on now and here, and flies as soon as the sky is read.
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!auto || !reading || fired.current) return;
+    fired.current = true;
+    go(auto.record);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, reading]);
   const go = (capture: boolean): void => {
     const p = path();
     if (p) actions.play(p, capture);
@@ -180,7 +188,7 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   };
 
   return (
-    <div className="path-dialog-backdrop" data-no-capture onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="path-dialog-backdrop" data-no-capture hidden={!!auto} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <form
         className="path-dialog astro-dialog"
         role="dialog"

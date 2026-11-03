@@ -553,6 +553,7 @@ export function App() {
     base: () => keyRef.current.pointNow(),
     play: (path, capture) => {
       setStarsigns(false);
+      setStarsignsAuto(null);
       void savePath(path).then(refreshPaths);
       void autoPlay(path, capture);
     },
@@ -561,31 +562,33 @@ export function App() {
       starsignsNext.current = make;
     },
   };
-  /** What ▶ Go flies: the Starsigns sky set in its dialog, else your latest path, else an example (none ship now). */
+  /**
+   * What ▶ Go flies: always a fresh ✶ Starsigns path (owner, 2 Nov 2026): the sky set in its
+   * dialog, or, if the dialog has not been opened, now and here (the dialog opens unseen,
+   * reads the sky and flies it). Saved paths are under hold ▶ Go › Present.
+   */
   const starsignsNext = useRef<(() => Path | null) | null>(null);
-  const pathToGo = (): { path: Path; starsigns: boolean } | null => {
-    const s = starsignsNext.current?.();
-    if (s) return { path: s, starsigns: true };
-    const p = present.paths[0] ?? present.examples[0];
-    return p ? { path: p, starsigns: false } : null;
-  };
+  const [starsignsAuto, setStarsignsAuto] = useState<{ record: boolean } | null>(null);
+  // If the sky cannot be read (the town list did not load), show the dialog instead.
+  useEffect(() => {
+    if (!starsignsAuto) return;
+    const id = window.setTimeout(() => {
+      setStarsignsAuto(null);
+      setStarsigns(true);
+    }, 8000);
+    return () => window.clearTimeout(id);
+  }, [starsignsAuto]);
   const goPath = (record: boolean): void => {
     // Already presenting by hand: a tap is "next".
     if (!record && autoRun.current) return;
-    if (!record && showing) {
+    // Presenting a path by hand: a tap is "next" (at its end, Go starts afresh).
+    if (!record && showing && showing.index < showing.path.points.length - 1) {
       stepPath(1);
       return;
     }
-    const g = pathToGo();
-    // Nothing to fly yet: ✶ Starsigns makes a path from now and here.
-    if (!g) {
-      if (!record) setStarsigns(true);
-      return;
-    }
-    if (g.starsigns) {
-      starsignsNext.current = null;
-      starsignsActions.play(g.path, record);
-    } else void autoPlay(g.path, record);
+    const s = starsignsNext.current?.();
+    if (s) starsignsActions.play(s, record);
+    else setStarsignsAuto({ record });
   };
 
   const round = !phone && settings.round;
@@ -670,9 +673,9 @@ export function App() {
         </section>
       )}
 
-      {starsigns && (
+      {(starsigns || starsignsAuto) && (
         <Suspense fallback={null}>
-          <StarsignsDialog onClose={() => setStarsigns(false)} actions={starsignsActions} />
+          <StarsignsDialog onClose={() => (setStarsigns(false), setStarsignsAuto(null))} actions={starsignsActions} auto={starsigns ? null : starsignsAuto} />
         </Suspense>
       )}
 
