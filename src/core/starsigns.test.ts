@@ -58,8 +58,8 @@ describe('The Starsigns path', () => {
   const path = starsignsPath(r, { ...base, id: 's1', created: '2026-11-02T00:00:00Z', placeLabel: 'Winnipeg, Manitoba, Canada', placeName: 'Winnipeg', whenText: '14 July 1985, 3:20 pm', system: 'whole' });
   const pts = path.points;
 
-  it('starts above Earth’s north pole, as clicking its name does, and stays in 3D, time held', () => {
-    expect(pts.every((p) => p.view === 'fly' && p.present === t && !p.playing)).toBe(true);
+  it('starts above Earth’s north pole, as clicking its name does, and stays in 3D, time running from the moment', () => {
+    expect(pts.every((p) => p.view === 'fly' && p.present === t && p.playing && p.speed === 1)).toBe(true);
     const f = pts[0]!.fly!;
     expect(f.anchor).toBe('earth');
     expect(Math.hypot(...f.rel)).toBeCloseTo(6_371 * 1.4, 0);
@@ -92,6 +92,10 @@ describe('The Starsigns path', () => {
     // ecliptic's north pole with the Ascendant on the left (as on the printed chart).
     const last = pts[pts.length - 1]!;
     const wheel = last.fly!;
+    // Held 5 s on the ground, then 5 s on the wheel, the end (owner, 4 Nov 2026).
+    expect(ground.pause).toBe(5);
+    expect(last.pause).toBe(5);
+    expect(pts[pts.length - 2]!.look.seeThrough).toBe(false);
     expect(wheel.frame).toBe('body');
     expect(wheel.rel).toEqual(f.rel);
     expect(last.look.seeThrough).toBe(true);
@@ -169,5 +173,17 @@ describe('The Starsigns path', () => {
     expect(back.points.map((p) => p.pause)).toEqual(pts.map((p) => (p.pause === undefined ? undefined : Math.round(p.pause * 10) / 10)));
     expect(back.points.map((p) => p.sound)).toEqual(pts.map((p) => p.sound));
     expect(back.points.map((p) => p.look.chart?.ground)).toEqual(pts.map((p) => p.look.chart?.ground));
+  });
+});
+
+describe('the clock caption’s zone', () => {
+  it('is carried on every point and through a file', () => {
+    const t = fromCivil(1985, 7, 15, 4 * 3600 + 30 * 60);
+    const r = readingAt(t, 49.883, -97.166, 'whole');
+    const base = { look: DEFAULT_LOOK, calendar: { offset: { day: 0, sec: 0 }, secondsPerPixel: 0.1, roll: 0, yaw: 0, spaceZoom: 1, panY: 0 } };
+    const path = starsignsPath(r, { ...base, id: 'z', created: '2026-11-04T00:00:00Z', placeLabel: 'Winnipeg', placeName: 'Winnipeg', whenText: '14 July 1985, 11:30 pm', system: 'whole', zone: -300 });
+    expect(path.points.every((p) => p.zone === -300)).toBe(true);
+    const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path))));
+    expect(back.points.every((p) => p.zone === -300 && p.playing)).toBe(true);
   });
 });

@@ -414,8 +414,9 @@ export function download(blob: Blob, ext: string): void {
 }
 
 /** What is on screen at full resolution, as a PNG. */
-export async function screenshot(shot: Shot, o: { watermark: boolean }): Promise<void> {
-  const k = shotScale(shot);
+export async function screenshot(shot: Shot, o: { watermark: boolean; fit?: readonly [number, number] }): Promise<void> {
+  // Small (for X): scaled to fit within `fit` pixels; large: the screen's full resolution.
+  const k = o.fit ? Math.min(shotScale(shot), o.fit[0] / shot.region.width, o.fit[1] / shot.region.height) : shotScale(shot);
   const overlay = shot.page ? await snapshotPage(shot.page, k) : [];
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(shot.region.width * k));
@@ -430,6 +431,31 @@ export async function screenshot(shot: Shot, o: { watermark: boolean }): Promise
 /** A running capture; `stop` ends it (and downloads the file). */
 export interface Recording {
   stop(): void;
+  /** The video's current frame, as it is in the file (JPEG): the tour's PDF is made from the last one. */
+  still?(): Promise<{ jpeg: Blob; width: number; height: number; dark: boolean } | null>;
+}
+
+/** A frame of the recording canvas as a JPEG, and whether its sides (where the PDF's text goes) are dark. */
+function stillOf(c: HTMLCanvasElement): Promise<{ jpeg: Blob; width: number; height: number; dark: boolean } | null> {
+  let dark = true;
+  try {
+    const ctx = c.getContext('2d');
+    if (ctx) {
+      const side = Math.max(1, Math.floor(c.width * 0.18));
+      let sum = 0, n = 0;
+      for (const x0 of [0, c.width - side]) {
+        const d = ctx.getImageData(x0, 0, side, c.height).data;
+        for (let i = 0; i < d.length; i += 4 * 97) {
+          sum += 0.2126 * d[i]! + 0.7152 * d[i + 1]! + 0.0722 * d[i + 2]!;
+          n++;
+        }
+      }
+      dark = n === 0 || sum / n < 128;
+    }
+  } catch {
+    /* unreadable: take it as the night sky */
+  }
+  return new Promise((res) => c.toBlob((b) => res(b ? { jpeg: b, width: c.width, height: c.height, dark } : null), 'image/jpeg', 0.92));
 }
 
 /** Even, at least 2 (H.264 and X need even sizes). */
@@ -752,6 +778,7 @@ export async function recordVideo(
     };
     raf = requestAnimationFrame(tick);
     return {
+      still: () => stillOf(c),
       stop(): void {
         if (stopped) return;
         stopped = true;
@@ -818,6 +845,7 @@ export async function recordVideo(
     rec.start(1000);
     raf = requestAnimationFrame(tick);
     return {
+      still: () => stillOf(c),
       stop(): void {
         if (stopped) return;
         stopped = true;

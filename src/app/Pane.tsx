@@ -628,11 +628,12 @@ export function Pane(p: Props) {
             <li>
               Paths (presentations): go anywhere and press Return to start one; a dialog names it, and what is on screen becomes START (the view,
               the moment, how time runs, the look). Travel and press Return for each next point, with a caption if you like; tick “Stop after this
-              point” for END. ◉ Capture · ▷ Present plays a saved path: the view flies from point to point; Return or → next, ← back, Esc stops. Look
-              around at a point and the next press flies you back to it first. Paths are small .sp4ce.json files: Download yours to keep them, Upload one to
-              present it or ✎ Continue it (this browser keeps a copy too).
+              point” for END. ▷ Paths lists them: ▶ Go flies one and records it (an MP4 made for X), then the Download package pops up; Shift plays it
+              without recording; Return or → next, ← back, Esc stops. Look around at a point and the next press flies you back to it first. Paths are
+              small .sp4ce.json files (each point holds where you are, which way you look, the moment and the look): Download yours to keep them, drop
+              one on ▷ Paths to fly it or ✎ Continue it (this browser keeps a copy too).
             </li>
-            <li>✶ Starsigns: ✶ Create Path makes the path of your sky and opens it in ▷ Present, whose button runs it (in its last view the sky is folded like a planisphere, so each zodiac constellation sits behind its signs: longitudes true, latitudes squeezed); ⤓ Download package records it and downloads the PDF, the video and the path token in one .zip. ◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
+            <li>✶ Starsigns: ▶ Go flies the path of your sky from your moment (the clock runs on from it) and records it: above the world facing the Sun, round the planets, down into a field at the place, then the ground drops away and the whole zodiac rings the view (the sky folded like a planisphere, so each zodiac constellation sits behind its signs: longitudes true, latitudes squeezed). At the end the Download package pops up: the MP4, a PDF of the last view with your signs and houses, and the path token in one free .zip; ✶ Customize and ☕ Buy me a coffee lead to sp4cetime.store. ◉ Capture (bottom left), straight to Downloads: a picture, a 5-second GIF (time plays while it records, then pauses) or a video, each small (for X) or large (hi-res); keys P, G and V take the large one. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
           </ul>
           <h3>About this beta</h3>
           <ul>

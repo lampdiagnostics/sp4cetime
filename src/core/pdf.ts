@@ -61,8 +61,16 @@ const esc = (s: string): string => s.replace(/[\\()]/g, (m) => `\\${m}`);
 const f2 = (x: number): string => (Math.round(x * 100) / 100).toString();
 const col = (c: RGB): string => c.map((v) => f2(v)).join(' ');
 
+/** A JPEG to place on a page (its bytes go into the file as they are, DCTDecode). */
+export interface PdfJpeg {
+  readonly data: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+}
+
 export class PdfPage {
   readonly ops: string[] = [];
+  readonly images: PdfJpeg[] = [];
   readonly links: Array<{ x0: number; y0: number; x1: number; y1: number; url: string }> = [];
   constructor(
     readonly width: number,
@@ -107,6 +115,12 @@ export class PdfPage {
     this.ops.push(`${o.fill ? `${col(o.fill)} rg ` : ''}${o.stroke ? `${col(o.stroke)} RG ${f2(o.width ?? 0.5)} w ` : ''}[] 0 d ${path} h ${paint}`);
   }
 
+  /** A JPEG drawn into the rectangle x, y (bottom left), w × h points. */
+  image(img: PdfJpeg, x: number, y: number, w: number, h: number): void {
+    this.images.push(img);
+    this.ops.push(`q ${f2(w)} 0 0 ${f2(h)} ${f2(x)} ${f2(y)} cm /Im${this.images.length} Do Q`);
+  }
+
   /** A clickable web link over a rectangle. */
   link(x0: number, y0: number, x1: number, y1: number, url: string): void {
     this.links.push({ x0, y0, x1, y1, url });
@@ -135,12 +149,18 @@ export class PdfDoc {
     for (const p of this.pages) {
       const content = p.ops.join('\n');
       const cid = add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+      const ims = p.images.map((im) => {
+        let raw = '';
+        for (let i = 0; i < im.data.length; i += 8192) raw += String.fromCharCode(...im.data.subarray(i, i + 8192));
+        return add(`<< /Type /XObject /Subtype /Image /Width ${im.width} /Height ${im.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.data.length} >>\nstream\n${raw}\nendstream`);
+      });
+      const xo = ims.length ? ` /XObject << ${ims.map((id, i) => `/Im${i + 1} ${id} 0 R`).join(' ')} >>` : '';
       const annots = p.links.map((l) =>
         add(`<< /Type /Annot /Subtype /Link /Rect [${[l.x0, l.y0, l.x1, l.y1].map(f2).join(' ')}] /Border [0 0 0] /A << /S /URI /URI (${esc(winAnsi(l.url))}) >> >>`),
       );
       kids.push(
         add(
-          `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${f2(p.width)} ${f2(p.height)}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2id} 0 R >> >> /Contents ${cid} 0 R${annots.length ? ` /Annots [${annots.map((a) => `${a} 0 R`).join(' ')}]` : ''} >>`,
+          `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${f2(p.width)} ${f2(p.height)}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2id} 0 R >>${xo} >> /Contents ${cid} 0 R${annots.length ? ` /Annots [${annots.map((a) => `${a} 0 R`).join(' ')}]` : ''} >>`,
         ),
       );
     }

@@ -122,6 +122,8 @@ export interface PathPoint {
   readonly pause?: number;
   /** What is heard at the point (0.4.2): silence, or a soft white-noise bed. */
   readonly sound?: PointSound;
+  /** The clock caption's time zone, minutes ahead of UTC (0.4.3; Starsigns: the place's); absent: this device's. */
+  readonly zone?: number;
 }
 
 export type PointSound = 'silence' | 'noise';
@@ -170,6 +172,8 @@ export interface FilePoint {
   readonly pause?: number;
   /** What is heard (absent: silence). */
   readonly sound?: PointSound;
+  /** The clock caption's time zone, minutes ahead of UTC (absent: the viewer's own). */
+  readonly zone?: number;
   /** The present: [whole days since 2000-01-01 00:00 UTC, seconds into the day]. */
   readonly t: readonly [number, number];
   /** Time running: seconds per second (0 = paused). */
@@ -337,6 +341,7 @@ export function parsePoint(x: unknown, where = 'point'): PathPoint {
     facing: typeof x.facing === 'string' ? str(x, 'facing', where, 400) : '',
     ...(typeof x.pause === 'number' && Number.isFinite(x.pause) && x.pause >= 0 && x.pause <= 120 ? { pause: x.pause } : {}),
     ...(parseSound(x.sound, where) && { sound: parseSound(x.sound, where)! }),
+    ...(typeof x.zone === 'number' && Number.isInteger(x.zone) && Math.abs(x.zone) <= 18 * 60 ? { zone: x.zone } : {}),
   };
 }
 
@@ -386,6 +391,7 @@ export function toSp4ceFile(path: Path, when: (t: Time) => string = () => ''): S
         ...(p.caption && { caption: p.caption }),
         ...(p.pause !== undefined && { pause: Math.round(p.pause * 10) / 10 }),
         ...(p.sound && p.sound !== 'silence' && { sound: p.sound }),
+        ...(p.zone !== undefined && { zone: p.zone }),
         t: [p.present.day, dec(p.present.sec, 3)],
         rate: p.playing ? p.speed : 0,
         cal: { off: [c.offset.day, dec(c.offset.sec, 3)], spp: sig(c.secondsPerPixel, 6), roll: dec(c.roll, 6), yaw: dec(c.yaw, 6), size: sig(c.spaceZoom, 6), y: dec(c.panY, 1) },
@@ -421,6 +427,7 @@ function fromFilePoint(x: unknown, where: string): PathPoint {
       facing: typeof x.facing === 'string' ? x.facing : '',
       pause: x.pause,
       ...(x.sound !== undefined && { sound: x.sound }),
+      ...(x.zone !== undefined && { zone: x.zone }),
     },
     where,
   );

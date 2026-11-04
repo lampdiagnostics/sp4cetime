@@ -37,7 +37,7 @@ import {
   worldOf,
 } from './flight';
 import { createOverlays, type OverlayOptions } from './overlays';
-import { createScene } from './scene';
+import { createScene, DROP_SECONDS } from './scene';
 import { WHEEL_RADII } from '../core/starsigns';
 import { createWheel } from './wheel';
 import { PLANISPHERE_CUT_DEG, planisphereDir, SKY_WHEEL_DEG } from '../core/planisphere';
@@ -790,6 +790,10 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
             body: { id: to.anchor, fromRel: sub3(from.pos, anchorBody.pos), up: [up.x, up.y, up.z], face: landing },
             land: { radius: anchorBody.info.radiusKm },
           };
+        } else if (onGround(groundKm) && onGround(fromGroundKm)) {
+          // Standing at the place, turning (Starsigns: from the sky over the town to the wheel):
+          // the sky tilts over the six seconds the field takes to drop away from your feet.
+          f = { ...base, ms: reduced() ? 0 : DROP_SECONDS * 1000, warp: false };
         } else if (isWarp(fromKm, toKm)) f = { ...base, ms: reduced() ? 0 : WARP_MS, warp: true };
         else if (galaxyFade(len3(from.pos)) > 0.5 && galaxyFade(len3(dest)) > 0.5) {
           // Out among the galaxies: close in by equal factors of distance on where you are going.
@@ -1068,7 +1072,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       scene.setBodyVisible('earth', !seeThrough);
       // The lens follows see-through (only that pose looks at the ecliptic's south pole).
       const lensTarget = seeThrough && far <= 0.5 ? 1 : 0;
-      lensNow = reduced() ? lensTarget : lensNow + Math.sign(lensTarget - lensNow) * Math.min(Math.abs(lensTarget - lensNow), dt / 1.2);
+      // It opens over most of the tilt to the wheel (4 s), so the sky bends to it as it turns.
+      lensNow = reduced() ? lensTarget : lensNow + Math.sign(lensTarget - lensNow) * Math.min(Math.abs(lensTarget - lensNow), dt / 4);
       const lensEased = lensNow * lensNow * (3 - 2 * lensNow);
       sky?.setLens(lensEased);
       // The final view is about the wheel (owner, 4 Nov 2026: less busy, but with the zodiac's

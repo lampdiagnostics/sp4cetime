@@ -12,6 +12,12 @@ import type { Vec3 } from '../core/geometry';
 import type { SkyStyle } from '../core/theme';
 import { threeColour } from './sky';
 
+/** The field dropping away (Starsigns' last turn, owner 4 Nov 2026): fall = DROP_KM·(e^(DROP_RATE·t) − 1), gone by DROP_SECONDS. */
+export const DROP_KM = 0.002;
+export const DROP_RATE = 1.15;
+export const DROP_SECONDS = 6;
+const DROP_FADE_FROM = 4.6;
+
 /** Surface colours (approximate true colours; no invented surface detail). */
 export const BODY_COLORS: Record<BodyId, number> = {
   sun: 0xfff4e0,
@@ -324,16 +330,17 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
         const east = inWorld([-Math.sin(lo), Math.cos(lo), 0]);
         const north = inWorld([-Math.sin(la) * Math.cos(lo), -Math.sin(la) * Math.sin(lo), Math.cos(la)]);
         const R = earth.info.radiusKm;
-        // Falling away: slowly at first, then ever faster, by equal factors (a metre in the first
-        // half second, 16 km by two seconds, over a thousand by three), fading out as it goes.
+        // Falling away from your feet, gently (owner, 4 Nov 2026): slowly at first, then by equal
+        // factors (a metre in the first half second, 20 m by two, 200 m by four, 2 km by six),
+        // over the six seconds the sky takes to tilt to the wheel, fading out at the end.
         const t = dropAt === null ? 0 : (performance.now() - dropAt) / 1000;
-        const fall = dropAt === null ? 0 : 0.0005 * (Math.exp(4.6 * t) - 1);
+        const fall = dropAt === null ? 0 : DROP_KM * (Math.exp(DROP_RATE * t) - 1);
         const px = earth.pos[0] + up.x * (R - fall) - camPos[0], py = earth.pos[1] + up.y * (R - fall) - camPos[1], pz = earth.pos[2] + up.z * (R - fall) - camPos[2];
         // Measured from where the field would be underfoot, so falling away fades it by time, not by distance.
         const d = Math.hypot(px + up.x * fall, py + up.y * fall, pz + up.z * fall);
         // Fully there within 2 km of it, gone by 25 km (coming down it grows out of the globe).
         fieldK = Math.max(0, Math.min(1, (Math.log(25) - Math.log(Math.max(1e-6, d))) / Math.log(25 / 2)));
-        if (dropAt !== null) fieldK *= Math.max(0, Math.min(1, 1 - (t - 2.2) / 0.9));
+        if (dropAt !== null) fieldK *= Math.max(0, Math.min(1, 1 - (t - DROP_FADE_FROM) / (DROP_SECONDS - DROP_FADE_FROM)));
         const m = field.f.group.matrix;
         m.makeBasis(east, north, up);
         m.setPosition(px, py, pz);

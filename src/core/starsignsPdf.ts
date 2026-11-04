@@ -6,8 +6,8 @@
  * preview carries a PREVIEW mark across it. Pure: returns the PDF's bytes.
  */
 
-import { formatSignDeg, houseLabel, houseOf } from './houses';
-import { PdfDoc, PdfPage, type RGB, textWidth, wrapText } from './pdf';
+import { formatSignDeg, HOUSE_NAMES, houseLabel, houseOf } from './houses';
+import { PdfDoc, type PdfJpeg, PdfPage, type RGB, textWidth, wrapText } from './pdf';
 import type { Reading } from './reading';
 
 export interface SheetOptions {
@@ -316,5 +316,100 @@ export function starsignsCard(r: Reading, o: CardOptions): Uint8Array {
     ins.link(rx + 6 * k, y - 3, rx + 6 * k + w, y + 9 * k, l.url);
     y -= 11 * k;
   }
+  return doc.bytes();
+}
+
+export interface FramePdfOptions {
+  /** The video's last frame, the very rectangle (JPEG). */
+  readonly frame: PdfJpeg;
+  /** The frame is dark (the night sky): light text; light (the Bright look): dark text. */
+  readonly dark: boolean;
+  /** "14 July 1985, 11:30 pm (UTC−5)". */
+  readonly whenText: string;
+  readonly placeLabel: string;
+  /** "49°52′59″ N · 97°09′58″ W". */
+  readonly coordsText: string;
+  readonly systemName: string;
+}
+
+/** Page width: 11 in, the frame's own shape below it. */
+export const FRAME_PDF_WIDTH = 792;
+
+/**
+ * The tour's PDF (owner, 4 Nov 2026): one page the shape of the video, its last frame (the
+ * wheel) filling it, and, on the sides around the central circle, what the old sheet said:
+ * left, the moment and place and every body's sign and house (by name); right, the twelve
+ * houses by name with the sign each begins in, the Ascendant and Midheaven, and what is
+ * astronomy and what is astrology. Light text on a dark frame, dark on a light one. Without
+ * a reading (a path that does not end on a chart), the frame alone.
+ */
+export function starsignsFramePdf(r: Reading | null, o: FramePdfOptions): Uint8Array {
+  const W = FRAME_PDF_WIDTH;
+  const H = Math.round((W * o.frame.height) / o.frame.width * 100) / 100;
+  const doc = new PdfDoc({ title: 'Starsigns', author: 'sp4cetime.org', subject: r ? `Starsigns · ${o.whenText} · ${o.placeLabel}` : 'sp4cetime' });
+  const p = doc.addPage(W, H);
+  p.image(o.frame, 0, 0, W, H);
+  if (!r) return doc.bytes();
+  const ink: RGB = o.dark ? [0.95, 0.94, 0.9] : [0.08, 0.09, 0.12];
+  const dim: RGB = o.dark ? [0.72, 0.72, 0.76] : [0.32, 0.34, 0.4];
+  const accent: RGB = o.dark ? [0.96, 0.78, 0.45] : [0.62, 0.36, 0.04];
+  // The circle sits in the middle, about as tall as the frame: text keeps to the bands either side.
+  const M = Math.max(10, W * 0.018);
+  const band = Math.max(90, (W - Math.min(H, W) * 0.98) / 2 - M * 1.4);
+  const top = H - M;
+  // The top left holds the frame's own date box: the left column starts below it.
+  const leftTop = H - Math.max(M, H * 0.13);
+  // The bottom right holds the frame's own captions and watermark: the right column stops above them.
+  const rightFloor = H * 0.3;
+  const leftFloor = M;
+
+  type Line = { text: string; size: number; bold?: boolean; color: RGB; gap?: number };
+  const bodyLines: Line[] = [];
+  const name = (b: string): Line => ({ text: b, size: 1, bold: true, color: ink, gap: 0.35 });
+  const detail = (t: string, c: RGB = dim): Line => ({ text: t, size: 0.88, color: c });
+  bodyLines.push({ text: 'Your sky', size: 1.6, bold: true, color: ink, gap: 0.2 });
+  bodyLines.push(detail(o.whenText, ink));
+  bodyLines.push(detail(o.placeLabel));
+  bodyLines.push({ ...detail(o.coordsText), gap: 0.9 });
+  for (const b of r.bodies) {
+    bodyLines.push(name(`${b.name}  ${formatSignDeg(b.lon)}${b.retrograde ? '  Rx' : ''}`));
+    bodyLines.push(detail(`house ${houseLabel(b.house)}`));
+  }
+  const houseLines: Line[] = [];
+  houseLines.push({ text: 'The houses', size: 1.6, bold: true, color: ink, gap: 0.2 });
+  houseLines.push({ ...detail(o.systemName), gap: 0.9 });
+  r.chart.cusps.forEach((c, i) => {
+    houseLines.push({ text: `${i + 1}  ${HOUSE_NAMES[i] ?? ''}`, size: 1, bold: true, color: ink, gap: 0.35 });
+    houseLines.push(detail(`from ${formatSignDeg(c)}`));
+  });
+  houseLines.push({ text: `Ascendant  ${formatSignDeg(r.chart.asc)}`, size: 1, bold: true, color: accent, gap: 0.35 });
+  houseLines.push({ text: `Midheaven  ${formatSignDeg(r.chart.mc)}`, size: 1, bold: true, color: accent, gap: 0.6 });
+  houseLines.push(detail('Positions are astronomy; houses are astrology.'));
+
+  // One text size for both columns: the largest (up to 10 pt) at which both fit their band.
+  const fits = (lines: readonly Line[], k: number, height: number): boolean => {
+    let h = 0;
+    for (const l of lines) {
+      if (textWidth(l.text, l.size * k, l.bold ? 'bold' : 'regular') > band) return false;
+      h += l.size * k * 1.18 + (l.gap ?? 0) * k;
+    }
+    return h <= height;
+  };
+  let k = 10;
+  while (k > 4.5 && !(fits(bodyLines, k, leftTop - leftFloor) && fits(houseLines, k, top - rightFloor))) k -= 0.25;
+  const draw = (lines: readonly Line[], x: number, align: 'left' | 'right', from: number): void => {
+    let y = from;
+    for (const l of lines) {
+      y -= l.size * k;
+      // Long lines that still do not fit at the smallest size are shortened rather than run into the wheel.
+      let t = l.text;
+      while (t.length > 4 && textWidth(t, l.size * k, l.bold ? 'bold' : 'regular') > band) t = `${t.slice(0, -2)}…`;
+      p.text(x, y, t, { size: l.size * k, font: l.bold ? 'bold' : 'regular', color: l.color, align });
+      y -= l.size * k * 0.18 + (l.gap ?? 0) * k;
+    }
+  };
+  draw(bodyLines, M, 'left', leftTop);
+  draw(houseLines, W - M, 'right', top);
+  p.link(W - M - 80, H * 0.02, W - M, H * 0.08, 'https://sp4cetime.org');
   return doc.bytes();
 }

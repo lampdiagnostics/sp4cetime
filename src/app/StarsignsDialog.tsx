@@ -5,11 +5,8 @@ import { nearestPlace, parseCoordinate, parsePlaces, type Place, placeForZone, p
 import { readingAt, type Reading } from '../core/reading';
 import { formatLat, formatLon } from '../core/spheres';
 import { starsignsPath } from '../core/starsigns';
-import { starsignsCard } from '../core/starsignsPdf';
 import { fromUnixMs } from '../core/time';
-import { COFFEE_URL, saveBytes, SHOP_OPEN, shopLink } from './shop';
 import { formatOffset, localToUtc } from './zones';
-import { getVideoSize, setVideoSize, type VideoSize } from './capture';
 
 const DEG = Math.PI / 180;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -38,14 +35,8 @@ interface Where {
 export interface StarsignsActions {
   /** The look and calendar now, for the path to start from. */
   base: () => PathPoint | null;
-  /** Save the path and play it (free); with `capture`, record it as a video (◉ Record, watermarked). */
-  play: (path: Path, capture: boolean) => void;
-  /** Save the path as a .sp4ce.json file (free). */
-  download: (path: Path) => void;
-  /** ✶ Create Path: save it and list it in ▷ Present, ready to run. */
-  create: (path: Path) => void;
-  /** The package: fly and record the path, then one .zip with the PDF, the video and the path token. */
-  pack: (path: Path, pdf: Uint8Array, size: VideoSize, base: string) => void;
+  /** ▶ Go: save the path (listed in ▷ Paths), fly and record it; the Download package pops up at the end. */
+  go: (path: Path) => void;
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -60,8 +51,10 @@ const fmt = (x: number): string => (Math.round(x * 10_000) / 10_000).toString();
  * the free path (signs from above, the planets one by one, the sky over the place, the
  * wheel). Place: type it (a completer like a transit app's: arrows, Tab or Enter, a tap),
  * or type latitude and longitude and the nearest town fills in. A blank time means noon.
- * ▶ Go (tap) flies the path; holding it offers ◉ Record (the video, stopping by itself at the end; its running time and ■ Stop at the bottom of the screen). The video, the card's inside (PDF) and the path are free; ✶ Customize goes to
- * sp4cetime.store (occasions, names, artwork). No prices on this site. Never in a capture.
+ * ▶ Go (owner, 4 Nov 2026) saves the path, flies it and records it (an MP4 made for X); at the
+ * end the Download package pops up (PackageDialog: the video, a PDF of its last frame with the
+ * signs and houses, the path token; free), with ✶ Customize and ☕ Buy me a coffee leading to
+ * sp4cetime.store. No prices on this site. Never in a capture.
  */
 export function StarsignsDialog({ onClose, actions }: { onClose: () => void; actions: StarsignsActions }) {
   const start = useMemo(today, []);
@@ -72,9 +65,6 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
   const [lonText, setLonText] = useState('');
   const [where, setWhere] = useState<Where | null>(null);
   const [system, setSystem] = useState<HouseSystem>('whole');
-  // The package's PDF is one 8.5 × 11 in page, landscape (owner, 3 Nov 2026).
-  const paper = 'letter' as const;
-  const [size, setSize] = useState<VideoSize>(getVideoSize);
   const [places, setPlaces] = useState<Place[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -143,19 +133,6 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
 
   const reading: Reading | null = useMemo(() => (moment && where ? readingAt(moment.t, where.lat, where.lon, system) : null), [moment, where, system]);
   const coordsText = where ? `${formatLat(where.lat * DEG, 0)} · ${formatLon(where.lon * DEG, 0)}` : '';
-  /** The card's inside, one page, free. */
-  const card = (): Uint8Array | null =>
-    reading && moment && where
-      ? starsignsCard(reading, {
-          paper,
-          preview: false,
-          sides: 'inside',
-          whenText: `${moment.whenText}${moment.noTime ? ' (no time given: noon)' : ` (${where.zone ? formatOffset(moment.offset) : 'UTC'})`}`,
-          placeLabel: where.label,
-          coordsText,
-          systemName: HOUSE_SYSTEMS.find((h) => h.id === system)!.name,
-        })
-      : null;
   const path = (): Path | null => {
     const base = actions.base();
     if (!reading || !moment || !where || !base) return null;
@@ -167,14 +144,14 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
       whenText: moment.whenText,
       system,
       noTime: moment.noTime,
+      ...(where.zone ? { zone: moment.offset } : {}),
       look: base.look,
       calendar: base.calendar,
     });
   };
-  const fileBase = `starsigns-${date}`;
-  const go = (capture: boolean): void => {
+  const goNow = (): void => {
     const p = path();
-    if (p) actions.play(p, capture);
+    if (p) actions.go(p);
   };
   const choose = (p: Place): void => fromPlace(p, 'chosen');
   const coordsChanged = (lt: string, ln: string): void => {
@@ -191,8 +168,7 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
         aria-labelledby="astro-title"
         onSubmit={(e) => {
           e.preventDefault();
-          const p = path();
-          if (p) actions.create(p);
+          goNow();
         }}
       >
         <button type="button" className="astro-x" onClick={onClose} aria-label="Close (Esc)" title="Close (Esc)">
@@ -329,32 +305,6 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
         <button type="submit" className="visually-hidden" tabIndex={-1} disabled={!reading}>
           Go
         </button>
-        {/* ✶ Create Path (owner, 3 Nov 2026; it was ▶ Go): the path is saved and opens in ▷ Present,
-            where its Present button runs it. */}
-        <div className="row astro-go">
-          {/* ▶ Go and ◉ Go + Record (owner, 4 Nov 2026): shortcuts past ▷ Present and ◉ Capture;
-              the path is saved to ▷ Present's list all the same. Go + Record ends by itself five
-              seconds into the final wheel and saves the MP4 to Downloads. */}
-          <button type="button" className="go-big" disabled={!reading} onClick={() => go(false)} title="Save the path and fly it now">
-            <span aria-hidden="true">▶</span> Go
-          </button>
-          <button type="button" className="go-big go-rec" disabled={!reading} onClick={() => go(true)} title="Save the path, fly it and record it; the MP4 goes to Downloads when the final wheel has been shown for 5 seconds">
-            <span aria-hidden="true">◉</span> Go + Record
-          </button>
-          <button
-            type="button"
-            className="go-create"
-            disabled={!reading}
-            onClick={() => {
-              const p = path();
-              if (p) actions.create(p);
-            }}
-            title="Make the path of this sky: it opens in ▷ Present, ready to run"
-          >
-            <span aria-hidden="true">✶</span> Create Path
-          </button>
-        </div>
-
         {/* No explanations or tables here (owner, 3 Nov 2026): the path shows the signs and houses
             in the sky, and the package's PDF prints them. */}
         <label className="astro-system row">
@@ -369,53 +319,14 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
           {moment?.noTime && <span className="hint">No time given: noon is used, so the houses are only a guide.</span>}
         </label>
 
-        {/* Two buttons (owner, 3 Nov 2026): the package (the PDF, 8.5 × 11 in landscape; the video,
-            hi-res or small; the path token) and a coffee. */}
-        <div className="row astro-files">
-          <button
-            type="button"
-            className="primary"
-            disabled={!reading}
-            onClick={() => {
-              const p = path();
-              const b = card();
-              if (p && b) actions.pack(p, b, size, fileBase);
-            }}
-            title="Flies your sky while recording it, then downloads one .zip: the PDF (8.5 × 11 in, landscape), the video (.mp4) and the path token (.json)"
-          >
-            ⤓ Download package
+        {/* One button (owner, 4 Nov 2026): ▶ Go saves the path (listed in ▷ Paths), flies it and
+            records it; the Download package (video, PDF, path token, ✶ Customize, ☕) pops up at the end. */}
+        <div className="row astro-go">
+          <button type="button" className="go-big" disabled={!reading} onClick={goNow} title="Fly your sky and record it (an MP4 made for X); at the end, the Download package">
+            <span aria-hidden="true">▶</span> Go
           </button>
-          <select
-            value={size}
-            onChange={(e) => {
-              const v = e.target.value as VideoSize;
-              setSize(v);
-              setVideoSize(v);
-            }}
-            aria-label="Video size"
-            title="Hi-res for desktop screens (up to 4K), or for X (1080p, 30 frames a second, with sound: made to X's rules)"
-          >
-            <option value="hires">Video: hi-res</option>
-            <option value="small">Video: for X (1080p)</option>
-          </select>
-          <Coffee />
         </div>
       </form>
     </div>
-  );
-}
-
-/** "☕ Buy me a coffee": a Stripe Payment Link, any amount (owner, 3 Nov 2026: always shown; until the live link is set, it says so). */
-function Coffee() {
-  if (!COFFEE_URL)
-    return (
-      <span className="coffee coffee-soon" role="link" aria-disabled="true" title="Coming soon: pay what you like, through Stripe">
-        ☕ Buy me a coffee
-      </span>
-    );
-  return (
-    <a className="coffee" href={COFFEE_URL} target="_blank" rel="noopener" title="Pay what you like, through Stripe: it keeps sp4cetime going">
-      ☕ Buy me a coffee
-    </a>
   );
 }

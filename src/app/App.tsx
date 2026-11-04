@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
-import { addSeconds, fromUnixMs, type Time } from '../core/time';
+import { addSeconds, fromUnixMs, type Time, toUnixMs } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
 import { drawShot, recordVideo, type Shot, stageIn, viewStages, type VideoSize } from './capture';
 import type { StarsignsActions } from './StarsignsDialog';
@@ -18,6 +18,7 @@ import { type DialogResult, PathDialog } from './PathDialog';
 
 /** The Starsigns dialog loads when first opened (it is not needed to see the map). */
 const StarsignsDialog = lazy(() => import('./StarsignsDialog').then((m) => ({ default: m.StarsignsDialog })));
+const PackageDialog = lazy(() => import('./PackageDialog').then((m) => ({ default: m.PackageDialog })));
 
 const VIEW_NAME = { calendar: 'Calendar', fly: 'Fly', galaxy: 'Whole galaxy' } as const;
 /** Typing in a field (a drop-down menu that still has focus doesn't count: its keys go to the path). */
@@ -278,6 +279,7 @@ export function App() {
   const deps: FlightDeps = {
     pane: () => pane.current,
     clock,
+    running: () => timeRef.current.rate !== 0,
     setPresent: (t) => {
       timeRef.current = { baseReal: Date.now(), baseSim: t, rate: 0 };
     },
@@ -371,7 +373,8 @@ export function App() {
       setShowing((s) => (s && s.path.id === path.id ? { ...s, index, flying: false, wandered: !arrived } : s));
     });
   }, []);
-  const stopPresenting = useCallback((): void => {
+  /** Stop presenting; `keepView` (▶ Go's end): the last view stays as it is, the field still dropped away. */
+  const stopPresenting = useCallback((keepView?: unknown): void => {
     signal.current.cancelled = true;
     setSound('silence', { fade: 0.4 });
     // Stopped mid-flight: time is held where the flight left it; the controls show it paused.
@@ -383,7 +386,7 @@ export function App() {
       // Your settings back as they were, except round or full: that is whatever you last chose.
       // …and where you are: stopped at the place, its chart (and the field under you, with its
       // grid) stays, so the view is not left on a bare, dark globe; Earth comes back if it was see-through.
-      setSettings((s) => ({ ...before.settings, round: s.round, chart: s.chart, seeThrough: false, highlight: null }));
+      setSettings((s) => ({ ...before.settings, round: s.round, chart: s.chart, seeThrough: keepView === true ? s.seeThrough : false, highlight: null }));
     }
   }, []);
   /** Next (+1) or back (−1), from the keys or the ◀ ▶ buttons (phones). */
@@ -505,6 +508,10 @@ export function App() {
     paths,
     presenting: !!showing,
     present: startPresenting,
+    go: (id) => {
+      const x = findPath(id);
+      if (x) go(x);
+    },
     stop: stopPresenting,
     examples,
     exportPath: (id) => {
@@ -525,8 +532,9 @@ export function App() {
       setMessage('');
       importPath(f).then(
         (x) => {
-          setMessage(`Uploaded “${x.name}”: present it, or ✎ Continue to add points.`);
+          setMessage(`Uploaded “${x.name}”: ▶ Go to fly and record it, or ✎ Continue to add points.`);
           refreshPaths();
+          setFocusPath({ id: x.id, n: Date.now() });
         },
         (err: unknown) => setMessage(err instanceof Error ? err.message : 'That file could not be read.'),
       );
@@ -539,6 +547,9 @@ export function App() {
     message,
   };
   const shownPoint = showing ? showing.path.points[showing.index] : undefined;
+  // The clock caption's zone stays the last path's after it stops (the place's time).
+  const lastZone = useRef<number | undefined>(undefined);
+  if (showing) lastZone.current = shownPoint?.zone;
 
   // ✶ Starsigns: a path played on its own (a hold at each point), and for the package, recorded.
   const playing = useRef(0);
@@ -558,7 +569,13 @@ export function App() {
     const id = window.setInterval(() => setRecNow(performance.now()), 250);
     return () => window.clearInterval(id);
   }, [recording]);
-  const autoPlay = async (path: Path, record: boolean, from = 0, opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; lastHold?: number; stopAtEnd?: boolean } = {}): Promise<void> => {
+  type Still = { jpeg: Blob; width: number; height: number; dark: boolean };
+  const autoPlay = async (
+    path: Path,
+    record: boolean,
+    from = 0,
+    opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; onEnd?: (still: Still | null, completed: boolean) => void; stopAtEnd?: boolean } = {},
+  ): Promise<void> => {
     const run = ++playing.current;
     unlockSound();
     setAuto(true);
@@ -573,6 +590,8 @@ export function App() {
       return false;
     };
     const hold = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    // ▶ Go records from the start (owner, 4 Nov 2026): the fade into Fly mode and the flight to
+    // the first point are in the video too.
     if (record) {
       setRecording({ start: 0, run });
       stopRec.current = () => {
@@ -584,16 +603,11 @@ export function App() {
         }
       };
     }
-    if (!(await arrive(from))) {
-      if (record) setRecording((r) => (r && r.run === run ? null : r));
-      if (playing.current === run) setAuto(false);
-      return;
-    }
     const rec = record
       ? await recordVideo(() => getShot(), { fps: 30, watermark: true, ...(opts.size ? { size: opts.size } : {}), ...(opts.onVideo ? { onBlob: opts.onVideo } : {}) }, () => {})
       : null;
-    if (record && !rec) opts.onNoVideo?.();
     if (record && !rec) {
+      opts.onNoVideo?.();
       setRecording((r) => (r && r.run === run ? null : r));
       stopRec.current = null;
       setMessage('This browser would not record a video; the path plays anyway.');
@@ -618,29 +632,38 @@ export function App() {
         }
       };
     }
-    await hold(path.points[from]?.pause !== undefined ? path.points[from]!.pause! * 1000 : 2500);
-    for (let i = from + 1; i < path.points.length && live(); i++) {
-      const pt = path.points[i]!;
-      // Recording (owner, 3 Nov 2026): no planet-by-planet highlights in the video; each view
-      // is held a little longer instead (more for each body it would have picked out).
-      if (rec && pt.look.highlight && i < path.points.length - 1) continue;
-      if (!(await arrive(i))) break;
-      let picks = 0;
-      if (rec) for (let j = i + 1; j < path.points.length - 1 && path.points[j]!.look.highlight; j++) picks++;
-      // A body picked out is a quick beat; a new view is held long enough to take in.
-      // A point may say how long to stay (Starsigns does); otherwise a body picked out is a quick
-      // beat and a new view is held long enough to take in.
-      const last = i === path.points.length - 1;
-      await hold(last && opts.lastHold !== undefined ? opts.lastHold * 1000 : pt.pause !== undefined ? pt.pause * 1000 : last ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
+    if (playing.current !== run) {
+      finish();
+      return;
     }
-    const ended = live();
+    let completed = false;
+    if (await arrive(from)) {
+      await hold(path.points[from]?.pause !== undefined ? path.points[from]!.pause! * 1000 : 2500);
+      let i = from + 1;
+      for (; i < path.points.length && live(); i++) {
+        const pt = path.points[i]!;
+        // Recording (owner, 3 Nov 2026): no planet-by-planet highlights in the video; each view
+        // is held a little longer instead (more for each body it would have picked out).
+        if (rec && pt.look.highlight && i < path.points.length - 1) continue;
+        if (!(await arrive(i))) break;
+        let picks = 0;
+        if (rec) for (let j = i + 1; j < path.points.length - 1 && path.points[j]!.look.highlight; j++) picks++;
+        // A point may say how long to stay (Starsigns does); otherwise a body picked out is a quick
+        // beat and a new view is held long enough to take in.
+        await hold(pt.pause !== undefined ? pt.pause * 1000 : i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
+      }
+      completed = i >= path.points.length && live();
+    }
+    // The video's last frame, for the PDF (taken before the recording stops).
+    const still = completed && rec?.still ? await rec.still().catch(() => null) : null;
     finish();
     if (playing.current === run) {
       playing.current++;
       setAuto(false);
     }
-    // ◉ Go + Record: the presentation ends by itself once the video is done.
-    if (opts.stopAtEnd && ended && showRef.current?.path.id === path.id) stopPresenting();
+    // ▶ Go: the presentation ends by itself once the video is done.
+    if (opts.stopAtEnd && completed && showRef.current?.path.id === path.id) stopPresenting(true);
+    opts.onEnd?.(still, completed);
   };
   presentRun.current = (p: Path) => void autoPlay(p, false);
   // Shift (owner, 3 Nov 2026): one tap plays the path by itself, the next stops it. After an
@@ -659,53 +682,39 @@ export function App() {
     if (p) void autoPlay(p, false);
     else setStarsigns(true);
   };
+  // ▶ Go (owner, 4 Nov 2026), in the ✶ Starsigns dialog and in ▷ Paths: saved to the list,
+  // flown and recorded as an MP4 made for X; at the end the presentation stops and the
+  // Download package pops up (the MP4, a PDF of the last frame, the path token).
+  const [pack, setPack] = useState<PackState | null>(null);
+  const packRun = useRef(0);
+  const go = (path: Path): void => {
+    const n = ++packRun.current;
+    setPack(null);
+    setStarsigns(false);
+    void savePath(path).then(refreshPaths);
+    let video: PackState['video'] = 'pending';
+    const into = (f: (p: PackState) => PackState): void => setPack((p) => (p && packRun.current === n ? f(p) : p));
+    void autoPlay(path, true, 0, {
+      size: 'small',
+      stopAtEnd: true,
+      onVideo: (blob, ext) => {
+        video = { blob, ext };
+        into((p) => ({ ...p, video }));
+      },
+      onNoVideo: () => {
+        video = 'none';
+        into((p) => ({ ...p, video }));
+      },
+      onEnd: (still) => {
+        if (packRun.current !== n) return;
+        setPack({ path, video, pdf: still ? 'pending' : null });
+        if (still) void framePdf(path, still).then((pdf) => into((p) => ({ ...p, pdf })), () => into((p) => ({ ...p, pdf: null })));
+      },
+    });
+  };
   const starsignsActions: StarsignsActions = {
     base: () => keyRef.current.pointNow(),
-    play: (path, capture) => {
-      setStarsigns(false);
-      void savePath(path).then(refreshPaths);
-      // ◉ Go + Record (owner, 4 Nov 2026): 5 seconds on the final wheel, then the end; the MP4 goes to Downloads.
-      void autoPlay(path, capture, 0, capture ? { lastHold: 5, stopAtEnd: true } : {});
-    },
-    download: (path) => exportPath(path),
-    // ✶ Create Path (owner, 3 Nov 2026): saved, then listed in ▷ Present, ready to run.
-    create: (path) => {
-      setStarsigns(false);
-      void savePath(path).then(() => {
-        refreshPaths();
-        setFocusPath({ id: path.id, n: Date.now() });
-      });
-    },
-    // The package (owner, 3 Nov 2026): fly and record the path, then one .zip of the PDF, the
-    // video and the path token (without the video if this browser cannot record).
-    pack: (path, pdf, size, base) => {
-      setStarsigns(false);
-      void savePath(path).then(refreshPaths);
-      const zip = (video: { data: Uint8Array; ext: string } | null): void => {
-        const c = new Date();
-        const parts = zipParts(
-          [
-            { name: `${base}.pdf`, data: pdf },
-            ...(video ? [{ name: `${base}.${video.ext}`, data: video.data }] : []),
-            { name: pathFileName(path.name), data: new TextEncoder().encode(sp4ceText(path)) },
-          ],
-          { year: c.getFullYear(), month: c.getMonth() + 1, day: c.getDate(), hour: c.getHours(), minute: c.getMinutes() },
-        );
-        const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: 'application/zip' }));
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${base}-package.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      };
-      void autoPlay(path, true, 0, {
-        size,
-        onVideo: (v, ext) => void v.arrayBuffer().then((b) => zip({ data: new Uint8Array(b), ext })),
-        onNoVideo: () => zip(null),
-      });
-    },
+    go,
   };
 
   const round = settings.round;
@@ -794,21 +803,24 @@ export function App() {
         </p>
       )}
 
-      {/* The place and the moment (0.4.3), bottom right, while a Starsigns chart is on; in captures too. */}
-      {settings.chart?.when && (
-        <p className="place-stamp" aria-label="Place and time">
-          {[
-            settings.chart.place,
-            formatLat((settings.chart.lat * Math.PI) / 180, 0),
-            formatLon((settings.chart.lon * Math.PI) / 180, 0),
-            ...settings.chart.when.split(/,\s*/),
-          ].join(' - ')}
-        </p>
+      {/* The captions (owner, 4 Nov 2026), bottom right above the scale bar, in captures too: the
+          place from the landing on (City   Lat dd-mm-ss   Lon dd-mm-ss), and the moment, ticking,
+          through the whole tour (y MMM dd   hh:mm:ss, in the place's time). */}
+      {(showing || settings.chart?.when) && (
+        <div className="place-stamp" aria-label="Place and time">
+          {settings.chart?.when && <p>{placeCaption(settings.chart.place, settings.chart.lat, settings.chart.lon)}</p>}
+          <TimeCaption clock={clock} zone={shownPoint?.zone ?? lastZone.current} />
+        </div>
       )}
 
       {starsigns && (
         <Suspense fallback={null}>
           <StarsignsDialog onClose={() => setStarsigns(false)} actions={starsignsActions} />
+        </Suspense>
+      )}
+      {pack && (
+        <Suspense fallback={null}>
+          <PackageDialog path={pack.path} video={pack.video} pdf={pack.pdf} onClose={() => setPack(null)} />
         </Suspense>
       )}
 
@@ -979,4 +991,70 @@ export function App() {
 function formatClock(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** The Download package after ▶ Go: the video (while it is being finished: pending), the PDF of its last frame, the path. */
+interface PackState {
+  readonly path: Path;
+  readonly video: { readonly blob: Blob; readonly ext: string } | 'pending' | 'none';
+  readonly pdf: Uint8Array | 'pending' | null;
+}
+
+/** The PDF of the video's last frame; with the signs and houses when the path ends on a Starsigns chart (loaded when first needed). */
+async function framePdf(path: Path, still: { jpeg: Blob; width: number; height: number; dark: boolean }): Promise<Uint8Array> {
+  const [{ starsignsFramePdf }, { readingAt }, { HOUSE_SYSTEMS }, { formatOffset }] = await Promise.all([
+    import('../core/starsignsPdf'),
+    import('../core/reading'),
+    import('../core/houses'),
+    import('./zones'),
+  ]);
+  const last = path.points[path.points.length - 1]!;
+  const ch = last.look.chart;
+  const r = ch ? readingAt(last.present, ch.lat, ch.lon, ch.system) : null;
+  const frame = { data: new Uint8Array(await still.jpeg.arrayBuffer()), width: still.width, height: still.height };
+  return starsignsFramePdf(r, {
+    frame,
+    dark: still.dark,
+    whenText: ch?.when ? `${ch.when}${last.zone !== undefined ? ` (${formatOffset(last.zone)})` : ''}` : '',
+    placeLabel: last.where || ch?.place || '',
+    coordsText: ch ? `${formatLat((ch.lat * Math.PI) / 180, 0)} · ${formatLon((ch.lon * Math.PI) / 180, 0)}` : '',
+    systemName: HOUSE_SYSTEMS.find((h) => h.id === ch?.system)?.name ?? '',
+  });
+}
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const p2 = (n: number): string => String(n).padStart(2, '0');
+
+/** "49-52-59 N": degrees, minutes and seconds, rounded to the second. */
+function dms(x: number, pos: string, neg: string): string {
+  const t = Math.round(Math.abs(x) * 3600);
+  return `${Math.floor(t / 3600)}-${p2(Math.floor((t % 3600) / 60))}-${p2(t % 60)} ${x < 0 ? neg : pos}`;
+}
+
+/** "Winnipeg   Lat 49-52-59 N   Lon 97-09-58 W". */
+function placeCaption(place: string, lat: number, lon: number): string {
+  return `${place}   Lat ${dms(lat, 'N', 'S')}   Lon ${dms(lon, 'E', 'W')}`;
+}
+
+/** "1985 Jul 14   23:30:00" for a moment (Unix ms), in a zone (minutes ahead of UTC) or this device's own. */
+function timeCaption(ms: number, zone: number | undefined): string {
+  const d = new Date(zone === undefined ? ms : ms + zone * 60_000);
+  const u = zone !== undefined;
+  const y = u ? d.getUTCFullYear() : d.getFullYear();
+  const mo = u ? d.getUTCMonth() : d.getMonth();
+  const day = u ? d.getUTCDate() : d.getDate();
+  const h = u ? d.getUTCHours() : d.getHours();
+  const mi = u ? d.getUTCMinutes() : d.getMinutes();
+  const sec = u ? d.getUTCSeconds() : d.getSeconds();
+  return `${y} ${MON[mo]} ${p2(day)}   ${p2(h)}:${p2(mi)}:${p2(sec)}`;
+}
+
+/** The moment, ticking with the clock (four times a second, so each second turns on time). */
+function TimeCaption({ clock, zone }: { clock: () => Time; zone: number | undefined }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  return <p>{timeCaption(toUnixMs(clock()), zone)}</p>;
 }

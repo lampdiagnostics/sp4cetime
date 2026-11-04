@@ -1942,7 +1942,13 @@ select option {
 /* The dialog's button styles must not dull ▶ Go (on phones and computers alike). */
 .astro-dialog .go-big,
 .astro-dialog .go-big:focus,
-.astro-dialog .go-big:focus-visible {
+.astro-dialog .go-big:focus-visible,
+.package-dialog .go-big,
+.package-dialog .go-big:focus,
+.package-dialog .go-big:focus-visible,
+.present-section .go-big,
+.present-section .go-big:focus,
+.present-section .go-big:focus-visible {
   height: 48px;
   padding: 0 22px 0 18px;
   border-radius: 24px;
@@ -1952,14 +1958,18 @@ select option {
   font-size: 18px;
   font-weight: 800;
 }
-.astro-dialog .go-big:hover:not(:disabled) {
+.astro-dialog .go-big:hover:not(:disabled),
+.package-dialog .go-big:hover:not(:disabled),
+.present-section .go-big:hover:not(:disabled) {
   background: #23b865;
 }
 .astro-dialog .go-big:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
-.astro-dialog .go-big:disabled {
+.astro-dialog .go-big:disabled,
+.package-dialog .go-big:disabled,
+.present-section .go-big:disabled {
   background: #3d5a49;
 }
 
@@ -2108,16 +2118,22 @@ body:has(.dock[data-open='true']) .scale-corner {
   z-index: 4;
   margin: 0;
   max-width: calc(100vw - 32px);
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: right;
-  color: #f2efe6;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   background: transparent;
   border: none;
   padding: 0;
+}
+/* Mono, about 20 pt, off-white (owner, 4 Nov 2026); spaces kept as typed. */
+.place-stamp p {
+  margin: 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: right;
+  white-space: pre;
+  color: #f2efe6;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .chrome-1 .place-stamp,
 .chrome-2 .place-stamp {
@@ -2127,33 +2143,140 @@ body:has(.dock[data-open='true']) .scale-corner {
   display: none;
 }
 @media (max-width: 640px) {
-  .place-stamp {
-    font-size: 17px;
+  .place-stamp p {
+    font-size: 15px;
   }
 }
 
-/* ◉ Go + Record beside ▶ Go (owner, 4 Nov 2026); ✶ Create Path quieter beside them. */
+/* ▷ Paths: the drop box for path tokens (owner, 4 Nov 2026). */
+.path-drop {
+  border: 2px dashed var(--panel-border, #555);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 14px;
+}
+.path-drop.over,
+.path-drop:hover,
+.path-drop:focus-visible {
+  border-color: var(--accent, #f0c674);
+  background: rgba(240, 198, 116, 0.08);
+}
+.present-section .go-big {
+  align-self: flex-start;
+}
+
+/* The Download package (owner, 4 Nov 2026). */
+.package-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.package-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+.package-list .hint {
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+.package-buttons {
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.package-buttons a.button {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  border: 1px solid var(--panel-border, #555);
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+.package-buttons a.button:hover {
+  border-color: var(--accent, #f0c674);
+}
+.package-dialog .go-big:disabled {
+  animation: none;
+}
+
+/* ▶ Go in the Starsigns dialog. */
 .astro-go {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
 }
-.go-big.go-rec,
-.astro-dialog .go-big.go-rec,
-.astro-dialog .go-big.go-rec:focus,
-.astro-dialog .go-big.go-rec:focus-visible {
-  background: #c8323a;
-  animation: none;
+
+/* ◉ Capture as six tiles (owner, 4 Nov 2026): rows small (for X) and large (hi-res), columns
+   picture, GIF, video; at least 64 px tall so a thumb finds them on a phone. */
+.capture-grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(76px, 1fr));
+  gap: 8px;
+  align-items: stretch;
 }
-.astro-dialog .go-big.go-rec:hover:not(:disabled) {
-  background: #dc3d45;
+.capture-grid .cg-col {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
 }
-.astro-dialog .go-big.go-rec:disabled {
-  background: #5a3d3f;
+.capture-grid .cg-row {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  max-width: 64px;
+  line-height: 1.2;
 }
-.astro-dialog .go-create {
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 20px;
-  font-size: 15px;
+.popover.capture-popover .capture-grid .cg-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 72px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--pressed, rgba(255, 255, 255, 0.06));
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.popover.capture-popover .capture-grid .cg-tile:hover:not(:disabled),
+.popover.capture-popover .capture-grid .cg-tile:focus-visible {
+  border-color: var(--accent);
+}
+.capture-grid .cg-tile:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.capture-grid .cg-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.capture-grid .cg-tile small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+@media (max-width: 640px) {
+  .capture-grid {
+    grid-template-columns: auto repeat(3, minmax(64px, 1fr));
+    gap: 6px;
+  }
+}
+.popover.capture-popover.capture-tiles {
+  width: min(360px, calc(100vw - 24px));
+}
+.float-tools .capture .popover.capture-popover.capture-tiles {
+  width: min(360px, calc(100vw - 2 * var(--gap)));
 }

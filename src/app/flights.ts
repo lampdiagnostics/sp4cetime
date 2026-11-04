@@ -34,6 +34,8 @@ export interface FlightDeps {
   pane(): PaneHandle | null;
   /** The present now. */
   clock(): Time;
+  /** Whether time is running now. */
+  running(): boolean;
   /** Hold the present here (time stands still during a flight). */
   setPresent(t: Time): void;
   /** On arrival: the present, and how time runs from there. */
@@ -117,13 +119,13 @@ async function outOf3D(pane: PaneHandle, cal: CanvasHandle, turnTo: CalendarView
 }
 
 /** A 3D journey to the point's camera; time (a short jump) runs along with it. */
-async function flyLeg(pane: PaneHandle, d: FlightDeps, to: PathPoint, sig: FlightSignal): Promise<boolean> {
+async function flyLeg(pane: PaneHandle, d: FlightDeps, to: PathPoint, sig: FlightSignal, carry = false): Promise<boolean> {
   // A flight cancelled while waiting (a newer press) must not take the camera.
   if (sig.cancelled) return false;
   const fly = pane.fly();
   if (!fly || !to.fly) return true;
   const p0 = d.clock();
-  const dt = diffSeconds(to.present, p0);
+  const dt = carry ? 0 : diffSeconds(to.present, p0);
   let arrived: boolean | null = null;
   void fly.flyTo(to.fly).then((a) => (arrived = a));
   const t0 = performance.now();
@@ -134,7 +136,7 @@ async function flyLeg(pane: PaneHandle, d: FlightDeps, to: PathPoint, sig: Fligh
     if (dt !== 0) d.setPresent(k >= 1 ? to.present : addSeconds(p0, dt * easeInOut(k)));
     await frame();
   }
-  d.setPresent(to.present);
+  if (!carry) d.setPresent(to.present);
   return arrived;
 }
 
@@ -149,8 +151,11 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
   const from = pane.snapshot();
   const from3D = from.view !== 'calendar';
   const to3D = to.view !== 'calendar' && to.fly !== null;
-  // Time stands still while flying; the point sets how it runs on arrival.
-  d.setPresent(d.clock());
+  // Time stands still while flying; the point sets how it runs on arrival. Except on a path
+  // whose time runs (Starsigns, owner 4 Nov 2026): to a point less than an hour from the clock,
+  // with time running there too, the clock runs on through the flight and is never taken back.
+  const carry = to.playing && d.running() && Math.abs(diffSeconds(to.present, d.clock())) < 3600;
+  if (!carry) d.setPresent(d.clock());
   d.applyLook(to.look);
   pane.setMeasure(to.look.measure);
 
@@ -172,7 +177,7 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
         (await calendarLeg(cal, d, to.present, to.calendar, sig)) &&
         (await into3D(pane, sig)) &&
         (await flyLeg(pane, d, to, sig));
-    } else ok = await flyLeg(pane, d, to, sig);
+    } else ok = await flyLeg(pane, d, to, sig, carry);
   }
   if (!ok || sig.cancelled) return false;
   // Exactly the point, then time runs (or holds) as it did there.
@@ -181,6 +186,6 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
     pane.fly()?.setState(to.fly!);
     cal.setView(to.calendar);
   }
-  d.setClock(to.present, to.speed, to.playing);
+  d.setClock(carry ? d.clock() : to.present, to.speed, to.playing);
   return true;
 }

@@ -99,6 +99,8 @@ export interface StarsignsOptions {
   readonly system: 'whole' | 'equal';
   /** No time was given: noon was used, so the houses are only a guide. */
   readonly noTime?: boolean;
+  /** The place's offset from UTC at that moment, minutes (for the clock caption). */
+  readonly zone?: number;
   /** The look and calendar to start from (what is on screen), changed only where the path needs it. */
   readonly look: PointLook;
   readonly calendar: PathPoint['calendar'];
@@ -175,8 +177,11 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     ...(sound !== 'silence' && ground && !seeThrough ? { sound: 'noise' as const } : {}),
     view: 'fly',
     present: t,
+    // Time runs from the chosen moment, as if you had travelled back to it (owner, 4 Nov 2026):
+    // the clock caption ticks on through the tour (flights carry it on, flights.ts).
     speed: 1,
-    playing: false,
+    playing: true,
+    ...(o.zone !== undefined ? { zone: o.zone } : {}),
     calendar: { ...o.calendar, offset: { day: 0, sec: 0 } },
     fly,
     look: look(withChart, highlight, ground, seeThrough),
@@ -263,7 +268,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
       o.placeLabel,
       true,
       false,
-      6,
+      5,
     ),
   );
 
@@ -274,8 +279,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   // A camera's right is up × back; with up = pole × asc and back = −pole, right = −asc: the Ascendant on the left.
   const wheelUp = unit(cross(poleBody, ascBody));
   const wheel: FlyState = { anchor: 'earth', frame: 'body', rel: scale(up, EARTH_R + STAND_KM), quat: lookQuat(poleBody, wheelUp), fov: 90, up: upWorld };
-  // The whole zodiac, held long enough to read every body on the wheel (no picking out, owner 3 Nov 2026).
-  points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true, 10));
-  points.push(point(wheel, `${whose} · ${o.whenText} · ${o.placeName} · sp4cetime.org`, true, null, o.placeLabel, true, true, 4));
+  // The field drops away from your feet while the sky tilts to the wheel (FlyView), then the
+  // whole zodiac is held 5 seconds (owner, 4 Nov 2026) and the tour ends.
+  points.push(point(wheel, `The whole zodiac over ${o.placeName}: Sun in ${sign('sun')}, Moon in ${sign('moon')}, rising ${signOf(r.chart.asc).name}`, true, null, o.placeLabel, true, true, 5));
   return { id: o.id, name: `Starsigns · ${o.name ? `${o.name}, ` : ''}${o.whenText}`, created: o.created, points, finished: true };
 }

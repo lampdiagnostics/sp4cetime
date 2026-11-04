@@ -4,10 +4,14 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.4.3 — unreleased
 
-- **▶ Go and ◉ Go + Record in the Starsigns dialog**: Go flies the path at once; Go + Record also records it, ends by itself after 5 seconds on the final wheel and saves the MP4 to Downloads. Either way the path is listed in ▷ Present (✶ Create Path is still there).
+- **One ▶ Go** (ADR-0022), in the Starsigns dialog and in ▷ Paths: it flies the path and records it (an MP4 made for X); at the end the **Download package** pops up: ⤓ Download (free: the MP4, a PDF of the last view and the path token in one .zip), ✶ Customize and ☕ Buy me a coffee (both to sp4cetime.store). The dialog's Go + Record, Create Path and Download package buttons are gone.
+- **The PDF is the video's last frame**, the very rectangle, with your signs and houses (by name) on the sides around the wheel, in light text on the night sky (dark on Bright).
+- **▷ Present is now ▷ Paths**, with a drop box for path tokens (.sp4ce.json) and ▶ Go.
+- **◉ Capture is six tiles**: picture, GIF and video, each small (for X) or large (hi-res), easy to tap on a phone.
+- **The tour's clock and place**: bottom right in mono, about 20 pt, off-white: the moment (`1985 Jul 14   23:30:00`) ticking on from the time you gave, through the whole tour; from the landing, the place above it (`Winnipeg   Lat 49-52-59 N   Lon 97-09-58 W`).
+- **The ground drops away from your feet** while the sky tilts to the wheel (six seconds), instead of vanishing; the field and the wheel are each held 5 seconds, then the recording stops.
 - **Presenting from the calendar goes straight to Fly mode**: no long wait while the calendar squeezes time out to months first; the flight to Earth starts at once.
 - **Quieter sound**: Starsigns paths are silent except for a quiet white-noise hum (a quarter of the earlier level) while you stand in the field; this applies to paths saved earlier too.
-- **The place and the moment, bottom right**: while a Starsigns chart is on, "Winnipeg - 49°52′59″ N - 97°09′58″ W - 14 July 1985 - 3:20 pm" in large off-white letters (about 20 pt), in videos and screenshots too; it goes with all text (the space bar's second press).
 - **Fixed: stopping a Starsigns presentation left a black view**: the place's chart and its field (with the glowing grid) now stay where you stopped, and Earth comes back if it was see-through.
 - **The space bar does one thing only**: hide the controls, then all text, then bring everything back. It used to go to whatever had the focus (an open menu, Round, a drop-down, a button), with no way back; now nothing but a text box ever gets a space.
 - **Presentations leave the controls alone**: stepping along a path (or stopping it) no longer brings the controls back; only the space bar (H, the eye) shows or hides them.

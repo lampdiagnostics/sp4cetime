@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { getVideoSize, type Recording, recordGif, recordVideo, screenshot, setVideoSize, type Shot, type VideoSize, videoFormat } from './capture';
 import type { Path } from '../core/path';
 
 const GIF_SECONDS = 5;
-const GIF_WIDTH = 800;
+/** GIF widths (owner, 4 Nov 2026): small for X and phones, large for screens. */
+const GIF_WIDTH = { small: 600, hires: 1000 } as const;
 const GIF_FPS = 20;
 const VIDEO_FPS = 30;
 
@@ -22,6 +23,8 @@ export interface PresentControls {
   readonly examples: readonly Path[];
   readonly presenting: boolean;
   present(id: string): void;
+  /** ▶ Go: fly and record it; the Download package pops up at the end. */
+  go(id: string): void;
   stop(): void;
   exportPath(id: string): void;
   importFile(f: File): void;
@@ -38,7 +41,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
   in3D: boolean;
   /** Paths: Presentation mode lives in the Capture button (presentations are made to be captured). */
   present: PresentControls;
-  /** Open ▷ Present with this path selected (a new ✶ Starsigns path). */
+  /** Open ▷ Paths with this path selected (one just uploaded). */
   focusPath?: { id: string; n: number } | null;
   /** A path recording (the Starsigns package): its length so far and ■ Stop (it also stops at the path's end). */
   pathRecording: { clock: string; stop: () => void } | null;
@@ -52,6 +55,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
   const [size, setSize] = useState<VideoSize>(getVideoSize);
   const [chosen, setChosen] = useState('');
   const [sureDelete, setSureDelete] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const all = [...present.paths, ...present.examples];
   const pathId = all.some((x) => x.id === chosen) ? chosen : (all[0]?.id ?? '');
@@ -85,7 +89,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
     };
   }, [open]);
 
-  // A new path (✶ Create Path): open ▷ Present with it chosen, ready to run.
+  // A path just uploaded: ▷ Paths opens with it chosen, ready to go.
   useEffect(() => {
     if (!focusPath) return;
     setChosen(focusPath.id);
@@ -99,12 +103,12 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
     return () => clearInterval(t);
   }, [busy]);
 
-  const shoot = (): void => {
+  const shoot = (sz: VideoSize = 'hires'): void => {
     setOpen(false);
     const s = stage();
-    if (s) void screenshot(s, { watermark });
+    if (s) void screenshot(s, { watermark, ...(sz === 'small' ? { fit: [1920, 1080] as const } : {}) });
   };
-  const gif = (): void => {
+  const gif = (sz: VideoSize = 'hires'): void => {
     if (busy) return;
     setOpen(false);
     onPlay(true);
@@ -114,7 +118,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
       () =>
         void recordGif(
           stage,
-          { seconds: GIF_SECONDS, fps: GIF_FPS, width: GIF_WIDTH, watermark },
+          { seconds: GIF_SECONDS, fps: GIF_FPS, width: GIF_WIDTH[sz], watermark },
           (p) => setBusy({ kind: 'gif', progress: p }),
           () => {
             rec.current = null;
@@ -134,7 +138,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
       80,
     );
   };
-  const video = (): void => {
+  const video = (sz: VideoSize = size): void => {
     if (busy?.kind === 'video') {
       rec.current?.stop();
       return;
@@ -142,7 +146,9 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
     if (busy || !format) return;
     setOpen(false);
     setBusy({ kind: 'video', since: Date.now() });
-    void recordVideo(stage, { fps: VIDEO_FPS, watermark, size }, () => {
+    setSize(sz);
+    setVideoSize(sz);
+    void recordVideo(stage, { fps: VIDEO_FPS, watermark, size: sz }, () => {
       rec.current = null;
       setBusy(null);
     }).then(
@@ -168,7 +174,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
       const k = e.key.toLowerCase();
       if (k === 'p') keyRef.current.shoot();
       else if (k === 'g') keyRef.current.gif();
-      else if (k === 'v') keyRef.current.video();
+      else if (k === 'v') keyRef.current.video('hires');
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
@@ -190,7 +196,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
           </button>
         </span>
       ) : busy?.kind === 'video' ? (
-        <button type="button" className="recording" onClick={video} title="Stop recording (V)">
+        <button type="button" className="recording" onClick={() => video()} title="Stop recording (V)">
           ● {clock} · stop
         </button>
       ) : busy?.kind === 'gif' ? (
@@ -198,48 +204,57 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
           GIF {Math.round(busy.progress * 100)}%
         </button>
       ) : (
-        <button type="button" aria-expanded={openMenu === 'capture'} aria-controls={panelId} onClick={() => setOpenMenu(openMenu === 'capture' ? null : 'capture')} title="Screenshot (P), GIF (G) or video (V)">
+        <button type="button" aria-expanded={openMenu === 'capture'} aria-controls={panelId} onClick={() => setOpenMenu(openMenu === 'capture' ? null : 'capture')} title="Picture, GIF or video, small (for X) or large (hi-res); keys P, G, V take the large one">
           ◉ Capture
         </button>
       )}
       {openMenu === 'capture' && !busy && (
-        <div className="popover capture-popover" id={panelId} role="dialog" aria-label="Capture">
-          <button type="button" onClick={shoot}>
-            📷 Screenshot <kbd>P</kbd>
-          </button>
-          <button type="button" onClick={gif} title="Time plays for 5 seconds while it records, then pauses">
-            GIF, {GIF_SECONDS} s <kbd>G</kbd>
-          </button>
-          <button type="button" onClick={video} disabled={!format} title="Records until V again, or a click on the running time">
-            ● Video <kbd>V</kbd>
-          </button>
+        <div className="popover capture-popover capture-tiles" id={panelId} role="dialog" aria-label="Capture">
+          {/* Six tiles (owner, 4 Nov 2026): small (for X) and large (hi-res), by picture, GIF and video; big enough to tap on a phone. */}
+          <div className="capture-grid" role="group" aria-label="What to capture">
+            <span className="cg-corner" aria-hidden="true" />
+            <span className="cg-col">.png</span>
+            <span className="cg-col">.gif</span>
+            <span className="cg-col">.mp4</span>
+            {(['small', 'hires'] as const).map((sz) => (
+              <Fragment key={sz}>
+                <span className="cg-row">{sz === 'small' ? 'Small, for X' : 'Large, hi-res'}</span>
+                <button type="button" className="cg-tile" onClick={() => shoot(sz)} title={sz === 'small' ? 'A picture up to 1920 × 1080 (X’s size)' : 'A picture at the screen’s full resolution (P)'}>
+                  <span className="cg-icon" aria-hidden="true">🖼</span>
+                  <span>Picture</span>
+                  <small>{sz === 'small' ? '1080p' : 'full res'}</small>
+                </button>
+                <button type="button" className="cg-tile" onClick={() => gif(sz)} title={`${GIF_SECONDS} seconds, ${GIF_WIDTH[sz]} px wide: time plays while it records, then pauses${sz === 'hires' ? ' (G)' : ''}`}>
+                  <span className="cg-icon" aria-hidden="true">🎞</span>
+                  <span>GIF</span>
+                  <small>{GIF_WIDTH[sz]} px · {GIF_SECONDS} s</small>
+                </button>
+                <button type="button" className="cg-tile" onClick={() => video(sz)} disabled={!format} title={sz === 'small' ? '1080p, 30 frames a second, H.264 with AAC sound: made to X’s rules. Records until you stop it.' : 'Up to 4K at a high bit rate, for big screens (larger than X takes). Records until V again or a click on its running time (V).'}>
+                  <span className="cg-icon" aria-hidden="true">🎬</span>
+                  <span>Video</span>
+                  <small>{sz === 'small' ? '1080p · X' : 'up to 4K'}</small>
+                </button>
+              </Fragment>
+            ))}
+          </div>
           <label>
             <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} /> Watermark “@sp4cetime.org”
           </label>
-          <fieldset className="video-size">
-            <legend>Video size (also the ✶ Starsigns package)</legend>
-            <label title="Up to 4K at a high bit rate: for showing on a computer or a big screen (heavier while recording; larger than X takes)">
-              <input type="radio" name="video-size" checked={size === 'hires'} onChange={() => (setSize('hires'), setVideoSize('hires'))} /> Hi-res, for desktop screens
-            </label>
-            <label title="1080p, a constant 30 frames a second, H.264 with AAC sound, about 90 MB a minute: made to X's rules, so it uploads as it is">
-              <input type="radio" name="video-size" checked={size === 'small'} onChange={() => (setSize('small'), setVideoSize('small'))} /> For X (1080p, ready to post)
-            </label>
-          </fieldset>
           <p className="note">
-            Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (H or the eye hides them); this button never is.
+            Straight to Downloads. What is on screen is recorded, the boxes too if they are showing (the space bar hides them); this button never is. Keys: P, G, V (large).
             {!format && ' This browser cannot record video.'}
           </p>
         </div>
       )}
     </div>
     <div className="picker capture present">
-      <button type="button" aria-expanded={openMenu === 'present'} aria-controls={presentId} onClick={() => setOpenMenu(openMenu === 'present' ? null : 'present')} title="Present a path (Shift plays it by itself)">
-        ▷ Present
+      <button type="button" aria-expanded={openMenu === 'present'} aria-controls={presentId} onClick={() => setOpenMenu(openMenu === 'present' ? null : 'present')} title="Your paths: ▶ Go flies and records one; drop a path token here (Shift plays without recording)">
+        ▷ Paths
       </button>
       {openMenu === 'present' && (
-        <div className="popover capture-popover" id={presentId} role="dialog" aria-label="Present a path">
+        <div className="popover capture-popover" id={presentId} role="dialog" aria-label="Paths">
           <div className="present-section">
-            <span className="heading">Present a path</span>
+            <span className="heading">Paths</span>
             {present.paths.length === 0 && (
               <p className="note">Make your own: go anywhere and press Return to start a path; travel and press Return for each next point.</p>
             )}
@@ -254,8 +269,8 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
                     ■ Stop presenting <kbd>Esc</kbd>
                   </button>
                 ) : (
-                  <button type="button" className="primary" onClick={() => (setOpen(false), present.present(pathId))} title="Fly from point to point: Return or → next, ← back">
-                    ▷ Present
+                  <button type="button" className="go-big" onClick={() => (setOpen(false), present.go(pathId))} title="Fly it and record it (an MP4 made for X); at the end, the Download package: the video, a PDF of the last view, the path token">
+                    <span aria-hidden="true">▶</span> Go
                   </button>
                 )}
                 <div className="capture-row">
@@ -273,10 +288,31 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
                 </div>
               </>
             )}
-            <button type="button" onClick={() => fileRef.current?.click()} title="Open a .sp4ce.json file to present it or keep working on it">
-              ⤒ Upload a path (.json)…
-            </button>
-            <p className="note">Paths are files: download yours to keep them, upload them to present or carry on. This browser keeps a copy too.</p>
+            {/* Drop a path token (owner, 4 Nov 2026): each point in it holds where the viewer is (the body,
+                the frame, the position), which way they look (orientation, field of view, up), the moment
+                and how time runs, and the look: the path flies exactly as it was made. */}
+            <div
+              className={`path-drop${dragOver ? ' over' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), fileRef.current?.click())}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) present.importFile(f);
+              }}
+              title="Drop a .sp4ce.json path token here, or click to choose one"
+            >
+              ⤒ Drop a path token (.json) here, or click to choose
+            </div>
+            <p className="note">Paths are files: download yours to keep them, drop them here to fly them again. This browser keeps a copy too.</p>
             <input
               ref={fileRef}
               type="file"
@@ -289,7 +325,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
               }}
             />
             {present.message && <p className="note">{present.message}</p>}
-            <p className="note">Shift plays the path by itself (Shift again stops); → and ← go point by point.</p>
+            <p className="note">Shift plays the path without recording (Shift again stops); → and ← go point by point.</p>
           </div>
         </div>
       )}

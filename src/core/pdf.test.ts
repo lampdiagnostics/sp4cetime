@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PdfDoc, textWidth, winAnsi, wrapText } from './pdf';
 import { readingAt } from './reading';
-import { starsignsCard, starsignsPdf } from './starsignsPdf';
+import { starsignsCard, starsignsFramePdf, starsignsPdf } from './starsignsPdf';
 import { fromCivil } from './time';
 
 const asText = (b: Uint8Array): string => Array.from(b, (c) => String.fromCharCode(c)).join('');
@@ -98,5 +98,37 @@ describe('The Starsigns card', () => {
     const lines = wrapText('one two three four five six seven eight nine ten', 60, 10);
     expect(lines.length).toBeGreaterThan(1);
     for (const l of lines) expect(textWidth(l, 10)).toBeLessThanOrEqual(60);
+  });
+});
+
+describe('Images and the tour’s frame PDF (0.4.3)', () => {
+  // A tiny stand-in for JPEG bytes (the writer copies them as they are).
+  const jpeg = { data: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x80, 0x0a, 0xff, 0xd9]), width: 1920, height: 1080 };
+  it('embeds a JPEG byte for byte, with its length, and draws it', () => {
+    const d = new PdfDoc({ title: 'img' });
+    const p = d.addPage(792, 445.5);
+    p.image(jpeg, 0, 0, 792, 445.5);
+    const s = asText(d.bytes());
+    checkXref(s);
+    expect(s).toContain('/Subtype /Image /Width 1920 /Height 1080');
+    expect(s).toContain('/Filter /DCTDecode /Length 10 >>');
+    expect(s).toContain(`stream\n${asText(jpeg.data)}\nendstream`);
+    expect(s).toContain('/XObject << /Im1 ');
+    expect(s).toContain('q 792 0 0 445.5 0 0 cm /Im1 Do Q');
+  });
+  it('makes one page the shape of the frame, the text around the wheel by house names', () => {
+    const r = readingAt(fromCivil(1985, 7, 15, 4 * 3600 + 30 * 60), 49.883, -97.166, 'whole');
+    const s = asText(starsignsFramePdf(r, { frame: jpeg, dark: true, whenText: '14 July 1985, 11:30 pm (UTC−5)', placeLabel: 'Winnipeg, Manitoba, Canada', coordsText: '49°52′59″ N · 97°09′58″ W', systemName: 'Whole Sign' }));
+    checkXref(s);
+    expect(s).toContain('/MediaBox [0 0 792 445.5]');
+    expect(s).toContain('(The houses)');
+    expect(s).toContain('Partnership');
+    expect(s).toMatch(/\(house \d+ \xb7 [A-Z]/);
+    // Light text on the dark frame.
+    expect(s).toMatch(/0\.95 0\.94 0\.9 rg/);
+    const light = asText(starsignsFramePdf(r, { frame: jpeg, dark: false, whenText: 'x', placeLabel: 'y', coordsText: 'z', systemName: 'Whole Sign' }));
+    expect(light).toMatch(/0\.08 0\.09 0\.12 rg/);
+    // Without a chart: the frame alone.
+    expect(asText(starsignsFramePdf(null, { frame: jpeg, dark: true, whenText: '', placeLabel: '', coordsText: '', systemName: '' }))).not.toContain('The houses');
   });
 });
