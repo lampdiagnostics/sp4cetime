@@ -4,6 +4,7 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.4.3 — unreleased
 
+- **Barycentre (a trial, off by default; Elements → Barycentre)**: the 230 km/s straight line belongs to the solar system's centre of mass, and the Sun wobbles around it, pulled mostly by Jupiter and Saturn (up to about 2.2 solar radii, on roughly 12- and 20-year beats). With it on, the barycentre is marked and its straight line drawn thin and dashed beside the Sun, and the Sun's line and every path wobble around it, in the calendar and in Fly. Seen from Earth (Centre: Earth) the wobble cancels out, as it truly does. Modelled from the four giant planets' mean orbits (within 1% of a solar radius of astronomy-engine's barycentre, 1800–2050); points remember it.
 - **✶ Starsigns, a brisker and calmer video** (owner, 4 November 2026):
   - **The Sun gets one brisk stop of 2 seconds**, then the view moves on (it lingered there about ten).
   - **The field is an outline**: the ground and the trees are one flat colour, **solid black at night and solid dark green by day** (following the Sun at the place, blended through twilight), instead of shaded grass and trees.

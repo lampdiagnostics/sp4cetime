@@ -34,6 +34,8 @@ export interface Settings {
   readonly strobe: boolean;
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
+  /** The barycentre: the Sun's wobble around the solar system's centre of mass (0.5.0 trial). */
+  readonly barycentre: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   strobe: false,
   strobeSteps: 5.2,
   focus: 'sun',
+  barycentre: false,
 };
 
 const KEY = 'sp4cetime.settings.v1';
@@ -108,6 +111,7 @@ export function loadSettings(): Settings {
           ? data.strobeSteps
           : DEFAULT_SETTINGS.strobeSteps,
       focus: 'sun',
+      barycentre: typeof data.barycentre === 'boolean' ? data.barycentre : DEFAULT_SETTINGS.barycentre,
     };
   } catch {
     return DEFAULT_SETTINGS;

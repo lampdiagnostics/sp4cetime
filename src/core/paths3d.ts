@@ -79,6 +79,8 @@ export function helix(
   span = pathSpan(id),
   /** Spacing of the samples: 2 crowds them toward now (for a short path), 1 spaces them evenly (for many turns). */
   power = 2,
+  /** The Sun's offset from its straight line s seconds from now (the barycentre's wobble), or none. */
+  wobble?: (s: number) => Vec3,
 ): Float64Array {
   const m0 = model(id, now);
   const c: Vec3 = [exactNow[0] - m0[0], exactNow[1] - m0[1], exactNow[2] - m0[2]];
@@ -88,6 +90,10 @@ export function helix(
     const j = (i + K) * 3;
     let o: Vec3 = [p[0] + c[0], p[1] + c[1], p[2] + c[2]];
     if (shape) o = shape(o);
+    if (wobble && s !== 0) {
+      const w = wobble(s);
+      o = [o[0] + w[0], o[1] + w[1], o[2] + w[2]];
+    }
     out[j] = o[0] + V * s * TRAVEL[0];
     out[j + 1] = o[1] + V * s * TRAVEL[1];
     out[j + 2] = o[2] + V * s * TRAVEL[2];
@@ -107,6 +113,8 @@ export function helixAt(
   n: number,
   out: Float64Array,
   shape?: (o: Vec3) => Vec3,
+  /** The Sun's offset from its straight line s seconds from now (the barycentre's wobble), or none. */
+  wobble?: (s: number) => Vec3,
 ): Float64Array {
   const m0 = model(id, now);
   const c: Vec3 = [exactNow[0] - m0[0], exactNow[1] - m0[1], exactNow[2] - m0[2]];
@@ -115,6 +123,10 @@ export function helixAt(
     const p = s === 0 ? m0 : model(id, addSeconds(now, s));
     let o: Vec3 = [p[0] + c[0], p[1] + c[1], p[2] + c[2]];
     if (shape) o = shape(o);
+    if (wobble && s !== 0) {
+      const w = wobble(s);
+      o = [o[0] + w[0], o[1] + w[1], o[2] + w[2]];
+    }
     out[i * 3] = o[0] + V * s * TRAVEL[0];
     out[i * 3 + 1] = o[1] + V * s * TRAVEL[1];
     out[i * 3 + 2] = o[2] + V * s * TRAVEL[2];

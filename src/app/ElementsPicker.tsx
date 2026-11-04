@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { STROBE_MAX, STROBE_MIN, type Settings } from './settings';
 
-type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines';
+type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines' | 'barycentre';
 
 /** What can be drawn, in every view. */
 const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
@@ -14,6 +14,7 @@ const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
   ['zodiac', 'Zodiac'],
   ['galactic', 'Galaxy marks'],
   ['coastlines', 'Coastlines and borders (3D)'],
+  ['barycentre', 'Barycentre (the Sun’s wobble)'],
 ];
 
 interface Props {

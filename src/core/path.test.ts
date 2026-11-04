@@ -35,7 +35,7 @@ const point = (over: Partial<PathPoint> = {}): PathPoint => ({
   look: {
     themeId: 'dark', round: true, chrome: 0, planets: ['earth', 'mars'], moon: true, rings: true, labels: true, spirals: true,
     timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null, seeThrough: false, strobe: false, strobeSteps: 5.2,
-    focus: 'sun', measure: 'near',
+    focus: 'sun', measure: 'near', barycentre: false,
   },
   caption: 'Here we are',
   where: 'Calendar',
@@ -102,6 +102,15 @@ describe('.sp4ce.json', () => {
     far.points[0].t = [1e15, 0];
     expect(() => parseSp4ceFile(far)).toThrow(/day/);
     expect(parsePath({ ...path([point()]), id: 'example:x' }).id).not.toMatch(/^example:/);
+  });
+
+  it('remembers the barycentre at a point, and reads older files without it as off', () => {
+    const p = point();
+    const on = { ...p, look: { ...p.look, barycentre: true } };
+    expect(parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path([on]))))).points[0]!.look.barycentre).toBe(true);
+    const old = JSON.parse(JSON.stringify(path([p]))) as { points: Array<{ look: Record<string, unknown> }> };
+    delete old.points[0]!.look.barycentre;
+    expect(parsePath(old).points[0]!.look.barycentre).toBe(false);
   });
 
   it('keeps deep times exact', () => {
