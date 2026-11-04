@@ -1,6 +1,6 @@
 # Roadmap and to-do lists
 
-What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 3 November 2026. Nothing is pushed or deployed until 0.5.0 is released (owner, 3 November 2026); 0.4.0 and 0.4.1 are committed and tagged on the Mac.
+What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 3 November 2026. Push in batches after substantial progress; 0.4.2 is pushed at once (owner, 4 November 2026).
 
 ## The four modes: what the 4 in sp4cetime means
 
@@ -41,7 +41,7 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
 - [ ] Hospitals first in the place search (a Wikidata CC0 list the owner downloads; the cloud cannot reach it).
 - [ ] Live link / screen saver (`?live`), GIF and SVG posters for the package, sharing links.
 - [ ] Phones: gyroscope looking, tap to travel. A check on a real phone and tablet of everything changed in 0.4.0 (compact layout, Round on phones, Starsigns, package download on iOS).
-- [ ] **The spheres and the galaxies** (owner, 3 November 2026; design in [SPHERES.md](SPHERES.md), rewritten in 0.4.1):
+- [ ] **The spheres and the galaxies** (owner, 3 November 2026; design in [SPHERES.md](SPHERES.md), rewritten for 0.4.2):
   - [ ] Owner answers the open questions at the end of SPHERES.md (frame, sphere size, the universe's working centre, time, inner skins, skin files, the viewer's figure and key, 500 galaxies or a round distance, stars later); record them in DECISIONS §4 and an ADR.
   - [ ] The model in code: `Sphere`, `Skin` (with the tracks of the children it carries), `Viewer` in `src/core/spheres.ts`; addresses on every sphere; skin files; property tests (SPHERES.md §11).
   - [ ] Visibility: walk the tree, skip spheres out of view or smaller than a pixel; home-sphere handover with a margin (SPHERES.md §8).
@@ -122,7 +122,7 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 
 ### On the list: the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (now part of 0.5.0, above).
-- [x] SPHERES.md rewritten (0.4.1): the tree from the universe to atoms, children carried by their parent's skins, the viewer and visibility, precedents, the galaxy plan.
+- [x] SPHERES.md rewritten (0.4.2): the tree from the universe to atoms, children carried by their parent's skins, the viewer and visibility, precedents, the galaxy plan.
 - [ ] An ADR; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.
 - [ ] 2D painting on skins: an image or GeoJSON layer on any sphere, from a file (local first, like paths).
 - [x] Zodiac signs from the equinox of the viewed date (0.4.0).

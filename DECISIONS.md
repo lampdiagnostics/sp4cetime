@@ -2,7 +2,7 @@
 
 The specifics: what was decided, why, and where it lives in the code. Each architectural decision has a full record in [docs/adr/](docs/adr/); this file is the index plus everything that is not architecture (product, interaction, the owner's stated preferences). History of how it got here is in [CHANGELOG.md](CHANGELOG.md) and `git log`. The original Grok-era decision log is kept in `docs/archive/grok/` for reference only; where it disagrees with this file, this file wins.
 
-Status: 0.4.0, 2 November 2026: the public beta is live on sp4cetime.org and open source on GitHub; ✶ Starsigns is free there (ADR-0018); sp4cetime.store is built on Stripe and works in its sandbox, live payments waiting on the owner's bank and Stripe activation (ADR-0019; README.md "Opening sp4cetime.store: the money trail"). Next: 0.5.0, "Stand here". Versions carry a leading zero until the public launch, which will be 1.0.
+Status: 0.4.2, 4 November 2026 (0.4.0 on 2 November): the public beta is live on sp4cetime.org and open source on GitHub; ✶ Starsigns is free there (ADR-0018); sp4cetime.store is built on Stripe and works in its sandbox, live payments waiting on the owner's bank and Stripe activation (ADR-0019; README.md "Opening sp4cetime.store: the money trail"). Next: 0.5.0, "Stand here". Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 1. Product
 
@@ -132,7 +132,7 @@ These came directly from the owner's feedback and should be kept unless they say
 - **The viewer** is the point everything is seen from (phone, computer or VR): a position, a look direction and motion; only visible spheres and parts of spheres are loaded, so travel is seamless and never jittery. The viewer can wear skins (a flying humanoid figure or a spaceship) with a toggle between first person and a view from behind, as in Minecraft.
 - **0.5.0 galaxies**: about 500 of the nearest, flat pictures for now, joined by a **web ruled in light years**, so a flight from one galaxy to another shows the light years travelled along the way.
 - **The expanding universe in 0.5.0** (owner, 4 November 2026; after a clip by Astronomy Today, @astronomytodayy, the source): a skin of the universe sphere stretches the distances between galaxy groups with the scale factor a(t) (bound groups are not stretched), with redshift colours; drawn from our own maths and the real galaxies, the clip credited as an inspiration in the app and README (no licence stated, so none of it is shipped).
-- **Releases**: nothing is pushed to GitHub or deployed to Cloudflare until 0.5.0 (owner, 3 November 2026); 0.4.0 and 0.4.1 are committed and tagged locally.
+- **Releases**: commit locally as changes are made and push in batches after substantial progress (every push to `main` deploys sp4cetime.org). 0.4.2 (owner, 4 November 2026) is pushed at once: the X compliance fixes, the vivid Colour Mode and the 0.5.0 plan. (The 3 November rule "nothing pushed until 0.5.0" is withdrawn.)
 
 ## 5. Process
 
