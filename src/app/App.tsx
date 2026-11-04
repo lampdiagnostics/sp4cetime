@@ -346,17 +346,10 @@ export function App() {
   const goToPoint = useCallback((path: Path, index: number): void => {
     const pt = path.points[index];
     if (!pt) return;
-    // What is heard there (0.4.2): a field's night fades in as you come down to it; leaving
-    // it (the ground falling away, or space), silence within a quarter of a second.
+    // What is heard there (0.4.2): the white-noise bed fades in over a second, or out to silence.
     unlockSound();
     const sound = pt.sound ?? 'silence';
-    if (sound !== soundNow()) {
-      const was = showRef.current;
-      const prev = was && was.path.id === path.id ? path.points[was.index] : undefined;
-      // Coming down from space (an eight-second fall): the night grows audible over its second half.
-      const fromAfar = !prev?.look.chart?.ground;
-      setSound(sound, sound === 'field' ? { delay: fromAfar ? 3.5 : 0.2, fade: fromAfar ? 4.5 : 1.2 } : { fade: 0.25 });
-    }
+    if (sound !== soundNow()) setSound(sound, { fade: sound === 'noise' ? 1 : 0.4 });
     signal.current.cancelled = true;
     const sig: FlightSignal = { cancelled: false };
     signal.current = sig;

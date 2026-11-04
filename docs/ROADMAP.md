@@ -122,6 +122,7 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 
 ### On the list: the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (now part of 0.5.0, above).
+- [x] 0.4.3 (local, not pushed yet): the Sun's stop brisk (2 s), the field as a silhouette (black at night, dark green by day), a white-noise bed throughout, a calm final wheel.
 - [x] 0.4.2: videos made for X (WebCodecs + our MP4 writer: H.264 High, constant 30 fps, AAC sound always, 1080p; ADR-0020), recordings that pop, GIFs that keep thin lines and true timing, sound (silence in space; crickets and distant traffic on the ground), the Starsigns landing in a field that drops away, each body looked at once.
 - [x] SPHERES.md rewritten (0.4.2): the tree from the universe to atoms, children carried by their parent's skins, the viewer and visibility, precedents, the galaxy plan.
 - [ ] An ADR; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.

@@ -57,7 +57,7 @@ export interface ChartLook {
   /** The place's name, for labels ("Winnipeg"). */
   readonly place: string;
   /**
-   * Standing on the ground there (0.4.2): a grassy field ringed by trees, drawn under the
+   * Standing on the ground there (0.4.2): a field ringed by trees, a flat silhouette, drawn under the
    * viewer near the place (an illustration, not a map), fading out with height; with Earth
    * see-through it drops away from under the viewer's feet.
    */
@@ -110,11 +110,18 @@ export interface PathPoint {
   readonly facing: string;
   /** Seconds to stay here when the path plays by itself (Shift, ▶ Go); a default if not given. 0.4.0. */
   readonly pause?: number;
-  /** What is heard at the point (0.4.2): silence (space), or a summer field at night (crickets, distant traffic). */
+  /** What is heard at the point (0.4.2): silence, or a soft white-noise bed. */
   readonly sound?: PointSound;
 }
 
-export type PointSound = 'silence' | 'field';
+export type PointSound = 'silence' | 'noise';
+
+/** A point's sound from a file: 'field' (the first 0.4.2 build, crickets) is read as the noise bed that replaced it. */
+function parseSound(x: unknown, where: string): PointSound | undefined {
+  if (x === undefined || x === 'silence') return undefined;
+  if (x === 'noise' || x === 'field') return 'noise';
+  fail(where, 'sound must be "silence" or "noise"');
+}
 
 export interface Path {
   readonly id: string;
@@ -314,7 +321,7 @@ export function parsePoint(x: unknown, where = 'point'): PathPoint {
     where: typeof x.where === 'string' ? str(x, 'where', where, 400) : '',
     facing: typeof x.facing === 'string' ? str(x, 'facing', where, 400) : '',
     ...(typeof x.pause === 'number' && Number.isFinite(x.pause) && x.pause >= 0 && x.pause <= 120 ? { pause: x.pause } : {}),
-    ...(x.sound !== undefined && x.sound !== 'silence' && { sound: oneOf(x, 'sound', where, ['silence', 'field'] as const) }),
+    ...(parseSound(x.sound, where) && { sound: parseSound(x.sound, where)! }),
   };
 }
 

@@ -32,6 +32,8 @@ export interface WheelInput {
   /** Line colours: the zodiac's, and the houses' (an accent). */
   readonly zodiac: string;
   readonly accent: string;
+  /** The sky's background colour, for the dark disc behind the wheel. */
+  readonly backdrop?: string;
 }
 
 const R_OUT = 1, R_SIGN = 0.84, R_HOUSE = 0.42;
@@ -47,9 +49,16 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
   group.visible = false;
   group.renderOrder = 5;
   scene.add(group);
-  const zodiacMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.75, depthTest: false, depthWrite: false });
+  const zodiacMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 1, depthTest: false, depthWrite: false });
   const houseMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.9, depthTest: false, depthWrite: false });
   const bodyMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false });
+  // A dark disc behind the wheel (0.4.2, owner: the final circle and planets must stand out
+  // from the crowded sky): the stars show faintly through it, the wheel's lines and bodies on top.
+  const backMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.72, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const back = new THREE.Mesh(new THREE.CircleGeometry(1.2, 128), backMat);
+  back.renderOrder = 4;
+  back.frustumCulled = false;
+  group.add(back);
   let lines: THREE.LineSegments[] = [];
   let key = '';
 
@@ -117,6 +126,8 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
         build(w);
       }
       zodiacMat.color.set(w.zodiac);
+      // The backdrop is the sky's own colour (paper in Bright), so it calms the sky in every look.
+      backMat.color.set(w.backdrop ?? '#000000');
       houseMat.color.set(w.accent);
       group.visible = true;
       group.position.set(w.centre[0], w.centre[1], w.centre[2]);
@@ -127,7 +138,7 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
       // Each body as a disc on the ring at its true longitude, big enough to see (the real ones
       // are too small, or at the edge of the view): the Sun largest, then the Moon.
       for (const b of w.bodies) {
-        const size = b.id === 'sun' ? 18 : b.id === 'moon' ? 14 : 10;
+        const size = b.id === 'sun' ? 24 : b.id === 'moon' ? 19 : 15;
         items.push({ p: at(b.lon - w.shift, R_SIGN - 0.05), text: '', kind: 'dot', hl: b.id === w.highlight, size, ...(b.colour ? { colour: b.colour } : {}) });
       }
       for (let s = 0; s < 12; s++) items.push({ p: at(s * 30 + 15 - w.shift, (R_OUT + R_SIGN) / 2), text: `${SIGNS[s]![0]} ${SIGNS[s]![1]}`, kind: 'sign' });
@@ -181,6 +192,8 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
       zodiacMat.dispose();
       houseMat.dispose();
       bodyMat.dispose();
+      backMat.dispose();
+      back.geometry.dispose();
       scene.remove(group);
       for (const el of labels) el.remove();
     },

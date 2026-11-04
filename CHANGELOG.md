@@ -2,6 +2,14 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.3 — unreleased
+
+- **✶ Starsigns, a brisker and calmer video** (owner, 4 November 2026):
+  - **The Sun gets one brisk stop of 2 seconds**, then the view moves on (it lingered there about ten).
+  - **The field is an outline**: the ground and the trees are one flat colour, **solid black at night and solid dark green by day** (following the Sun at the place, blended through twilight), instead of shaded grass and trees.
+  - **A soft white-noise bed throughout** the path instead of crickets and distant traffic (and instead of silence in space).
+  - **The final view is less busy**: the wheel and its planets sit on a dark disc, the planets larger with a dark ring and their own glow, the wheel's lines at full strength; the sky behind is dimmed to a quarter, without its names, and the paths and grids step aside.
+
 ## 0.4.2 — 2026-11-04
 
 - **Videos made for X** (ADR-0020). X turned down a one-minute Starsigns video recorded at "Small, for X": the browser's recorder makes files with a changing frame rate and, for graphics, no sound track, and X refuses both. Videos are now encoded by the browser's own encoders (WebCodecs) and packed by our own MP4 writer (`src/core/mp4.ts`, no dependency): **H.264 High profile, 4:2:0, a constant 30 frames a second** (a slow screen frame is shown twice, never skipped, so time in the video stays true), a keyframe every 2 seconds, **AAC-LC stereo sound at 48 kHz, always there** (what you hear, or silence; silent frames written by us where the browser has no AAC encoder), the index at the front ("fast start"). **Video size › For X** (was "Small, for X", 720p at 2 Mbit/s) is now **1080p** within the screen's shape at about 12 Mbit/s; Hi-res stays up to 4K for big screens. Checked with ffprobe: `h264 High yuv420p 1920x1080 30/1 progressive`, `aac LC 48000 stereo`, decoding without an error. Browsers without WebCodecs fall back to the old recorder, now with the sound track too. README "Posting on X" has the checklist and an FFmpeg line for any file X still refuses.

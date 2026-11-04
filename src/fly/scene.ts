@@ -52,7 +52,7 @@ export interface FlyScene {
   /** Earth's line skin (coastlines, lakes, borders): loaded the first time it is shown. */
   setEarthLines(on: boolean): void;
   /**
-   * A grassy field ringed by trees at a place on Earth (a Starsigns place, 0.4.2), or none.
+   * A field ringed by trees (a flat silhouette: black at night, dark green by day) at a place on Earth (a Starsigns place, 0.4.2), or none.
    * `dropped`: Earth is see-through and the field falls away from under the viewer (once,
    * over a few seconds), then is gone.
    */
@@ -339,6 +339,14 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
         m.setPosition(px, py, pz);
         field.f.group.matrixWorldNeedsUpdate = true;
         field.f.setOpacity(fieldK);
+        // Day or night at the place: dark green with the Sun up, black once it is below (through civil twilight).
+        const sun = bodies.find((b) => b.info.id === 'sun');
+        if (sun) {
+          const sx = sun.pos[0] - (earth.pos[0] + up.x * R), sy = sun.pos[1] - (earth.pos[1] + up.y * R), sz = sun.pos[2] - (earth.pos[2] + up.z * R);
+          const alt = (Math.asin((sx * up.x + sy * up.y + sz * up.z) / Math.hypot(sx, sy, sz)) * 180) / Math.PI;
+          const k = Math.max(0, Math.min(1, (alt + 6) / 10));
+          field.f.setDay(k * k * (3 - 2 * k));
+        }
       }
       // On the ground, the lines drawn kilometres up around the globe would cross the sky.
       if (earthGrid) earthGrid.visible = fieldK < 0.05;

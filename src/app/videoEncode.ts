@@ -6,7 +6,7 @@
  * - constant 30 frames a second: frame n is stamped n/30 s, whatever the screen did (a
  *   slow frame is shown twice, never skipped), a keyframe every 2 s (closed groups);
  * - AAC-LC stereo sound at 48 kHz, 160 kbit/s, always present: what is heard (the field's
- *   crickets) or silence, and silent frames written by us where the browser has no AAC
+ *   the white-noise bed) or silence, and silent frames written by us where the browser has no AAC
  *   encoder (Firefox, say);
  * - the index at the front of the file ("fast start").
  *

@@ -1,5 +1,6 @@
 /**
- * The ground in a Starsigns place (0.4.2): a grassy field ringed by trees, standing in for
+ * The ground in a Starsigns place (0.4.2): a field ringed by trees, as a flat silhouette
+ * (solid black at night, solid dark green by day; no shading, no texture), standing in for
  * the place's own ground where the viewer lands. It is an illustration (the owner's
  * request), not a map: real surface detail for Earth comes with the spheres' skins
  * (docs/SPHERES.md). Units are km, in the place's own frame: x east, y north, z up, the
@@ -46,37 +47,16 @@ export function treeSpots(seed: number, count = 220): TreeSpot[] {
   return out;
 }
 
-/** A tile of grass: green with darker and lighter blades (no detail is claimed for any real place). */
-function grassTexture(): THREE.CanvasTexture {
-  const S = 256;
-  const c = document.createElement('canvas');
-  c.width = S;
-  c.height = S;
-  const ctx = c.getContext('2d') as CanvasRenderingContext2D;
-  ctx.fillStyle = '#3f6b2a';
-  ctx.fillRect(0, 0, S, S);
-  const rnd = seeded(7);
-  for (let i = 0; i < 2600; i++) {
-    const g = 70 + Math.floor(rnd() * 70);
-    ctx.strokeStyle = `rgba(${Math.floor(g * 0.55)}, ${g + 20}, ${Math.floor(g * 0.35)}, ${0.35 + rnd() * 0.4})`;
-    ctx.lineWidth = 1;
-    const x = rnd() * S, y = rnd() * S;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (rnd() - 0.5) * 4, y - 3 - rnd() * 6);
-    ctx.stroke();
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
-}
+/** The silhouette's colour at night and by day (owner, 4 Nov 2026: an outline, not a picture). */
+const NIGHT = new THREE.Color(0x000000);
+const DAY = new THREE.Color(0x0f2e17);
 
 export interface Field {
   readonly group: THREE.Group;
   /** How much of it shows (0 hidden … 1 fully). */
   setOpacity(k: number): void;
+  /** Its one colour, from night (0: black) to day (1: dark green). */
+  setDay(d: number): void;
   dispose(): void;
 }
 
@@ -86,30 +66,22 @@ export function createField(seed: number): Field {
   group.matrixAutoUpdate = false;
   const mats: THREE.Material[] = [];
   const geos: THREE.BufferGeometry[] = [];
-  const keep = <M extends THREE.Material>(m: M): M => (mats.push(m), m);
 
-  // The grass: a disc 20 km across, so it reaches the horizon (the globe's own sphere is
-  // faceted and lies below it), lighter blades near, one even green far off.
-  const tex = grassTexture();
-  tex.repeat.set(4000, 4000);
+  // The ground: a disc 40 km across, so it reaches the horizon (the globe's own sphere is
+  // faceted and lies below it). Everything is one flat colour, unlit: a silhouette.
   const ground = new THREE.CircleGeometry(20, 96);
-  // UVs over the disc: 4000 tiles across 40 km, so a tile is 10 m.
-  const pos = ground.attributes.position as THREE.BufferAttribute;
-  const uv = ground.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 40 + 0.5, pos.getY(i) / 40 + 0.5);
   geos.push(ground);
-  const grassMat = keep(new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff }));
-  group.add(new THREE.Mesh(ground, grassMat));
+  const ink = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  mats.push(ink);
+  group.add(new THREE.Mesh(ground, ink));
 
   // The trees: trunks, spruce cones and round crowns, as instances (three draws in all).
   const spots = treeSpots(seed);
   const trunkGeo = new THREE.CylinderGeometry(0.06, 0.09, 1, 6).rotateX(Math.PI / 2).translate(0, 0, 0.5);
   const coneGeo = new THREE.ConeGeometry(0.3, 1, 8).rotateX(Math.PI / 2).translate(0, 0, 0.5);
-  const crownGeo = new THREE.IcosahedronGeometry(0.5, 1);
+  const crownGeo = new THREE.IcosahedronGeometry(0.5, 3);
   geos.push(trunkGeo, coneGeo, crownGeo);
-  const trunkMat = keep(new THREE.MeshLambertMaterial({ color: 0x4a3626 }));
-  const coneMat = keep(new THREE.MeshLambertMaterial({ color: 0x1f3d24 }));
-  const crownMat = keep(new THREE.MeshLambertMaterial({ color: 0x35582a, flatShading: true }));
+  const trunkMat = ink, coneMat = ink, crownMat = ink;
   const spruce = spots.filter((s) => s.kind === 'spruce');
   const leafy = spots.filter((s) => s.kind === 'broadleaf');
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, spots.length);
@@ -157,10 +129,12 @@ export function createField(seed: number): Field {
         }
       }
     },
+    setDay(d) {
+      ink.color.copy(NIGHT).lerp(DAY, Math.max(0, Math.min(1, d)));
+    },
     dispose() {
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
-      tex.dispose();
     },
   };
 }

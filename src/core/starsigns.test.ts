@@ -70,9 +70,11 @@ describe('The Starsigns path', () => {
     expect(pts.every((p) => p.look.highlight === null)).toBe(true);
     // Every body is named once over the world, with its sign, in a view held longer for more bodies.
     for (const b of r.bodies) expect(pts.filter((p) => !p.look.chart && p.caption.includes(b.name)).length).toBeGreaterThanOrEqual(1);
+    // Mars is beside the Sun in July 1985, so it shares the Sun's brisk stop; Mercury has its own.
     const mars = pts.find((p) => p.caption.includes('Mars 23° Cancer'))!;
     expect(mars.look.chart).toBeNull();
-    expect(mars.pause).toBeGreaterThanOrEqual(3.8);
+    expect(mars.pause).toBe(2);
+    expect(pts.find((p) => p.caption.includes('Mercury 18° Leo'))!.pause).toBeGreaterThanOrEqual(3.8);
     for (const p of pts) expect(p.pause).toBeGreaterThan(0);
   });
 
@@ -117,22 +119,21 @@ describe('The Starsigns path', () => {
     for (const p of pts) expect(p.caption.length).toBeLessThan(110);
   });
 
-  it('looks at every body once: the tour starts where the first pose faces the Sun and goes once round', () => {
+  it('looks at every body once: one brisk stop where the first pose faces the Sun, then once round', () => {
     const overWorld = pts.filter((p) => !p.look.chart);
     for (const b of r.bodies) expect(overWorld.filter((p) => p.caption.includes(`${b.name} `)).length).toBe(1);
-    // The Sun's group is seen from the first pose's own camera (no turning away and back to it).
-    const sunStop = overWorld.find((p) => p.caption.includes('Sun '))!;
-    expect(sunStop.fly).toEqual(pts[0]!.fly);
-    expect(overWorld.indexOf(sunStop)).toBe(1);
+    // The Sun's group is the first stop itself: 2 seconds, from the first pose's camera.
+    expect(pts[0]!.caption).toContain('Sun ');
+    expect(pts[0]!.pause).toBe(2);
+    expect(overWorld.filter((p) => JSON.stringify(p.fly) === JSON.stringify(pts[0]!.fly))).toHaveLength(1);
     // Then on round the zodiac, every view a different direction.
-    const quats = overWorld.slice(1).map((p) => JSON.stringify(p.fly!.quat));
+    const quats = overWorld.map((p) => JSON.stringify(p.fly!.quat));
     expect(new Set(quats).size).toBe(quats.length);
   });
 
-  it('is silent in space and when the ground falls away; crickets and traffic only standing in the field', () => {
+  it('has a soft white-noise bed throughout, and the field under the place from the landing on', () => {
     const ground = pts.findIndex((p) => p.caption.startsWith('The sky over Winnipeg'));
-    expect(pts.map((p) => p.sound ?? 'silence')).toEqual(pts.map((_, i) => (i === ground ? 'field' : 'silence')));
-    // The field is under the place from the landing on, and falls away with the see-through planet.
+    expect(pts.every((p) => p.sound === 'noise')).toBe(true);
     expect(pts[ground]!.look.chart?.ground).toBe(true);
     expect(pts[pts.length - 1]!.look.chart?.ground).toBe(true);
     expect(pts.slice(0, ground).every((p) => !p.look.chart?.ground)).toBe(true);

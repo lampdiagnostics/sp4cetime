@@ -1051,9 +1051,12 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       lensNow = reduced() ? lensTarget : lensNow + Math.sign(lensTarget - lensNow) * Math.min(Math.abs(lensTarget - lensNow), dt / 1.2);
       const lensEased = lensNow * lensNow * (3 - 2 * lensNow);
       sky?.setLens(lensEased);
+      // The final view is about the wheel (owner, 4 Nov 2026: less busy): the sky steps back to a
+      // quarter of its brightness, without its names, and the paths and grids step aside.
+      if (lensEased > 0) sky?.setFade(Math.min(1 - far, 1 - 0.75 * lensEased));
       const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
         ...paths.update(
-          far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
+          far > 0.5 || lensEased > 0.3 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
           now,
           bodies,
           pos,
@@ -1255,6 +1258,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
               highlight: L.overlays.highlight ?? null,
               zodiac: L.theme.sky.zodiac,
               accent: L.theme.sky.labelZodiac,
+              backdrop: L.theme.sky.background,
             }
           : null,
         cam,

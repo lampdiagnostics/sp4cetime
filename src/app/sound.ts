@@ -1,5 +1,5 @@
 /**
- * What is heard (0.4.2): silence, or the field at night (src/core/ambience.ts). One
+ * What is heard (0.4.2): silence, or a soft white-noise bed (src/core/ambience.ts). One
  * AudioContext for the page, made on the first click or key (browsers allow sound only
  * after one). Everything heard also goes to recordings: as a track for MediaRecorder, and
  * as raw samples for the X-ready encoder (videoEncode.ts), which always writes a sound
@@ -10,8 +10,8 @@ import type { PointSound } from '../core/path';
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
 let master: GainNode | null = null;
-let field: GainNode | null = null;
-let fieldStarted = false;
+let bed: GainNode | null = null;
+let bedStarted = false;
 let tapDest: MediaStreamAudioDestinationNode | null = null;
 let current: PointSound = 'silence';
 
@@ -27,9 +27,9 @@ function make(): Ctx | null {
   master = ctx.createGain();
   master.gain.value = 1;
   master.connect(ctx.destination);
-  field = ctx.createGain();
-  field.gain.value = 0;
-  field.connect(master);
+  bed = ctx.createGain();
+  bed.gain.value = 0;
+  bed.connect(master);
   return ctx;
 }
 
@@ -39,42 +39,41 @@ export function unlockSound(): void {
   if (c && c.state === 'suspended') void c.resume().catch(() => {});
 }
 
-function startField(c: Ctx): void {
-  if (fieldStarted || !field) return;
-  fieldStarted = true;
+function startBed(c: Ctx): void {
+  if (bedStarted || !bed) return;
+  bedStarted = true;
   // The sound is made the first time it is wanted (in its own small file, a fraction of a second's work).
-  void import('../core/ambience').then(({ fieldSound }) => playLoop(c, fieldSound(c.sampleRate)));
+  void import('../core/ambience').then(({ noiseLoop }) => playLoop(c, noiseLoop(c.sampleRate)));
 }
 
 function playLoop(c: Ctx, loop: { left: Float32Array; right: Float32Array }): void {
-  if (!field) return;
+  if (!bed) return;
   const buf = c.createBuffer(2, loop.left.length, c.sampleRate);
   buf.copyToChannel(loop.left as Float32Array<ArrayBuffer>, 0);
   buf.copyToChannel(loop.right as Float32Array<ArrayBuffer>, 1);
   const src = c.createBufferSource();
   src.buffer = buf;
   src.loop = true;
-  src.connect(field);
+  src.connect(bed);
   src.start();
 }
 
 /**
- * Change what is heard. `fade` seconds to the new level (a field fades in as you land;
- * leaving it, the silence is almost at once); `delay` seconds before the change begins.
+ * Change what is heard. `fade` seconds to the new level; `delay` seconds before the change begins.
  */
 export function setSound(kind: PointSound, o: { fade?: number; delay?: number } = {}): void {
   current = kind;
   const c = make();
-  if (!c || !field) return;
-  if (kind === 'field') startField(c);
-  const g = field.gain;
+  if (!c || !bed) return;
+  if (kind === 'noise') startBed(c);
+  const g = bed.gain;
   const t = c.currentTime + (o.delay ?? 0);
   g.cancelScheduledValues(c.currentTime);
   g.setValueAtTime(g.value, c.currentTime);
   g.setValueAtTime(g.value, t);
-  const to = kind === 'field' ? 1 : 0;
+  const to = kind === 'noise' ? 1 : 0;
   const fade = Math.max(0.02, o.fade ?? 0.3);
-  // Silence is reached exactly (a ramp to zero), the field by a smooth rise.
+  // Silence is reached exactly (a ramp to zero), the noise by a smooth rise.
   g.linearRampToValueAtTime(to, t + fade);
 }
 

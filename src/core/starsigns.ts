@@ -7,18 +7,18 @@
  *      facing the Sun, the zodiac around the horizon.
  *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
  *      body picked out in turn (it pulses; its caption gives its sign and degree). 0.4.2:
- *      starting with the Sun's group where pose 1 already looks, once round the zodiac, so
- *      no body is looked at twice.
+ *      starting with the Sun's group where pose 1 already looks (one brisk 2-second stop),
+ *      once round the zodiac, so no body is looked at twice.
  *   3. THE SKY OVER THE PLACE (owner, 3 Nov 2026): standing in a field at the place (a town
- *      at its centre; 0.4.2: a gentle fall from space into a grassy field ringed by trees,
- *      crickets chirping and traffic far off, after the silence of space), the ground along
+ *      at its centre; 0.4.2: a gentle fall from space into a field ringed by trees, drawn as
+ *      a silhouette, black at night and dark green by day), the ground along
  *      the bottom of the view, looking up toward the highest
  *      point of the zodiac (90° from the Ascendant) so the most of it is in view, with the
  *      constellations and the houses, the sky coloured for that hour. A pause, then the ground
  *      drops away (pose 4).
  *   4. THE WHOLE ZODIAC (owner, 3 Nov 2026): still standing at the place, the planet drops
- *      away beneath your feet (see-through; 0.4.2: the field falls away from under you, in
- *      silence), and looking down past them toward the ecliptic's
+ *      away beneath your feet (see-through; 0.4.2: the field falls away from under you; the
+ *      wheel on a dark disc over a dimmed sky), and looking down past them toward the ecliptic's
  *      south pole the whole zodiac is a ring around the sky, exactly as on the printed chart
  *      (Ascendant on the left, Midheaven at the top; looking up the north pole shows it
  *      mirrored), every body at its longitude, picked out in turn with its sign and house.
@@ -168,8 +168,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   });
   const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false, pause?: number, sound?: PointSound): PathPoint => ({
     ...(pause !== undefined ? { pause } : {}),
-    // Silence in space (owner, 4 Nov 2026); the field's night sounds only standing in it.
-    ...(sound && sound !== 'silence' ? { sound } : {}),
+    // A soft white-noise bed throughout (owner, 4 Nov 2026), unless a point asks for silence.
+    ...(sound !== 'silence' ? { sound: 'noise' as const } : {}),
     view: 'fly',
     present: t,
     speed: 1,
@@ -209,7 +209,7 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const dirs = ids.map(geo);
   // Each body is looked at once (owner, 4 Nov 2026: it stopped at the Sun twice, first
   // facing it and again when its group came round). The tour starts with the Sun's group,
-  // seen from where the first pose already faces the Sun, and goes once round the zodiac.
+  // seen from where the first pose already faces the Sun (one stop, 2 s), and goes once round the zodiac.
   const groups = groupDirections(dirs, GROUP_HALF_DEG);
   const sunAt = groups.findIndex((g) => g.some((i) => ids[i] === 'sun'));
   const tour = sunAt > 0 ? [...groups.slice(sunAt), ...groups.slice(0, sunAt)] : groups;
@@ -220,6 +220,12 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
     // out or pulsing; their names and signs are on screen).
     const names = g.map((i) => `${r.bodies[i]!.name} ${formatSignDeg(r.bodies[i]!.lon)}`);
     const caption = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
+    if (k === 0 && sunAt >= 0) {
+      // The Sun's group is where the first view already looks: one brisk stop of 2 seconds
+      // there (owner, 4 Nov 2026: it lingered on the Sun), then on round the zodiac.
+      points[0] = point(pole, `${whose}: ${caption}`, false, null, '', false, false, 2);
+      continue;
+    }
     points.push(point(view, caption, false, null, '', false, false, 3 + 0.8 * g.length));
   }
 
@@ -247,8 +253,6 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
       true,
       false,
       6,
-      // A gentle fall into a grassy field ringed by trees; crickets and traffic far off.
-      'field',
     ),
   );
 

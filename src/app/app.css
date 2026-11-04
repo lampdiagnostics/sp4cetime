@@ -1764,6 +1764,8 @@ select option {
 }
 .fly-wheel-label[data-kind='body'] {
   color: var(--text, #e8ecf6);
+  font-size: 13px;
+  font-weight: 600;
 }
 .fly-wheel-label.dim {
   opacity: 0.3;
@@ -2007,7 +2009,8 @@ select option {
 .fly-wheel-label[data-kind='dot'] {
   border-radius: 50%;
   background: var(--dot, #fff);
-  box-shadow: 0 0 8px var(--dot, #fff), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  /* A dark ring, then the body's own glow: each planet stands out from the sky behind. */
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.85), 0 0 14px 3px var(--dot, #fff);
   font-size: 0;
 }
 .fly-wheel-label[data-kind='dot'].hl {
