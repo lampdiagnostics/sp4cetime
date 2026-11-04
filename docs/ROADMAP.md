@@ -47,6 +47,7 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
   - [ ] Visibility: walk the tree, skip spheres out of view or smaller than a pixel; home-sphere handover with a margin (SPHERES.md §8).
   - [ ] **The ~500 nearest galaxies**: follow "Loading the galaxy library, step by step" (SPHERES.md §9): the licence checked, the owner downloads the Updated Nearby Galaxy Catalog, `scripts/build_galaxies.py`, `public/sky/galaxies.json`, `src/core/galaxies.ts`, flat tilted discs in Fly mode, the warp's third rung.
   - [ ] **The galaxy web ruled in light years**: group lines, bridges joining the groups, the flight ruler counting down; an Elements toggle that points remember.
+  - [ ] **The expanding universe** (owner, 4 November 2026; SPHERES.md §9, "The expanding universe"): the universe's expansion skin, `src/core/cosmology.ts` (ΛCDM), bridges between groups stretching with a(t) while bound groups hold, Expansion and Redshift toggles that points remember, a seed path.
   - [ ] Honest labels: distance method and uncertainty; "seen as it was N million years ago".
   - [ ] **The viewer's skins**: a flying figure or a ship; first and third person (a key and a Display button); points remember it.
   - [ ] Stars stay as they are (owner); flying to other stars comes later, as their spheres fill in.

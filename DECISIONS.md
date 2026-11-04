@@ -124,12 +124,14 @@ These came directly from the owner's feedback and should be kept unless they say
 - **The Sun's line is the thickest line** in every view; paths are thicker than grid and sky lines.
 - **The galaxy is made of stars**, with nothing visible outside it: intergalactic space is empty.
 - The Sun's path through the galaxy is highlighted from any angle; the warp is past light speed, like Google Earth to Street View in reverse.
+- **Colour Mode is ultra-vivid** (owner, 4 November 2026): the palette of "chasing" by @hi_personality (cobalt navy, hot pink, signal red, orange, electric blue, violet), credited in the app and README.
 - **Readable controls**: in Fly mode, light text on dark panels in Dark and Colour, dark text on light panels in Bright.
 - **Wireframe honesty** over decoration: plain colours and graticules unless a real map exists.
 - Plain-language UI text and docs; British/Canadian spelling is fine ("centre", "colour").
 - **Spheres within spheres** (3 November 2026; docs/SPHERES.md): the universe (conjectural, not drawn) holds the galaxies; the Milky Way the stars; a star its planets; a planet its moons and organisms (Earth only for now); then cells, molecules, atoms. **Spheres never rotate; only skins do.** A skin has many segments and 3D layers (clouds are a layer of Earth's surface skin, not a skin of their own). **Every child hangs from its parent's centre (its 0, 0, 0) at a radius and direction, and all its motion is kept in a skin file of the parent**: the Moon and a person on Earth are the same kind of thing. Stars stay as they are for now; flying to other stars comes later.
 - **The viewer** is the point everything is seen from (phone, computer or VR): a position, a look direction and motion; only visible spheres and parts of spheres are loaded, so travel is seamless and never jittery. The viewer can wear skins (a flying humanoid figure or a spaceship) with a toggle between first person and a view from behind, as in Minecraft.
 - **0.5.0 galaxies**: about 500 of the nearest, flat pictures for now, joined by a **web ruled in light years**, so a flight from one galaxy to another shows the light years travelled along the way.
+- **The expanding universe in 0.5.0** (owner, 4 November 2026; after a clip by Astronomy Today, @astronomytodayy, the source): a skin of the universe sphere stretches the distances between galaxy groups with the scale factor a(t) (bound groups are not stretched), with redshift colours; drawn from our own maths and the real galaxies, the clip credited as an inspiration in the app and README (no licence stated, so none of it is shipped).
 - **Releases**: nothing is pushed to GitHub or deployed to Cloudflare until 0.5.0 (owner, 3 November 2026); 0.4.0 and 0.4.1 are committed and tagged locally.
 
 ## 5. Process

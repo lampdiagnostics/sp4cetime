@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Fixed dev port (genomology is 5174), so both run side by side; strictPort
+  // fails loudly instead of drifting (the Grove's portal points here).
+  server: { port: 5173, strictPort: true },
   // Pre-bundle Three.js when the dev server starts. Otherwise it is first seen
   // when Fly mode opens, and re-bundling mid-session can stall that load.
   optimizeDeps: {

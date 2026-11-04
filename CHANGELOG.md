@@ -2,6 +2,11 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.2 — unreleased
+
+- **Colour Mode, ultra-vivid.** A new palette after the city at sunset in "chasing" by @hi_personality: deep cobalt night, hot pink and signal red, orange and gold, electric blue and violet. The Sun's line is hot red-pink with a stronger glow, the Milky Way runs from electric blue to hot pink, and every planet keeps its own colour. Only the look changes, never where anything is. Credited under ? How to.
+- **The plan for 0.5.0, written down** (docs only): the spheres model (docs/SPHERES.md: the tree of spheres from the universe down to atoms, spheres that never turn and skins that do, every child carried by a skin of its parent, the viewer and loading only what can be seen, precedents from OpenSpace to Kerbal Space Program), the ~500 nearest galaxies joined by a web ruled in light years, and **the expanding universe**: a skin of the universe sphere that stretches the space between groups of galaxies over time (ΛCDM), inspired by a clip by Astronomy Today (@astronomytodayy).
+
 ## 0.4.0 — 2026-11-02
 
 ✶ Starsigns on sp4cetime.org, free; sp4cetime.store built, waiting for live payments (README.md "Opening sp4cetime.store"; ADR-0018, ADR-0019). The instrument's "Stand here" (ground view with house wedges, a transparent planet) moves to 0.5.0.

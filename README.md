@@ -215,6 +215,7 @@ Also in the app, under ? How to.
 
 - Inspired by the galactic-motion visualization shared by [@Geosophyy](https://x.com/Geosophyy/status/2115404526002041035).
 - The strobe (frozen poses): Techartist's dancer worldline, [@techartist_](https://x.com/techartist_/status/2114819625242529992).
+- Colour Mode's palette: the ultra-vivid city at sunset in "chasing" by [@hi_personality](https://x.com/hi_personality/status/2117011977658876093).
 - Other inspirations: NASA's Fermi bubbles (Fermi Gamma-ray Space Telescope), Google Earth's zoom into Street View (the warp), Minecraft's creative-mode flying.
 - Stars, constellations, Milky Way outline: [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD-3-Clause; licence in `public/sky/`), from Hipparcos and the IAU figures.
 - Milky Way and Moon maps: [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0). Earth: NASA Blue Marble (public domain). See `public/textures/CREDITS.md`.

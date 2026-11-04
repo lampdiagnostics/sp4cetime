@@ -31,6 +31,7 @@ const FlyView = lazy(() => import('../fly/FlyView'));
 
 const CREDIT_URL = 'https://x.com/Geosophyy/status/2115404526002041035';
 const STROBE_CREDIT_URL = 'https://x.com/techartist_/status/2114819625242529992';
+const COLOUR_CREDIT_URL = 'https://x.com/hi_personality/status/2117011977658876093';
 
 /** One scale only: nothing is compressed. (√ fit and linear were removed; see CHANGELOG.) */
 const SCALE_NOTE = 'True proportions: orbits in their true sizes and orientation (pinch or scroll to size them)';
@@ -651,6 +652,10 @@ export function Pane(p: Props) {
             <li>
               The strobe: Techartist's dancer worldline, where each pose freezes behind her as a sculpture (
               <a href={STROBE_CREDIT_URL} target="_blank" rel="noopener noreferrer">@techartist_</a>).
+            </li>
+            <li>
+              Colour Mode's palette: the ultra-vivid city at sunset in "chasing" by{' '}
+              <a href={COLOUR_CREDIT_URL} target="_blank" rel="noopener noreferrer">@hi_personality</a>.
             </li>
             <li>The galaxy's Fermi bubbles: NASA's Fermi Gamma-ray Space Telescope.</li>
             <li>The warp from the galaxy down to the planets: Google Earth's zoom into Street View.</li>

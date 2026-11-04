@@ -157,6 +157,7 @@ Notable skins:
 - **Orbit skins** (one per parent: the universe's, the Milky Way's, the Sun's, Earth's …): do not spin; their files hold the tracks of the bodies in orbit or in place around the parent (the Moon around Earth, the planets around the Sun, the galaxies in the universe).
 - **The sky (celestial sphere)**: an inner skin of the Sun's sphere at "infinite" radius; it does not spin (only precesses over millennia). Stars, constellations and the Milky Way are painted on it.
 - **The zodiac**: the band ±8° around the equator of the Sun's sphere (tropical signs measured from the equinox of date; precession moves it 1° every ~72 years).
+- **The universe's expansion skin** (0.5.0, section 9): does not spin; it scales the distances on the universe's orbit skin by a(t), leaving bound groups whole.
 - **A galaxy's skin**: carries its own coordinates (for the Milky Way, galactic longitude and latitude: pole at RA 192.86°, Dec +27.13°; longitude 0° toward Sgr A*), its arms and dust lane; for the flat galaxies of section 9, a picture turned to the galaxy's real tilt.
 - **A user's segments**: anything a person paints or uploads (section 6) becomes segments and layers of a sphere's skin, on any sphere, at any height.
 
@@ -292,6 +293,28 @@ Who does what: **owner** = on the Mac; **Claude** = in the cloud copy (the cloud
 9. **Check** (Claude): `npm run check`; screenshots of the Local Volume from outside, a flight from the Milky Way to M81 with its ruler running down, the web in all three themes, and a phone; a short Capture video of the flight.
 10. **Record** (Claude): ADR-0020 (the galaxy library, the working centre, the web), CHANGELOG, ROADMAP, DECISIONS (the owner's choices here); commit locally; push with the rest of 0.5.0 when the owner agrees.
 
+### The expanding universe: the universe's expansion skin
+
+Owner, 4 November 2026: part of 0.5.0. Inspired by a clip by Astronomy Today ([@astronomytodayy](https://x.com/astronomytodayy/status/2117602707322306826), 3 November 2026; the source, owner): a clump of galaxies in a universe filled only with matter (Friedmann, 1922), the space between them stretching and their light reddening. It is credited as an inspiration (in ? How to and README Credits, like @Geosophyy's); nothing from the clip itself is shipped, since no licence is stated. The instrument draws the same idea from its own maths and the real galaxies.
+
+**Where it lives.** Expansion is a skin of the universe sphere, as the model wants: no sphere changes or turns; only the tracks on the universe's skin grow. A galaxy's distance is **ρ(t) = ρ_comoving · a(t)**, its latitude and longitude fixed, where a(t) is the scale factor (1 now). The skin file names a cosmology rather than listing keyframes, so it stays a pure function of time (rule 4).
+
+**The maths** (`src/core/cosmology.ts`, pure, property-tested):
+- a(t) from the Friedmann equation for **ΛCDM** (Planck 2018: H₀ 67.4 km/s/Mpc, Ωm 0.315, ΩΛ 0.685, age 13.8 Gyr; in `constants.ts` with their ranges). Friedmann's matter-only universe (the clip's) is left out for now (owner, 4 November 2026).
+- Redshift of light seen at t from a galaxy whose light left at t_e: **1 + z = a(t) / a(t_e)**.
+- Tests: a(now) = 1 and ȧ/a now = H₀; ä < 0 before and ä > 0 after the turn to acceleration (~6 Gyr ago); a(t) rises across ±5 Gyr; light-travel times agree with the "seen as it was" labels.
+- Over the calendar (ΛCDM): a ≈ 0.70 at the Sun's birth (−4.6 Gyr), ≈ 1.38 at +5 Gyr. Distances between unbound galaxies were about 30% smaller when the Sun formed.
+
+**Honest about what does not expand.** Gravitationally bound groups (the Local Group, M81's, Centaurus A's …) keep their physical size; and within 5–8 Mpc the galaxies' own motions (a few hundred km/s) are as large as the expansion. So only the distances **between** groups scale with a(t): the web's bridges stretch and their light-year marks spread apart over billions of years, while group lines and their marks stay put. Groups come from the catalogue. Label: "expansion modelled (ΛCDM); groups held together by gravity are not stretched"; schematic beyond the near past, like the stars.
+
+**Redshift colours.** An Elements toggle tints each galaxy by the z of the light reaching the Sun at the time shown. Truthfully drawn it is faint in the Local Volume (z ≈ 0.002 at 8 Mpc) and the label says so; it grows across billions of years of calendar time, where it is real. Each theme has its own version (Bright: warmer ink, not glowing red; rule 6).
+
+**Controls and paths.** Elements › **Expansion** and **Redshift** are added to `PathPoint` and its validation (rule 16). A seed path shows it: the Local Volume from outside at −4.6 Gyr, then time running forward a billion years a second while the bridges stretch.
+
+**Later, beyond 0.5.0.** The clip's view, a web hundreds of millions of light years across, needs a bigger catalogue (the 2MASS Redshift Survey, ~44,000 galaxies, or Cosmicflows-4; licences first), loaded as coarser tiles of the same skin (section 8).
+
+**Steps** (after step 9 of the galaxy library above, before its step 10): `cosmology.ts` and its tests; group membership in `galaxies.json` (from `build_galaxies.py`); tracks scaled by a(t) in `galaxies.ts` with bound groups held; the toggles, labels and themes; the seed path; the credit to @astronomytodayy in ? How to (`Pane.tsx`) and README; screenshots and a Capture video of the bridges stretching; an ADR (with the galaxy library's ADR-0020, or its own, ADR-0021).
+
 ## 10. How spheres interact
 
 - **Which sphere you are in**: the smallest sphere whose domain D contains you (section 8). Read-outs and Fly mode's "nearest" use it, and hand over smoothly at domain edges.
@@ -322,3 +345,4 @@ Who does what: **owner** = on the Mac; **Claude** = in the cloud copy (the cloud
 7. **The viewer's figure**: true size (a 2 m figure, a ship of tens of metres) or a marker of fixed screen size? Which comes first, the flying figure or the ship? Which key toggles the view (Minecraft uses F5; a browser may take it, so perhaps V is taken by video and C or T instead)?
 8. **The galaxies**: the nearest 500 by distance, or every galaxy within a round distance (say 25 million light years, whatever the count)?
 9. **Stars**: you said leave them as they are for now. When they become spheres, the nearest few hundred (with planets, where known) first?
+10. **The expanding universe**: answered (owner, 4 November 2026): ΛCDM only; no matter-only option for now. (The clip's source is Astronomy Today, @astronomytodayy; answered 4 November 2026.)
