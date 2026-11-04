@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { STROBE_MAX, STROBE_MIN, type Settings } from './settings';
 
-type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines';
+type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines' | 'barycentre';
 
 /** What can be drawn, in every view. */
 const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
@@ -14,6 +14,19 @@ const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
   ['zodiac', 'Zodiac'],
   ['galactic', 'Galaxy marks'],
   ['coastlines', 'Coastlines and borders (3D)'],
+];
+
+/**
+ * Teaching options (owner, 4 Nov 2026): truer pictures that are heavier to draw and need a
+ * word of explanation, so they are off by default and kept apart from the everyday elements.
+ * They cost nothing while off.
+ */
+const TEACHING: ReadonlyArray<readonly [ElementKey, string, string]> = [
+  [
+    'barycentre',
+    'Barycentre: the Sun’s wobble',
+    'The solar system really travels around its centre of mass, not the Sun’s centre: the Sun wobbles around it by up to about two of its own widths, pulled mostly by Jupiter and Saturn. Every path wobbles with it (heavier to draw). Modelled.',
+  ],
 ];
 
 interface Props {
@@ -51,7 +64,7 @@ export function ElementsPicker({ settings, onChange, chrome, onChrome }: Props) 
         Show <span className="count">{on}</span> ▾
       </button>
       {open && (
-        <div className="popover" id={panelId} role="dialog" aria-label="Choose what to show">
+        <div className="popover elements-popover" id={panelId} role="dialog" aria-label="Choose what to show">
           {/* The same three steps as Space, H or the eye; on a phone, a tap on empty space brings everything back. */}
           <div>
             <label title="Hide the boxes and buttons (Space or H); tap empty space or press Space to bring them back">
@@ -96,6 +109,16 @@ export function ElementsPicker({ settings, onChange, chrome, onChrome }: Props) 
               )}
             </div>
           ))}
+          <div className="teaching" role="group" aria-labelledby={`${panelId}-teach`}>
+            <span className="subheading" id={`${panelId}-teach`}>Teaching options</span>
+            {TEACHING.map(([k, label, why]) => (
+              <div key={k}>
+                <label title={why}>
+                  <input type="checkbox" checked={settings[k]} onChange={(e) => onChange({ [k]: e.target.checked })} /> {label}
+                </label>
+              </div>
+            ))}
+          </div>
           {settings.chart && (
             <label>
               <input type="checkbox" checked onChange={() => onChange({ chart: null })} /> Starsigns houses ({settings.chart.place}, 3D)

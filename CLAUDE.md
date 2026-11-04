@@ -31,6 +31,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | `src/core/houses.ts` | Signs and houses: true obliquity, precession and nutation to the equinox of date, sidereal time from `Time`, Ascendant, MC, Whole Sign and Equal houses, a place's zenith. |
 | `src/core/places.ts`, `reading.ts`, `starsigns.ts` | ✶ Starsigns: towns with centres and time zones (`public/places.json`), a reading (every body's sign, degree, house), the free path made from it. |
 | `src/core/pdf.ts`, `starsignsPdf.ts` | A small PDF writer (standard fonts, no dependency) and the Starsigns sheet. |
+| `src/core/barycentre.ts` | The solar system's centre of mass from the four giants' mean orbits, and the Sun's wobble around it (Elements › Teaching options, off by default). |
 | `src/core/mp4.ts`, `ambience.ts` | A small MP4 writer (H.264 + AAC, index first; no dependency) for X-ready videos; sounds made from numbers (a soft white-noise bed under a path). ADR-0020. |
 | `src/core/bodies.ts` | True positions and orientations of every body (astronomy-engine), radii, flattening. |
 | `src/core/spheres.ts` | Nested spheres, arc positions, DMS formatting, ray–sphere hits. |

@@ -8,6 +8,7 @@ import type { ChartLook } from '../core/path';
 import * as THREE from 'three';
 import { type BodyId, type BodyState, moonGeocentric } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
+import { barycentreSmooth, sunWobble } from '../core/barycentre';
 import { CALENDAR_AXES, helixAt, moonLoop, orbitLoop, pathPeriod, rulerSpaceMarks, rulerTimeMarks, TRAVEL } from '../core/paths3d';
 import { formatDistanceStep } from '../core/ticks';
 import { SUN_GALACTIC_SPEED_KM_S } from '../core/constants';
@@ -27,6 +28,11 @@ export interface OverlayOptions {
   readonly galactic: boolean;
   /** Earth's line skin (coastlines, lakes, borders). */
   readonly coastlines?: boolean;
+  /**
+   * The barycentre (0.5.0 trial): the straight line runs through the solar system's centre of
+   * mass, and the Sun's line and every path wobble around it (src/core/barycentre.ts).
+   */
+  readonly barycentre?: boolean;
   /** A Starsigns chart: the place's horizon and houses on the sky. */
   readonly chart?: ChartLook | null;
   /** A body picked out (pulsing). */
@@ -39,7 +45,7 @@ export interface OverlayLabel {
   /** Heliocentric ecliptic position, km. */
   readonly pos: Vec3;
   readonly text: string;
-  readonly kind: 'time' | 'space' | 'galaxy';
+  readonly kind: 'time' | 'space' | 'galaxy' | 'barycentre';
 }
 
 /** Samples per side of now: enough for 24 per turn, between these limits. */
@@ -191,6 +197,8 @@ export function createOverlays(scene: THREE.Scene, theme: Theme) {
   const orbit = new Map(ids.map((id) => [id, ribbon(ORBIT_N + 1, css(colourOf(id), theme.ringAlpha), 0.8)]));
   // The Sun's line: the thickest line on screen, as in the calendar.
   const sunLine = ribbon(2 * SUN_LINE_N + 1, css(theme.sunLine, 0.75), 1, Math.max(theme.sunLineWidth * 1.2, theme.trailWidth * 2.2));
+  // The barycentre's straight line, thin, when the Sun's line wobbles around it.
+  const baryLine = ribbon(2 * SUN_LINE_N + 1, css(theme.sunLine, 0.35), 1, Math.max(1, theme.trailWidth));
   const timeRings = make((2 * MARKS + 1) * 2, css(theme.gridMajor, 2.2), true);
   const spaceSquares = make((2 * MARKS + 1) * 2, css(theme.distanceGrid, 1.5), true);
 
@@ -271,6 +279,7 @@ export function createOverlays(scene: THREE.Scene, theme: Theme) {
       const posOf = (id: string): Vec3 | undefined => bodies.find((b) => b.info.id === id)?.pos;
       const truePos = (id: string): Vec3 | undefined => trueBodies.find((b) => b.info.id === id)?.pos;
       const shown = new Set<string>([...o.planets, ...(o.moon ? ['moon'] : [])]);
+      const wobble = o.barycentre ? (s: number): Vec3 => sunWobble(now, s) : undefined;
 
       // How far the camera is from the Sun's line sets the scale of the grids.
       const sC = cam[0] * TRAVEL[0] + cam[1] * TRAVEL[1] + cam[2] * TRAVEL[2];
@@ -298,7 +307,7 @@ export function createOverlays(scene: THREE.Scene, theme: Theme) {
           const n = e
             ? coilTimes(P, Math.max(1e3, Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2])), reach, sC, perp, pxAngle, { P: pathPeriod('earth'), R })
             : coilTimes(P, R, reach, sC, perp, pxAngle);
-          sp.set(helixAt(id, now, tp, times, n, buf, shape), n, cam, pxAngle);
+          sp.set(helixAt(id, now, tp, times, n, buf, shape, wobble), n, cam, pxAngle);
         }
         else sp.hide();
         const or = orbit.get(id)!;
@@ -318,13 +327,31 @@ export function createOverlays(scene: THREE.Scene, theme: Theme) {
         for (let i = -SUN_LINE_N; i <= SUN_LINE_N; i++) {
           const s = sC + Math.sign(i) * D * 0.25 * (2 ** (Math.abs(i) * 0.6) - 1);
           const q = along(s, 0, 0);
-          buf[n * 3] = q[0];
-          buf[n * 3 + 1] = q[1];
-          buf[n * 3 + 2] = q[2];
+          // With the barycentre: the Sun's line wobbles around the straight one (s is km travelled).
+          const w: Vec3 = wobble && s !== 0 ? wobble(s / SUN_GALACTIC_SPEED_KM_S) : [0, 0, 0];
+          buf[n * 3] = q[0] + w[0];
+          buf[n * 3 + 1] = q[1] + w[1];
+          buf[n * 3 + 2] = q[2] + w[2];
           n++;
         }
         sunLine.set(buf, n, cam, pxAngle);
-      } else sunLine.hide();
+        if (wobble) {
+          // The barycentre's own line: straight, through where the barycentre is now.
+          const b = barycentreSmooth(now);
+          for (let i = 0; i < n; i++) {
+            const s = sC + Math.sign(i - SUN_LINE_N) * D * 0.25 * (2 ** (Math.abs(i - SUN_LINE_N) * 0.6) - 1);
+            const q = along(s, 0, 0);
+            buf[i * 3] = q[0] + b[0];
+            buf[i * 3 + 1] = q[1] + b[1];
+            buf[i * 3 + 2] = q[2] + b[2];
+          }
+          baryLine.set(buf, n, cam, pxAngle);
+          labels.push({ pos: b, text: '+ Barycentre · modelled', kind: 'barycentre' });
+        } else baryLine.hide();
+      } else {
+        sunLine.hide();
+        baryLine.hide();
+      }
 
       // Grid lines stand across the Sun's line, like the calendar's vertical grid lines.
       const R = D * 0.5;

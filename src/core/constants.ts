@@ -22,6 +22,18 @@ export const MAX_TIME = fromYearsApprox(SUN_REMAINING_YEARS);
 export const GALACTIC_YEAR_YEARS = 230e6;
 export const GALACTIC_YEAR_SECONDS = GALACTIC_YEAR_YEARS * SECONDS_PER_YEAR;
 
+/**
+ * The Sun's mass over each giant planet's (the planet with its moons), for the barycentre
+ * (barycentre.ts): IAU 2009 system of constants / JPL DE430. Known to better than 1 part
+ * in 10⁵; Uranus and Neptune the least well (about ±0.03 and ±0.4 in the ratio).
+ */
+export const SUN_PLANET_MASS_RATIO = {
+  jupiter: 1_047.348_644,
+  saturn: 3_497.901_8,
+  uranus: 22_902.98,
+  neptune: 19_412.26,
+} as const;
+
 /** Sun's speed around the galactic centre, ~230 km/s (frame: galactic rest frame). */
 export const SUN_GALACTIC_SPEED_KM_S = 230;
 

@@ -257,6 +257,7 @@ export function Pane(p: Props) {
       zodiac: settings.zodiac,
       galactic: settings.galactic,
       strobe: settings.strobe ? settings.strobeSteps : 0,
+      barycentre: settings.barycentre,
       text: chrome < 2,
     }),
     [settings, chrome, round],
@@ -276,6 +277,7 @@ export function Pane(p: Props) {
       chart: settings.chart,
       highlight: settings.highlight,
       seeThrough: settings.seeThrough,
+      barycentre: settings.barycentre,
     }),
     [settings],
   );

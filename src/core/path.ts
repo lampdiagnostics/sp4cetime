@@ -91,6 +91,8 @@ export interface PointLook {
   readonly strobeSteps: number;
   readonly focus: 'sun' | PlanetId;
   readonly measure: 'near' | 'sun' | 'galaxy';
+  /** The barycentre: the Sun's wobble around the solar system's centre of mass; 0.5.0, so older files take the default (off). */
+  readonly barycentre: boolean;
 }
 
 export interface PathPoint {
@@ -145,7 +147,7 @@ export const SP4CE_VERSION = 2;
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
   labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null, seeThrough: false,
-  strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near',
+  strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near', barycentre: false,
 };
 
 /** One point as written in a file (version 2). */
@@ -304,6 +306,7 @@ function parseLook(o: Obj, where: string): PointLook {
     strobeSteps: num(o, 'strobeSteps', where, (x) => x >= 1 && x <= 24),
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),
     measure: oneOf(o, 'measure', where, ['near', 'sun', 'galaxy'] as const),
+    barycentre: o.barycentre === undefined ? DEFAULT_LOOK.barycentre : bool(o, 'barycentre', where),
   };
 }
 

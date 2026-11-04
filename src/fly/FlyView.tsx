@@ -1055,7 +1055,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       // own constellations shining faintly through): the sky steps back to under half its
       // brightness, only the zodiac's figures and their names stay, and paths and grids step aside.
       if (lensEased > 0) sky?.setFade(Math.min(1 - far, 1 - 0.55 * lensEased));
-      const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
+      const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy' | 'barycentre'; action?: string }> = [
         ...paths.update(
           far > 0.5 || lensEased > 0.3 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
           now,
@@ -1370,7 +1370,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         }
         el.style.display = 'block';
         const th = L.theme;
-        el.style.color = g.kind === 'time' ? th.tickText : g.kind === 'galaxy' ? th.sky.path : th.distanceText;
+        el.style.color = g.kind === 'time' ? th.tickText : g.kind === 'galaxy' ? th.sky.path : g.kind === 'barycentre' ? th.sunLine : th.distanceText;
         if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
         if ((el.dataset.action ?? '') !== (g.action ?? '')) el.dataset.action = g.action ?? '';
         el.title = g.action === 'sun' ? 'Warp back to the solar system' : g.action ? 'Fly over there and have a look' : '';

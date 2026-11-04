@@ -2075,3 +2075,26 @@ body:has(.chrome-2) .scale-corner,
 body:has(.dock[data-open='true']) .scale-corner {
   display: none;
 }
+
+/* Elements › Teaching options: truer pictures, off by default, set apart from the everyday elements. */
+.popover .teaching {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.15));
+}
+.popover .teaching .subheading {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+/* Elements opens from a button near the right edge: anchored to its right, so the list never runs off screen. */
+.popover.elements-popover {
+  left: auto;
+  right: 0;
+  width: min(280px, calc(100vw - 32px));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}

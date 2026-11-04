@@ -26,6 +26,7 @@ import {
   type Vec3,
   DEFAULT_ROLL,
   matMul,
+  mul,
 } from './geometry';
 import { galacticAngle, moonPhase } from './models';
 import { keplerKm } from './paths3d';
@@ -35,7 +36,8 @@ import { orbitalPeriod, planetById, type PlanetId } from './planets';
 import type { SkyStyle, Theme } from './theme';
 import { focalFor } from './skymap';
 import { distanceGrid, formatDistanceStep, generateTicks } from './ticks';
-import { diffSeconds, fromYearsApprox, SECONDS_PER_DAY, SECONDS_PER_YEAR, type Time } from './time';
+import { addSeconds, diffSeconds, fromYearsApprox, SECONDS_PER_DAY, SECONDS_PER_YEAR, type Time } from './time';
+import { barycentreSmooth } from './barycentre';
 
 export interface ViewOptions {
   /** Rotation about the line of travel, radians. */
@@ -67,6 +69,12 @@ export interface ViewOptions {
   readonly text: boolean;
   /** Strobe: freeze the whole solar system's pose this many times a year (0 or absent: off). */
   readonly strobe?: number;
+  /**
+   * The barycentre (0.5.0 trial): the straight line is the solar system's centre of mass, and
+   * the Sun and every path are offset by where the Sun sits from it at each moment. Sun-centred
+   * only (seen from Earth the wobble cancels out, as it truly does).
+   */
+  readonly barycentre?: boolean;
 }
 
 /** What the sky shows, for the backdrop. */
@@ -346,6 +354,8 @@ function walk(kFrom: number, kTo: number, point: (k: number) => [number, number,
  * path subtracts so that Earth's path is the straight line. Heliocentric: always zero.
  */
 type Geo = (xBase: number) => readonly [number, number];
+/** One of Jupiter's years, s: the barycentre's main beat. */
+const JUPITER_YEAR = orbitalPeriod(planetById('jupiter'));
 const HELIO: Geo = () => [0, 0];
 
 function drawCoil(
@@ -753,6 +763,8 @@ export interface Scene {
   readonly tracks: readonly Track[];
   readonly moonPx: number | null;
   readonly focus: Track | null;
+  /** Pixels per AU (true scale: the same at every radius). */
+  readonly pxPerAU: number;
 }
 
 /** Bodies' tracks, evaluated at the anchor time (the present when it is in view). */
@@ -775,7 +787,7 @@ export function buildScene(f: FrameInput, L: Layout, anchor: Time): Scene {
     // A readable stand-in distance, or the real one (384,400 km) once that is larger.
     moonPx = view.scale === 'true' ? real : Math.max(Math.min(36, Math.max(7, (scale.factor(1) / z) * 0.26)), real);
   }
-  return { tracks, moonPx, focus };
+  return { tracks, moonPx, focus, pxPerAU: scale.factor(1) };
 }
 
 /**
@@ -898,6 +910,32 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
     geo = earthPx >= 8 ? geoTrue : () => e0;
   }
   const geocentric = earthTrack !== null;
+  // Barycentre: the same idea with the solar system's centre of mass in place of Earth. The
+  // barycentre travels the straight line; the Sun and everything that orbits it are offset by
+  // the Sun's place relative to it (mostly Jupiter's and Saturn's pull). The Sun now stays where
+  // it is (it is the present, and zoom holds it in place): the barycentre's line is drawn off it,
+  // and the Sun's path wobbles by how far the barycentre has moved since, followed while one of
+  // Jupiter's years spans several pixels.
+  const bary = !geocentric && !!view.barycentre;
+  let jupPx = Infinity;
+  /** The barycentre now, px from the Sun (screen x right, y up). */
+  let bNow: readonly [number, number] = [0, 0];
+  if (bary) {
+    jupPx = JUPITER_YEAR / cam.secondsPerPixel;
+    const k = scene.pxPerAU / KM_PER_AU;
+    const vmB = viewMatrix(view.roll, view.yaw);
+    const proj = (t: Time): readonly [number, number] => {
+      const b = mul(vmB, barycentreSmooth(t));
+      return [b[0] * k, b[1] * k];
+    };
+    bNow = proj(anchorTime);
+    const at: Geo = (xb) => {
+      const b = proj(addSeconds(anchorTime, (xb - ax) * cam.secondsPerPixel));
+      return [b[0] - bNow[0], b[1] - bNow[1]];
+    };
+    geoTrue = at;
+    if (jupPx >= 8) geo = at;
+  }
   const g0 = geo(ax);
   /** Where the Sun is now on screen (geocentric: off Earth's line). */
   const sunX = ax - g0[0], sunY = ay + g0[1];
@@ -991,7 +1029,7 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
     if (w > 0) {
       // A point sits up to `extent` px sideways of its base x, so sample that much beyond each edge.
       const reach = track.extent + (geocentric ? (earthTrack as Track).extent : 0) + KEEP;
-      const need = geocentric && earthPx >= 8 ? 48 * (track.period / (earthTrack as Track).period) : 0;
+      const need = geocentric && earthPx >= 8 ? 48 * (track.period / (earthTrack as Track).period) : bary && jupPx >= 8 ? 48 * (track.period / JUPITER_YEAR) : 0;
       const path = drawCoil(track, px, ax, ay, Math.max(formRaw, -reach), Math.min(endRaw, W + reach), W, H, geo, need);
       coils.push({ id: track.planet.id, path, alpha: w });
     }
@@ -1059,12 +1097,36 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
   // the Sun's path coils around it.
   if (sunStartX < sunEndX) {
     ctx.strokeStyle = geocentric ? theme.planets.earth : theme.sunLine;
-    ctx.lineWidth = crisp(geocentric ? Math.max(theme.trailWidth * 1.6, theme.sunLineWidth * 0.8) : theme.sunLineWidth);
-    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = crisp(geocentric ? Math.max(theme.trailWidth * 1.6, theme.sunLineWidth * 0.8) : bary ? 1 : theme.sunLineWidth);
+    ctx.globalAlpha = bary ? 0.5 : 0.75;
+    if (bary) ctx.setLineDash([6, 4]);
+    // With the barycentre, this straight line is the barycentre's, beside the Sun.
+    const lineY = bary ? ay - bNow[1] : ay;
     ctx.beginPath();
-    ctx.moveTo(sunStartX, ay);
-    ctx.lineTo(sunEndX, ay);
+    ctx.moveTo(sunStartX, lineY);
+    ctx.lineTo(sunEndX, lineY);
     ctx.stroke();
+    ctx.setLineDash([]);
+    if (bary) {
+      // The Sun's own path, wobbling around the barycentre's straight line.
+      ctx.globalAlpha = 0.75;
+      ctx.strokeStyle = theme.sunLine;
+      ctx.lineWidth = crisp(theme.sunLineWidth);
+      ctx.beginPath();
+      if (jupPx >= 8) {
+        const step = Math.max(1, Math.min(4, jupPx / 64));
+        const x0 = Math.max(sunStartX, -KEEP), x1 = Math.min(sunEndX, W + KEEP);
+        for (let x = x0, first = true; x <= x1 + step; x += step, first = false) {
+          const xx = Math.min(x, x1), g = geo(xx);
+          if (first) ctx.moveTo(xx - g[0], ay + g[1]);
+          else ctx.lineTo(xx - g[0], ay + g[1]);
+        }
+      } else {
+        ctx.moveTo(sunStartX, ay);
+        ctx.lineTo(sunEndX, ay);
+      }
+      ctx.stroke();
+    }
     if (geocentric && view.spirals) {
       const e = earthTrack as Track;
       if (earthPx >= 8) {
@@ -1089,7 +1151,8 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
       const len = Math.min(ax - sunStartX, L.clipR ? L.clipR * 0.55 : 260);
       // Enough points to follow the Sun around Earth (geocentric) at any zoom; the polygons
       // too few points made are now the Strobe's, on purpose.
-      const n = geocentric && earthPx >= 8 ? Math.min(2000, Math.max(24, Math.ceil((len / earthPx) * 48))) : 24;
+      const n = geocentric && earthPx >= 8 ? Math.min(2000, Math.max(24, Math.ceil((len / earthPx) * 48)))
+        : bary && jupPx >= 8 ? Math.min(2000, Math.max(24, Math.ceil((len / jupPx) * 48))) : 24;
       const pts = trailPoints(ax, len, n, (x) => {
         const g = geo(x);
         return [x - g[0], ay + g[1]];
@@ -1152,6 +1215,27 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
         geo: geoTrue, theme, pxPerTurn, tracks: scene.tracks.filter((t) => t.extent <= maxExtent),
       })
     : [];
+  if (bary && nowInView && sunStartX <= ax && ax <= sunEndX) {
+    // The barycentre now: a small cross on its straight line, named when names are shown.
+    ctx.save();
+    ctx.strokeStyle = theme.sunLine;
+    ctx.lineWidth = crisp(1);
+    const bx = ax + bNow[0], by = ay - bNow[1];
+    ctx.beginPath();
+    ctx.moveTo(bx - 5, by);
+    ctx.lineTo(bx + 5, by);
+    ctx.moveTo(bx, by - 5);
+    ctx.lineTo(bx, by + 5);
+    ctx.stroke();
+    if (view.labels && view.text) {
+      ctx.font = theme.font;
+      ctx.fillStyle = theme.sunLine;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Barycentre · modelled', bx + 8, by + 6);
+    }
+    ctx.restore();
+  }
   if (nowInView && sunStartX <= ax && ax <= sunEndX) spark(ctx, sunX, sunY, 5.5, theme.sun, pulse, additive);
   for (const t of tips) spark(ctx, t.x, t.y, t.r, t.color, pulse, additive);
   // Anything outside the window (round, or the whole screen) gets a pointer at the edge.
