@@ -32,6 +32,7 @@ const FlyView = lazy(() => import('../fly/FlyView'));
 const CREDIT_URL = 'https://x.com/Geosophyy/status/2115404526002041035';
 const STROBE_CREDIT_URL = 'https://x.com/techartist_/status/2114819625242529992';
 const COLOUR_CREDIT_URL = 'https://x.com/hi_personality/status/2117011977658876093';
+const UNIVERSE_CREDIT_URL = 'https://x.com/astronomytodayy/status/2117602707322306826';
 
 /** One scale only: nothing is compressed. (√ fit and linear were removed; see CHANGELOG.) */
 const SCALE_NOTE = 'True proportions: orbits in their true sizes and orientation (pinch or scroll to size them)';
@@ -66,6 +67,7 @@ const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'saturn', label: 'Saturn' },
   { id: 'sun', label: 'Sun' },
   { id: 'galaxy', label: 'Whole galaxy' },
+  { id: 'nearbyGalaxies', label: 'The nearby galaxies' },
 ];
 
 /** One of x, y, z in radii of the sphere, rounded to what matters. */
@@ -277,6 +279,9 @@ export function Pane(p: Props) {
       chart: settings.chart,
       highlight: settings.highlight,
       seeThrough: settings.seeThrough,
+      galaxyWeb: settings.galaxyWeb,
+      expansion: settings.expansion,
+      massOnly: settings.massOnly,
       barycentre: settings.barycentre,
     }),
     [settings],
@@ -603,6 +608,7 @@ export function Pane(p: Props) {
               <li>On a phone or tablet: a thumb stick appears where your thumb lands on the left half (push to fly forward, back or sideways); drag elsewhere to look; pinch to fly forward or back; slide two fingers to move sideways, up or down; tap empty space to hide or show the controls.</li>
               <li>Click a name to fly there (you turn to face it, close in, and arrive just above its north pole). Click a galaxy's or the black hole's name to fly there.</li>
               <li>Back away past 1,000 AU to warp out to the whole galaxy; fly straight at the Sun, or click it, to warp home.</li>
+              <li>Go to › The nearby galaxies: the ~500 nearest, out to about 25 million light years, at their measured places and true sizes (the discs are pictures modelled), joined by a web ruled in light years. Click a name to fly there. With Elements › Expansion of space on, run time over billions of years and the space between groups of galaxies stretches (ΛCDM), while groups held by gravity stay whole; Teaching options › Mass-only universe shows how a universe of matter alone would have grown.</li>
             </ul>
           ) : (
             <ul>
@@ -658,6 +664,10 @@ export function Pane(p: Props) {
             <li>
               Colour Mode's palette: the ultra-vivid city at sunset in "chasing" by{' '}
               <a href={COLOUR_CREDIT_URL} target="_blank" rel="noopener noreferrer">@hi_personality</a>.
+            </li>
+            <li>
+              The expanding universe: a clip by{' '}
+              <a href={UNIVERSE_CREDIT_URL} target="_blank" rel="noopener noreferrer">Astronomy Today (@astronomytodayy)</a>. The nearby galaxies: the Updated Nearby Galaxy Catalog (Karachentsev, Makarov &amp; Kaisina 2013).
             </li>
             <li>The galaxy's Fermi bubbles: NASA's Fermi Gamma-ray Space Telescope.</li>
             <li>The warp from the galaxy down to the planets: Google Earth's zoom into Street View.</li>

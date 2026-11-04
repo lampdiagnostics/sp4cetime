@@ -295,12 +295,14 @@ Who does what: **owner** = on the Mac; **Claude** = in the cloud copy (the cloud
 
 ### The expanding universe: the universe's expansion skin
 
+**Built in 0.4.3** (ADR-0021), with the 500 galaxies: ΛCDM in Elements, and the matter-only universe after all, as a teaching option (owner, 4 November 2026). Still to do: redshift colours and the seed path.
+
 Owner, 4 November 2026: part of 0.5.0. Inspired by a clip by Astronomy Today ([@astronomytodayy](https://x.com/astronomytodayy/status/2117602707322306826), 3 November 2026; the source, owner): a clump of galaxies in a universe filled only with matter (Friedmann, 1922), the space between them stretching and their light reddening. It is credited as an inspiration (in ? How to and README Credits, like @Geosophyy's); nothing from the clip itself is shipped, since no licence is stated. The instrument draws the same idea from its own maths and the real galaxies.
 
 **Where it lives.** Expansion is a skin of the universe sphere, as the model wants: no sphere changes or turns; only the tracks on the universe's skin grow. A galaxy's distance is **ρ(t) = ρ_comoving · a(t)**, its latitude and longitude fixed, where a(t) is the scale factor (1 now). The skin file names a cosmology rather than listing keyframes, so it stays a pure function of time (rule 4).
 
 **The maths** (`src/core/cosmology.ts`, pure, property-tested):
-- a(t) from the Friedmann equation for **ΛCDM** (Planck 2018: H₀ 67.4 km/s/Mpc, Ωm 0.315, ΩΛ 0.685, age 13.8 Gyr; in `constants.ts` with their ranges). Friedmann's matter-only universe (the clip's) is left out for now (owner, 4 November 2026).
+- a(t) from the Friedmann equation for **ΛCDM** (Planck 2018: H₀ 67.4 km/s/Mpc, Ωm 0.315, ΩΛ 0.685, age 13.8 Gyr; in `constants.ts` with their ranges). Friedmann's matter-only universe (the clip's) was left out at first, then added as a teaching option (owner, 4 November 2026).
 - Redshift of light seen at t from a galaxy whose light left at t_e: **1 + z = a(t) / a(t_e)**.
 - Tests: a(now) = 1 and ȧ/a now = H₀; ä < 0 before and ä > 0 after the turn to acceleration (~6 Gyr ago); a(t) rises across ±5 Gyr; light-travel times agree with the "seen as it was" labels.
 - Over the calendar (ΛCDM): a ≈ 0.70 at the Sun's birth (−4.6 Gyr), ≈ 1.38 at +5 Gyr. Distances between unbound galaxies were about 30% smaller when the Sun formed.

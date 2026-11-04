@@ -57,3 +57,14 @@ export const SGR_A_L_DEG = 359.944_2;
 export const SGR_A_B_DEG = -0.046_2;
 /** The galaxy sphere's radius: the disc is ~100,000 light years across (the stellar disc thins out beyond). */
 export const GALAXY_RADIUS_LY = 50_000;
+
+// --- Cosmology (the universe's expansion skin, 0.4.3; docs/SPHERES.md §9) -------------
+
+/** Hubble constant now, km/s per Mpc (Planck 2018: 67.4 ± 0.5; the distance ladder gives 73.0 ± 1.0, the "Hubble tension"). */
+export const HUBBLE_KM_S_MPC = 67.4;
+/** Matter's share of the critical density now (Planck 2018: 0.315 ± 0.007). */
+export const OMEGA_MATTER = 0.315;
+/** Dark energy's share (a flat universe: 1 − Ωm = 0.685). */
+export const OMEGA_LAMBDA = 1 - OMEGA_MATTER;
+/** Light years in a megaparsec. */
+export const LY_PER_MPC = 3.261_563_777e6;

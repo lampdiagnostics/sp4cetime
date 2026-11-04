@@ -751,10 +751,13 @@ export function createGalaxy(scene: THREE.Scene, map: THREE.Texture, style: SkyS
  * above the plane, like NASA's views of the Fermi bubbles, so the disc's thickness, the
  * bulge, the bubbles and the Sun's path all show. North up.
  */
-export function galaxyVantage(now: Time): { pos: Vec3; target: Vec3; up: Vec3 } {
+/** Where the nearby galaxies (nearbyGalaxies.ts) are seen from: 16 Mpc out. */
+export const NEARBY_VIEW_KPC = 16_000;
+
+export function galaxyVantage(now: Time, kpc = GALAXY_VIEW_KPC): { pos: Vec3; target: Vec3; up: Vec3 } {
   const c = galaxySphere(now).centre;
   const el = (25 * Math.PI) / 180;
-  const k = GALAXY_VIEW_KPC;
+  const k = kpc;
   const pos = galToEcl(c, -k * Math.cos(el), 0, k * Math.sin(el));
   return { pos, target: c, up: GAL_NORTH };
 }

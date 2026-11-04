@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { STROBE_MAX, STROBE_MIN, type Settings } from './settings';
 
-type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines' | 'barycentre';
+type ElementKey = 'spirals' | 'strobe' | 'rings' | 'timeGrid' | 'distanceGrid' | 'constellations' | 'zodiac' | 'galactic' | 'coastlines' | 'galaxyWeb' | 'expansion' | 'barycentre' | 'massOnly';
 
 /** What can be drawn, in every view. */
 const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
@@ -14,6 +14,8 @@ const ELEMENTS: ReadonlyArray<readonly [ElementKey, string]> = [
   ['zodiac', 'Zodiac'],
   ['galactic', 'Galaxy marks'],
   ['coastlines', 'Coastlines and borders (3D)'],
+  ['galaxyWeb', 'Galaxy web, in light years (galaxy view)'],
+  ['expansion', 'Expansion of space (galaxy view)'],
 ];
 
 /**
@@ -26,6 +28,11 @@ const TEACHING: ReadonlyArray<readonly [ElementKey, string, string]> = [
     'barycentre',
     'Barycentre: the Sun’s wobble',
     'The solar system really travels around its centre of mass, not the Sun’s centre: the Sun wobbles around it by up to about two of its own widths, pulled mostly by Jupiter and Saturn. Every path wobbles with it (heavier to draw). Modelled.',
+  ],
+  [
+    'massOnly',
+    'Mass-only universe (Friedmann 1922)',
+    'A universe filled only with matter, as Friedmann first worked it out: its expansion only ever slows. Ours also has dark energy, which has made it speed up for the last 6 billion years (ΛCDM). With this on, the galaxies spread apart as the mass-only universe would, from the same rate today. Turns on the expansion of space.',
   ],
 ];
 
@@ -114,7 +121,7 @@ export function ElementsPicker({ settings, onChange, chrome, onChrome }: Props) 
             {TEACHING.map(([k, label, why]) => (
               <div key={k}>
                 <label title={why}>
-                  <input type="checkbox" checked={settings[k]} onChange={(e) => onChange({ [k]: e.target.checked })} /> {label}
+                  <input type="checkbox" checked={settings[k]} onChange={(e) => onChange(k === 'massOnly' && e.target.checked ? { massOnly: true, expansion: true } : { [k]: e.target.checked })} /> {label}
                 </label>
               </div>
             ))}

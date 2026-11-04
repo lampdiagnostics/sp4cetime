@@ -16,7 +16,7 @@ import { MAX_SECONDS_PER_PIXEL, MIN_SECONDS_PER_PIXEL } from './constants';
 /** Limits a file's numbers must keep to (anything beyond them is not a view the app can show). */
 const MAX_RATE = 3_155_760_000; // a century each second, the fastest speed offered
 const MAX_DAYS = 2e12; // far beyond the Sun's life (±5 Gyr ≈ ±1.8e12 days)
-const MAX_KM = 1e20; // beyond the Local Group
+const MAX_KM = 3e21; // beyond the nearby galaxies (about 100 Mpc; the catalogue reaches 7.6 Mpc, the view stands 16 Mpc out)
 const clampNum = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 
 export type PointView = 'calendar' | 'fly' | 'galaxy';
@@ -93,6 +93,12 @@ export interface PointLook {
   readonly measure: 'near' | 'sun' | 'galaxy';
   /** The barycentre: the Sun's wobble around the solar system's centre of mass; 0.5.0, so older files take the default (off). */
   readonly barycentre: boolean;
+  /** The galaxy web ruled in light years; 0.4.3, so older files take the default (on). */
+  readonly galaxyWeb: boolean;
+  /** The universe's expansion skin (ΛCDM); 0.4.3, default on. */
+  readonly expansion: boolean;
+  /** Teaching option: the matter-only universe in place of ΛCDM; 0.4.3, default off. */
+  readonly massOnly: boolean;
 }
 
 export interface PathPoint {
@@ -147,7 +153,7 @@ export const SP4CE_VERSION = 2;
 export const DEFAULT_LOOK: PointLook = {
   themeId: 'dark', round: true, chrome: 0, planets: ['mercury', 'venus', 'earth', 'mars'], moon: true, rings: true,
   labels: true, spirals: true, timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null, seeThrough: false,
-  strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near', barycentre: false,
+  strobe: false, strobeSteps: 5.2, focus: 'sun', measure: 'near', barycentre: false, galaxyWeb: true, expansion: true, massOnly: false,
 };
 
 /** One point as written in a file (version 2). */
@@ -307,6 +313,9 @@ function parseLook(o: Obj, where: string): PointLook {
     focus: oneOf(o, 'focus', where, ['sun', ...PLANET_IDS] as const),
     measure: oneOf(o, 'measure', where, ['near', 'sun', 'galaxy'] as const),
     barycentre: o.barycentre === undefined ? DEFAULT_LOOK.barycentre : bool(o, 'barycentre', where),
+    galaxyWeb: o.galaxyWeb === undefined ? DEFAULT_LOOK.galaxyWeb : bool(o, 'galaxyWeb', where),
+    expansion: o.expansion === undefined ? DEFAULT_LOOK.expansion : bool(o, 'expansion', where),
+    massOnly: o.massOnly === undefined ? DEFAULT_LOOK.massOnly : bool(o, 'massOnly', where),
   };
 }
 

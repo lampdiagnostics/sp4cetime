@@ -33,6 +33,12 @@ export interface OverlayOptions {
    * mass, and the Sun's line and every path wobble around it (src/core/barycentre.ts).
    */
   readonly barycentre?: boolean;
+  /** The galaxy web ruled in light years (0.4.3; on unless turned off). */
+  readonly galaxyWeb?: boolean;
+  /** The universe's expansion skin between groups of galaxies (ΛCDM; on unless turned off). */
+  readonly expansion?: boolean;
+  /** Teaching option: the matter-only universe (Friedmann 1922) in place of ΛCDM. */
+  readonly massOnly?: boolean;
   /** A Starsigns chart: the place's horizon and houses on the sky. */
   readonly chart?: ChartLook | null;
   /** A body picked out (pulsing). */

@@ -9,7 +9,7 @@ import type { Vec3 } from '../core/geometry';
 import { CALENDAR_AXES } from '../core/paths3d';
 import { J2000 } from '../core/ticks';
 import type { Time } from '../core/time';
-import { galaxyVantage } from './galaxy';
+import { galaxyVantage, NEARBY_VIEW_KPC } from './galaxy';
 
 export type Frame = 'inertial' | 'body';
 
@@ -106,7 +106,7 @@ export function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
   return addv(scale(a, c), scale(cross(n, a), s));
 }
 
-export type Destination = 'galaxy' | 'overview' | 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
+export type Destination = 'galaxy' | 'nearbyGalaxies' | 'overview' | 'geo' | 'leo' | 'moon' | 'earthMoon' | 'mars' | 'jupiter' | 'saturn' | 'sun';
 
 export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'overview', label: 'Solar system' },
@@ -119,6 +119,7 @@ export const DESTINATIONS: ReadonlyArray<{ id: Destination; label: string }> = [
   { id: 'saturn', label: 'Saturn' },
   { id: 'sun', label: 'Sun' },
   { id: 'galaxy', label: 'Whole galaxy' },
+  { id: 'nearbyGalaxies', label: 'The nearby galaxies' },
 ];
 
 /**
@@ -195,6 +196,11 @@ export function vantage(
     case 'galaxy': {
       // 42 kpc from Sgr A*, 25° above the plane on the Sun's side: the disc, bulge, Fermi bubbles and the Sun's path in view.
       const g = galaxyVantage(now);
+      return view('sun', 'inertial', { pos: g.pos, quat: lookAt(g.pos, g.target, g.up) });
+    }
+    case 'nearbyGalaxies': {
+      // The same way out, 16 Mpc (52 million light years) from Sgr A*: the ~500 nearest galaxies and their web in view.
+      const g = galaxyVantage(now, NEARBY_VIEW_KPC);
       return view('sun', 'inertial', { pos: g.pos, quat: lookAt(g.pos, g.target, g.up) });
     }
     case 'overview': {

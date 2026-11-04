@@ -36,6 +36,12 @@ export interface Settings {
   readonly focus: 'sun' | PlanetId;
   /** The barycentre: the Sun's wobble around the solar system's centre of mass (0.5.0 trial). */
   readonly barycentre: boolean;
+  /** The galaxy web ruled in light years (0.4.3). */
+  readonly galaxyWeb: boolean;
+  /** The universe's expansion skin between groups of galaxies (ΛCDM, 0.4.3). */
+  readonly expansion: boolean;
+  /** Teaching option: the matter-only universe in place of ΛCDM (0.4.3). */
+  readonly massOnly: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -59,6 +65,9 @@ export const DEFAULT_SETTINGS: Settings = {
   strobeSteps: 5.2,
   focus: 'sun',
   barycentre: false,
+  galaxyWeb: true,
+  expansion: true,
+  massOnly: false,
 };
 
 const KEY = 'sp4cetime.settings.v1';
@@ -112,6 +121,9 @@ export function loadSettings(): Settings {
           : DEFAULT_SETTINGS.strobeSteps,
       focus: 'sun',
       barycentre: typeof data.barycentre === 'boolean' ? data.barycentre : DEFAULT_SETTINGS.barycentre,
+      galaxyWeb: typeof data.galaxyWeb === 'boolean' ? data.galaxyWeb : DEFAULT_SETTINGS.galaxyWeb,
+      expansion: typeof data.expansion === 'boolean' ? data.expansion : DEFAULT_SETTINGS.expansion,
+      massOnly: typeof data.massOnly === 'boolean' ? data.massOnly : DEFAULT_SETTINGS.massOnly,
     };
   } catch {
     return DEFAULT_SETTINGS;

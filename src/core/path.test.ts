@@ -6,6 +6,8 @@ import {
   isBigTimeJump,
   logLerp,
   parsePath,
+  parsePoint,
+  DEFAULT_LOOK,
   parseSp4ceFile,
   type Path,
   PathError,
@@ -35,7 +37,7 @@ const point = (over: Partial<PathPoint> = {}): PathPoint => ({
   look: {
     themeId: 'dark', round: true, chrome: 0, planets: ['earth', 'mars'], moon: true, rings: true, labels: true, spirals: true,
     timeGrid: true, distanceGrid: true, constellations: true, zodiac: true, galactic: true, coastlines: true, chart: null, highlight: null, seeThrough: false, strobe: false, strobeSteps: 5.2,
-    focus: 'sun', measure: 'near', barycentre: false,
+    focus: 'sun', measure: 'near', barycentre: false, galaxyWeb: true, expansion: true, massOnly: false,
   },
   caption: 'Here we are',
   where: 'Calendar',
@@ -217,5 +219,19 @@ describe('helpers', () => {
   it('knows a big jump in time', () => {
     expect(isBigTimeJump(makeTime(0), makeTime(10))).toBe(false);
     expect(isBigTimeJump(makeTime(0), makeTime(40))).toBe(true);
+  });
+});
+
+describe('Points among the nearby galaxies (0.4.3)', () => {
+  it('keep a camera 16 Mpc out, and the web, expansion and mass-only settings', () => {
+    const p = parsePoint({
+      view: 'fly', present: { day: 0, sec: 0 }, speed: 1, playing: false,
+      calendar: { offset: { day: 0, sec: 0 }, secondsPerPixel: 0.1, roll: 0, yaw: 0, spaceZoom: 1, panY: 0 },
+      fly: { anchor: 'sun', frame: 'inertial', rel: [4.9e20, 1e19, 2e20], quat: [0, 0, 0, 1], fov: 60, up: [0, 0, 1] },
+      look: { ...DEFAULT_LOOK, galaxyWeb: false, expansion: true, massOnly: true },
+    });
+    expect(p.fly!.rel[0]).toBe(4.9e20);
+    const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile({ id: 'a', name: 'n', created: '', points: [p], finished: true })))).points[0]!;
+    expect(back.look).toMatchObject({ galaxyWeb: false, expansion: true, massOnly: true });
   });
 });

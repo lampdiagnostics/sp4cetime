@@ -27,8 +27,12 @@ Third-party software and data included or used, under their own licences:
 - Towns and their time zones (the Starsigns dialog): Natural Earth populated places
   (public domain), public/places.json.
   Details: public/textures/CREDITS.md.
+- The nearest galaxies: the Updated Nearby Galaxy Catalog, Karachentsev, Makarov &
+  Kaisina 2013, AJ 145, 101 (CDS VizieR J/AJ/145/101; NASA HEASARC "neargalcat"),
+  public/sky/galaxies.json; no licence stated, credited as the authors ask of any use.
+  Details: public/sky/CREDITS-galaxies.md.
 
 Inspirations (credited in the app, under ? How to): the galactic-motion visualization
 by @Geosophyy; Techartist's dancer worldline (@techartist_); NASA's Fermi Gamma-ray
 Space Telescope (the Fermi bubbles); Google Earth's zoom into Street View; Minecraft's
-creative-mode flying.
+creative-mode flying; the expanding universe, a clip by Astronomy Today (@astronomytodayy).

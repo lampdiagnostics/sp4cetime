@@ -14,7 +14,7 @@ import { type CSSProperties, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { BODIES, type BodyId, solarSystemAt } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
-import type { Time } from '../core/time';
+import { diffSeconds, type Time } from '../core/time';
 import {
   aboveNorth,
   arrivalView,
@@ -43,7 +43,9 @@ import { createWheel } from './wheel';
 import { PLANISPHERE_CUT_DEG, planisphereDir, SKY_WHEEL_DEG } from '../core/planisphere';
 import { createSky, loadSky, type SkyChart, type SkyLabel } from './sky';
 import { createGalaxy, galaxyFade, GAL_NORTH, loadGalaxyMap, RULER_STATEMENT, warpOutVantage } from './galaxy';
-import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
+import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, galaxySphere, raySphere, sphereOf } from '../core/spheres';
+import { createNearby, loadNearby, type Nearby } from './nearbyGalaxies';
+import { J2000 } from '../core/ticks';
 import type { Theme } from '../core/theme';
 import type { PlanetId } from '../core/planets';
 import { CALENDAR_AXES } from '../core/paths3d';
@@ -281,7 +283,15 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     let paths = createOverlays(scene.scene, live.current.theme);
     let sky: ReturnType<typeof createSky> | null = null;
     let galaxy: ReturnType<typeof createGalaxy> | null = null;
+    // The nearest ~500 galaxies and their web (0.4.3), loaded with the galaxy view.
+    let nearby: Nearby | null = null;
+    let nearbyStatement = '';
     let disposed = false;
+    loadNearby(import.meta.env.BASE_URL)
+      .then((gs) => {
+        if (!disposed && gs.length) nearby = createNearby(scene.scene, gs, galaxySphere(now0()).centre, live.current.theme.sky);
+      })
+      .catch((e: unknown) => console.warn('Nearby galaxies not loaded:', e));
     loadGalaxyMap(import.meta.env.BASE_URL)
       .then((map) => {
         if (!disposed) galaxy = createGalaxy(scene.scene, map, live.current.theme.sky);
@@ -297,6 +307,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       scene.setStyle(t.sky);
       sky?.setStyle(t.sky);
       galaxy?.setStyle(t.sky);
+      nearby?.setStyle(t.sky);
       paths.dispose();
       paths = createOverlays(scene.scene, t);
     };
@@ -431,7 +442,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       skyLabels.push(el);
     }
     const gridLabels: HTMLDivElement[] = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 100; i++) {
       const el = document.createElement('div');
       el.className = 'fly-grid-label';
       el.style.display = 'none';
@@ -446,7 +457,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           }
           // A galaxy's or the black hole's name: fly over there and have a look.
           if (action.startsWith('goto:') && galaxy) {
-            const v = galaxy.vantage(action.slice(5), here().pos, now0());
+            const v = action.startsWith('goto:c') ? (nearby?.vantage(Number(action.slice(6)), here().pos, GAL_NORTH) ?? null) : galaxy.vantage(action.slice(5), here().pos, now0());
             if (!v) return;
             const to = poseFrom(v.pos, lookAt(v.pos, v.target, v.up), 'sun', 'inertial', bodies);
             const from = here();
@@ -932,7 +943,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         // Move: W A S D level with "up"; R up, F down; Ctrl faster. Speed scales
         // with the distance to the nearest thing: a body, the black hole, a galaxy.
         const near = nearest(pos, bodies);
-        const clearance = Math.min(near.altitude, galaxy ? galaxy.clearanceKm(pos, now) : Infinity);
+        const clearance = Math.min(near.altitude, galaxy ? galaxy.clearanceKm(pos, now) : Infinity, nearby ? nearby.clearanceKm(pos) : Infinity);
         const sprint = keys.has('control');
         const v = cruiseSpeed(clearance) * (sprint ? 5 : 1);
         const right = flat.clone().cross(upRef).normalize();
@@ -1032,6 +1043,21 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const lensFov = fov * (1 + 0.28 * kick * kick);
       const pxAngle = (lensFov * Math.PI) / 180 / Math.max(1, canvas.clientHeight);
       const galaxyLabels = galaxy ? galaxy.update(now, pos, pxAngle, scene.renderer.getPixelRatio()) : [];
+      if (nearby) {
+        const ov = L.overlays;
+        const nOpts = {
+          web: ov.galaxyWeb ?? true,
+          cosmology: ov.expansion === false ? null : ov.massOnly ? ('matter' as const) : ('lcdm' as const),
+          years: diffSeconds(now, J2000) / (365.25 * 86_400),
+        };
+        nearby.update(pos, quat, galaxySphere(now).centre, far, pxAngle, nOpts);
+        // Beyond 300,000 light years from the Milky Way's centre, the nearby galaxies are the view: their scale note,
+        // and of the Milky Way's own labels only the names (its rulers and captions are too small to read out here).
+        const outside = len3(sub3(pos, galaxySphere(now).centre)) > 3e5 * 9.4607e12;
+        nearbyStatement = outside ? nearby.statement(nOpts) : '';
+        if (outside) galaxyLabels.splice(0, galaxyLabels.length, ...galaxyLabels.filter((g) => !!g.action));
+        if (far > 0.5) galaxyLabels.push(...nearby.labels(pos, pxAngle, nOpts));
+      }
       const o = L.overlays;
       scene.setEarthLines(o.coastlines ?? true);
       // A Starsigns place on the ground: its field, falling away when Earth goes see-through.
@@ -1381,7 +1407,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           } else if (galaxy) {
             // Out here, the black hole and the neighbour galaxies are named when pointed at.
             let near: { t: number; text: string } | null = null;
-            for (const h of galaxy.hoverables(now)) {
+            for (const h of [...galaxy.hoverables(now), ...(nearby ? nearby.hoverables() : [])]) {
               const t = raySphere([0, 0, 0], dv, [h.centre[0] - pos[0], h.centre[1] - pos[1], h.centre[2] - pos[2]], h.radiusKm);
               if (t !== null && (!near || t < near.t)) near = { t, text: h.text };
             }
@@ -1412,7 +1438,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           speedRadii: cruiseSpeed(near.altitude) / nearR,
           inGalaxy,
           // The grid says once how far apart its lines are; far out, the Sun's path in light years.
-          statement: far > 0.5 ? (galaxy ? RULER_STATEMENT : '') : paths.statement(),
+          statement: far > 0.5 ? (nearby && nearbyStatement ? nearbyStatement : galaxy ? RULER_STATEMENT : '') : paths.statement(),
           bar: far > 0.5 ? { km: 0, px: 0 } : paths.bar(),
           hint: flight?.warp
             ? ''
@@ -1453,6 +1479,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       disposed = true;
       sky?.dispose();
       galaxy?.dispose();
+      nearby?.dispose();
       paths.dispose();
       scene.dispose();
     };

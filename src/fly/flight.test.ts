@@ -33,7 +33,7 @@ describe('Vantage points', () => {
     for (const d of DESTINATIONS) {
       const { pos, quat } = vantage(d.id, bodies, 1.6, t);
       expect(onScreen(pos, quat, find(bodies, 'sun').pos), d.label).toBe(true);
-      if (d.id === 'overview' || d.id === 'sun' || d.id === 'leo' || d.id === 'galaxy') continue;
+      if (d.id === 'overview' || d.id === 'sun' || d.id === 'leo' || d.id === 'galaxy' || d.id === 'nearbyGalaxies') continue;
       const b = find(bodies, d.id === 'geo' || d.id === 'earthMoon' ? 'earth' : d.id);
       expect(onScreen(pos, quat, b.pos), d.label).toBe(true);
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
