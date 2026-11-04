@@ -157,7 +157,7 @@ function snapshotElement(el: HTMLElement, k: number, fast = false): Promise<Snap
  * controls), each as its own picture, so nothing but the boxes can ever cover the view.
  */
 function pageBoxes(page: HTMLElement): HTMLElement[] {
-  return Array.from(page.querySelectorAll<HTMLElement>('.corner, .pointbox')).filter((el) => {
+  return Array.from(page.querySelectorAll<HTMLElement>('.corner, .pointbox, .place-stamp')).filter((el) => {
     if (el.closest('[data-no-capture]')) return false;
     const cs = getComputedStyle(el);
     const b = el.getBoundingClientRect();

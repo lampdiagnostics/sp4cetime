@@ -10,6 +10,7 @@ import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
 import { newPathId, type Path, pathFileName, type PathPoint, type PointLook, pointLabel } from '../core/path';
 import { formatTime } from '../core/time';
+import { formatLat, formatLon } from '../core/spheres';
 import { flyToPoint, type FlightDeps, type FlightSignal } from './flights';
 import { deletePath, exportPath, importPath, listPaths, loadExamples, savePath, sp4ceText } from './pathStore';
 import { zipParts } from '../core/zip';
@@ -379,7 +380,9 @@ export function App() {
     beforePresent.current = null;
     if (before) {
       // Your settings back as they were, except round or full: that is whatever you last chose.
-      setSettings((s) => ({ ...before.settings, round: s.round }));
+      // …and where you are: stopped at the place, its chart (and the field under you, with its
+      // grid) stays, so the view is not left on a bare, dark globe; Earth comes back if it was see-through.
+      setSettings((s) => ({ ...before.settings, round: s.round, chart: s.chart, seeThrough: false, highlight: null }));
     }
   }, []);
   /** Next (+1) or back (−1), from the keys or the ◀ ▶ buttons (phones). */
@@ -782,6 +785,18 @@ export function App() {
         // are still read out to screen readers.
         <p className="visually-hidden" aria-live="polite">
           {shownPoint.caption || showing.path.name}
+        </p>
+      )}
+
+      {/* The place and the moment (0.4.3), bottom right, while a Starsigns chart is on; in captures too. */}
+      {settings.chart?.when && (
+        <p className="place-stamp" aria-label="Place and time">
+          {[
+            settings.chart.place,
+            formatLat((settings.chart.lat * Math.PI) / 180, 0),
+            formatLon((settings.chart.lon * Math.PI) / 180, 0),
+            ...settings.chart.when.split(/,\s*/),
+          ].join(' - ')}
         </p>
       )}
 

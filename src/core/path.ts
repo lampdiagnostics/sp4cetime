@@ -62,6 +62,8 @@ export interface ChartLook {
    * see-through it drops away from under the viewer's feet.
    */
   readonly ground?: boolean;
+  /** The moment as the person entered it, local time ("14 July 1985, 3:20 pm"), for the place-and-time label (0.4.3). */
+  readonly when?: string;
 }
 
 export interface PointLook {
@@ -283,6 +285,7 @@ function parseChart(o: Obj, where: string): ChartLook {
     system: oneOf(o, 'system', where, ['whole', 'equal'] as const),
     place: str(o, 'place', where, 80),
     ...(o.ground === true && { ground: true }),
+    ...(typeof o.when === 'string' && o.when && { when: str(o, 'when', where, 80) }),
   };
 }
 

@@ -4,6 +4,8 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.4.3 — unreleased
 
+- **The place and the moment, bottom right**: while a Starsigns chart is on, "Winnipeg - 49°52′59″ N - 97°09′58″ W - 14 July 1985 - 3:20 pm" in large off-white letters (about 20 pt), in videos and screenshots too; it goes with all text (the space bar's second press).
+- **Fixed: stopping a Starsigns presentation left a black view**: the place's chart and its field (with the glowing grid) now stay where you stopped, and Earth comes back if it was see-through.
 - **The space bar does one thing only**: hide the controls, then all text, then bring everything back. It used to go to whatever had the focus (an open menu, Round, a drop-down, a button), with no way back; now nothing but a text box ever gets a space.
 - **Presentations leave the controls alone**: stepping along a path (or stopping it) no longer brings the controls back; only the space bar (H, the eye) shows or hides them.
 - **A glowing grid on the Starsigns ground**: light lines every 3 metres across the field, fading out among the trees, so the ground can be seen at night, not just darkness.
