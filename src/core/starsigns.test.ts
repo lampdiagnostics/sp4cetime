@@ -152,9 +152,11 @@ describe('The Starsigns path', () => {
     );
   });
 
-  it('has a soft white-noise bed throughout, and the field under the place from the landing on', () => {
+  it('is silent except a quiet hum in the field, which is under the place from the landing on', () => {
     const ground = pts.findIndex((p) => p.caption.startsWith('The sky over Winnipeg'));
-    expect(pts.every((p) => p.sound === 'noise')).toBe(true);
+    expect(pts.map((p) => p.sound === 'noise')).toEqual(pts.map((p) => !!p.look.chart?.ground && !p.look.seeThrough));
+    expect(pts[ground]!.sound).toBe('noise');
+    expect(pts[pts.length - 1]!.sound).toBeUndefined();
     expect(pts[ground]!.look.chart?.ground).toBe(true);
     expect(pts[pts.length - 1]!.look.chart?.ground).toBe(true);
     expect(pts.slice(0, ground).every((p) => !p.look.chart?.ground)).toBe(true);

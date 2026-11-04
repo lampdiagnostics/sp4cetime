@@ -354,9 +354,10 @@ export function App() {
   const goToPoint = useCallback((path: Path, index: number): void => {
     const pt = path.points[index];
     if (!pt) return;
-    // What is heard there (0.4.2): the white-noise bed fades in over a second, or out to silence.
+    // What is heard there: a quiet white-noise hum fades in over a second, or out to silence.
+    // Only in the field on Earth's surface (owner, 4 Nov 2026), also for paths saved before then.
     unlockSound();
-    const sound = pt.sound ?? 'silence';
+    const sound = pt.sound === 'noise' && pt.look.chart?.ground && !pt.look.seeThrough ? 'noise' : 'silence';
     if (sound !== soundNow()) setSound(sound, { fade: sound === 'noise' ? 1 : 0.4 });
     signal.current.cancelled = true;
     const sig: FlightSignal = { cancelled: false };

@@ -24,8 +24,8 @@ export interface StereoLoop {
   readonly right: Float32Array;
 }
 
-/** Root-mean-square level of the noise: about −30 dB, a quiet bed under a video. */
-export const NOISE_RMS = 0.032;
+/** Root-mean-square level of the noise: about −42 dB, a quiet hum (owner, 4 Nov 2026: a quarter of the first level, −30 dB). */
+export const NOISE_RMS = 0.008;
 
 /** White noise, `seconds` long (a loop), at `sampleRate`: flat in every frequency, the same each time. */
 export function noiseLoop(sampleRate: number, seconds = 8, seed = 1985): StereoLoop {

@@ -8,7 +8,9 @@
  *   warp when the scale changes enormously), short jumps in time running along with it.
  * - Between the calendar and 3D, they meet where they already match: the calendar's own
  *   view in 3D, turned as the calendar is turned; the views cross-fade there.
- * - A big jump in time (more than a month) from or to the solar system in 3D goes by way
+ * - From the calendar into 3D, the calendar takes the point's moment at once and the
+ *   journey is flown in 3D (owner, 4 Nov 2026: no waiting while time is squeezed).
+ * - A big jump in time (more than a month) between two 3D points goes by way
  *   of the calendar, where deep time can be seen passing, instead of blurring the planets.
  * - Changes of look (theme, round or full window, what is drawn, which boxes show) dissolve
  *   from a picture of the old look as the flight begins.
@@ -155,7 +157,11 @@ export async function flyToPoint(to: PathPoint, d: FlightDeps, sig: FlightSignal
   let ok = true;
   if (!from3D && !to3D) ok = await calendarLeg(cal, d, to.present, to.calendar, sig);
   else if (!from3D && to3D) {
-    ok = (await calendarLeg(cal, d, to.present, to.calendar, sig)) && (await into3D(pane, sig)) && (await flyLeg(pane, d, to, sig));
+    // Straight into 3D (owner, 4 Nov 2026): no squeezing of time in the calendar first; the
+    // calendar takes the point's moment at once, and the journey happens in 3D.
+    d.setPresent(to.present);
+    cal.setView(to.calendar);
+    ok = (await into3D(pane, sig)) && (await flyLeg(pane, d, to, sig));
   } else if (from3D && !to3D) {
     ok = (await outOf3D(pane, cal, to.calendar, sig)) && (await calendarLeg(cal, d, to.present, to.calendar, sig));
   } else {

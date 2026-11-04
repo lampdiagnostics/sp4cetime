@@ -171,8 +171,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   });
   const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false, pause?: number, sound?: PointSound): PathPoint => ({
     ...(pause !== undefined ? { pause } : {}),
-    // A soft white-noise bed throughout (owner, 4 Nov 2026), unless a point asks for silence.
-    ...(sound !== 'silence' ? { sound: 'noise' as const } : {}),
+    // Silent, except a quiet white-noise hum while standing in the field (owner, 4 Nov 2026).
+    ...(sound !== 'silence' && ground && !seeThrough ? { sound: 'noise' as const } : {}),
     view: 'fly',
     present: t,
     speed: 1,
