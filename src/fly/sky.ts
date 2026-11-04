@@ -37,6 +37,8 @@ export interface SkyOptions {
   readonly equinoxShift?: number;
   /** A Starsigns chart: the place's horizon and its 12 houses on the sky (directions in the ecliptic frame). */
   readonly chart?: SkyChart | null;
+  /** Through the planisphere lens the chart wheel shows the band, signs, horizon and houses, so the sky's own copies step aside (only stars and figures remain). */
+  readonly planisphere?: boolean;
 }
 
 export interface SkyChart {
@@ -53,6 +55,7 @@ export interface SkyChart {
 }
 
 export { GALACTIC_MARKS, SIGNS } from '../core/skyfigures';
+import { PLANISPHERE_GLSL } from '../core/planisphere';
 
 export interface SkyLabel {
   /** Direction, ecliptic frame (unit vector). */
@@ -137,6 +140,10 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
   /** 1 near the Sun; fades to 0 far away, where this sky (seen from here) no longer applies. */
   const fadeU = { value: 1 };
   const inkU = { value: style.ink ? 1 : 0 };
+  /** The planisphere lens (0 = the true sky, 1 = folded so the zodiac rings the south ecliptic pole; core/planisphere.ts). */
+  const lensU = { value: 0 };
+  /** Through the lens: the sky's world (ecliptic) position, the camera at the origin (floating origin). */
+  const LENS_POSITION = 'projectionMatrix * viewMatrix * vec4(planisphere((modelMatrix * vec4(position, 1.0)).xyz), 1.0)';
   let current = style;
   const eq = new THREE.Group(); // equatorial frame, turned into the ecliptic frame
   eq.matrixAutoUpdate = false;
@@ -170,14 +177,18 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     faint: { value: threeColour(style.milkyWayFaint) },
     bright: { value: threeColour(style.milkyWayBright) },
     strength: { value: style.milkyWayStrength },
+    lensAmount: lensU,
   };
   const mwMat = new THREE.ShaderMaterial({
     uniforms: mwU,
     vertexShader: /* glsl */ `
       varying vec3 vDir;
+      varying float vCut;
+      ${PLANISPHERE_GLSL}
       void main() {
         vDir = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vCut = planisphereCut((modelMatrix * vec4(position, 1.0)).xyz);
+        gl_Position = ${LENS_POSITION};
       }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
@@ -187,7 +198,9 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       uniform vec3 bright;
       uniform float strength;
       varying vec3 vDir;
+      varying float vCut;
       void main() {
+        if (vCut > 0.0) discard;
         vec3 d = normalize(vDir);
         float l = atan(d.y, d.x);
         float b = asin(clamp(d.z, -1.0, 1.0));
@@ -248,6 +261,7 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     tint: { value: threeColour(style.starTint) },
     tintMix: { value: style.starTintMix },
     strength: { value: style.starStrength },
+    lensAmount: lensU,
   };
   const starMat = new THREE.ShaderMaterial({
     uniforms: starU,
@@ -262,12 +276,13 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       varying vec3 vColor;
       varying float vLight;
       varying float vPx;
+      ${PLANISPHERE_GLSL}
       void main() {
         vColor = color;
         vLight = ink > 0.5 ? inkLight : light;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_Position = ${LENS_POSITION};
         vPx = max(1.0, (ink > 0.5 ? inkSize : size) * pixelRatio);
-        gl_PointSize = vPx;
+        gl_PointSize = planisphereCut((modelMatrix * vec4(position, 1.0)).xyz) > 0.0 ? 0.0 : vPx;
       }`,
     fragmentShader: /* glsl */ `
       varying vec3 vColor;
@@ -319,6 +334,20 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     const m = new THREE.LineBasicMaterial({ depthTest: false, depthWrite: false });
+    // The same lens as the stars, so the figures stay on their stars.
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.lensAmount = lensU;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>\nvarying float vCut;\n${PLANISPHERE_GLSL}`)
+        .replace(
+          '#include <project_vertex>',
+          'vec3 lensWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvCut = planisphereCut(lensWorld);\nvec4 mvPosition = viewMatrix * vec4(planisphere(lensWorld), 1.0);\ngl_Position = projectionMatrix * mvPosition;',
+        );
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vCut;')
+        .replace('void main() {', 'void main() {\n  if (vCut > 0.0) discard;');
+    };
+    m.customProgramCacheKey = () => 'sky-lens';
     skyBlending(m, current.ink);
     const entry = { m, kind, opacity };
     lineMats.push(entry);
@@ -466,6 +495,10 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
         styleLine(l);
       }
     },
+    /** The planisphere lens, 0 (the true sky) to 1 (core/planisphere.ts); labels use planisphereDir with the same amount. */
+    setLens(a: number): void {
+      lensU.value = Math.max(0, Math.min(1, a));
+    },
     /** How much of this sky to show (0–1): it is the sky as seen from the solar system. */
     setFade(f: number): void {
       if (f === fadeU.value) return;
@@ -478,10 +511,11 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       if (fadeU.value < 0.3) return [];
       figures.visible = o.constellations;
       zodiacFigures.visible = o.constellations || o.zodiac;
-      ecliptic.visible = signs.visible = o.zodiac;
-      galLines.visible = o.galactic;
+      const lens = !!o.planisphere;
+      ecliptic.visible = signs.visible = o.zodiac && !lens;
+      galLines.visible = o.galactic && !lens;
       setChart(o.chart);
-      if (chartLines) chartLines.visible = !!o.chart;
+      if (chartLines) chartLines.visible = !!o.chart && !lens;
       const shift = o.equinoxShift ?? 0;
       if (Math.abs(shift - signShift) > 0.005) {
         signShift = shift;
@@ -491,9 +525,9 @@ export function createSky(scene: THREE.Scene, data: SkyData, milkyWay: THREE.Tex
       return [
         ...(o.constellations ? [...starLabels, ...conLabels.filter((l) => l.kind === 'constellation')] : []),
         ...(o.constellations || o.zodiac ? conLabels.filter((l) => l.kind === 'zodiacFigure') : []),
-        ...(o.zodiac ? signLabels : []),
-        ...(o.galactic ? galLabels : []),
-        ...chartLabels,
+        ...(o.zodiac && !lens ? signLabels : []),
+        ...(o.galactic && !lens ? galLabels : []),
+        ...(lens ? [] : chartLabels),
       ];
     },
     dispose(): void {

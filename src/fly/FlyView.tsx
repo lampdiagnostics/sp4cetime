@@ -39,6 +39,7 @@ import { createOverlays, type OverlayOptions } from './overlays';
 import { createScene } from './scene';
 import { WHEEL_RADII } from '../core/starsigns';
 import { createWheel } from './wheel';
+import { PLANISPHERE_CUT_DEG, planisphereDir, SKY_WHEEL_DEG } from '../core/planisphere';
 import { createSky, loadSky, type SkyChart, type SkyLabel } from './sky';
 import { createGalaxy, galaxyFade, GAL_NORTH, loadGalaxyMap, RULER_STATEMENT, warpOutVantage } from './galaxy';
 import { apparentDiameter, type ArcPosition, arcPosition, bodySphere, formatDMS, formatLat, formatLon, raySphere, sphereOf } from '../core/spheres';
@@ -465,6 +466,14 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     markerHost?.appendChild(halo);
     // The chart wheel around Earth (Starsigns, step 4).
     const wheel = createWheel(scene.scene, labelHost);
+    // The planisphere lens (Starsigns' last pose): eased in and out so the sky folds visibly.
+    let lensNow = 0;
+    const lensNote = document.createElement('div');
+    lensNote.className = 'fly-wheel-label';
+    lensNote.dataset.kind = 'note';
+    lensNote.style.display = 'none';
+    lensNote.textContent = 'Planisphere lens: the sky folded so each zodiac constellation sits behind its signs (longitudes true, latitudes squeezed)';
+    labelHost.appendChild(lensNote);
     const labels = new Map<BodyId, HTMLDivElement>();
     for (const b of BODIES) {
       const el = document.createElement('div');
@@ -994,6 +1003,11 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       // Starsigns' last pose: Earth see-through, as if it were not under your feet.
       const seeThrough = !!o.seeThrough;
       scene.setBodyVisible('earth', !seeThrough);
+      // The lens follows see-through (only that pose looks at the ecliptic's south pole).
+      const lensTarget = seeThrough && far <= 0.5 ? 1 : 0;
+      lensNow = reduced() ? lensTarget : lensNow + Math.sign(lensTarget - lensNow) * Math.min(Math.abs(lensTarget - lensNow), dt / 1.2);
+      const lensEased = lensNow * lensNow * (3 - 2 * lensNow);
+      sky?.setLens(lensEased);
       const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
         ...paths.update(
           far > 0.5 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
@@ -1180,7 +1194,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
               // you stand (beneath your feet), 38° out, so the whole ring and every body fit in view
               // (the signs in their true directions around the pole: the printed chart's view).
               centre: seeThroughNow ? [0, 0, -SKY_WHEEL_KM] : [earthShown.pos[0] - pos[0], earthShown.pos[1] - pos[1], earthShown.pos[2] - pos[2]],
-              radiusKm: seeThroughNow ? SKY_WHEEL_KM * Math.tan((38 * Math.PI) / 180) : WHEEL_RADII * earthShown.info.radiusKm,
+              radiusKm: seeThroughNow ? SKY_WHEEL_KM * Math.tan((SKY_WHEEL_DEG * Math.PI) / 180) : WHEEL_RADII * earthShown.info.radiusKm,
               shift: skyNow.lonShift,
               cusps: chart.cusps,
               asc: chart.asc,
@@ -1204,12 +1218,26 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         W,
         H,
       );
+      // The lens is labelled under the wheel while it is on (CLAUDE.md rule 5).
+      if (lensEased > 0.5 && wheelOn) {
+        const c = new THREE.Vector3(0, 0, -1e12).project(cam);
+        const e = new THREE.Vector3(1e12 * Math.sin((SKY_WHEEL_DEG * Math.PI) / 180), 0, -1e12 * Math.cos((SKY_WHEEL_DEG * Math.PI) / 180)).project(cam);
+        const cx = ((c.x + 1) / 2) * W, cy = ((1 - c.y) / 2) * H;
+        const rpx = Math.hypot((e.x - c.x) * W / 2, (e.y - c.y) * H / 2);
+        lensNote.style.display = 'block';
+        lensNote.style.opacity = String(Math.min(1, (lensEased - 0.5) * 2) * 0.85);
+        lensNote.style.width = `${Math.min(W - 32, 340)}px`;
+        lensNote.style.whiteSpace = 'normal';
+        lensNote.style.textAlign = 'center';
+        lensNote.style.transform = `translate(${Math.max(16, cx - Math.min(W - 32, 340) / 2)}px, ${Math.min(H - 96, cy + rpx + 14)}px)`;
+      } else lensNote.style.display = 'none';
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
-      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift, chart: skyChart }) : [];
+      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift, chart: skyChart, planisphere: lensEased > 0.5 }) : [];
       const starPts: Array<[number, number]> = [];
       if (sky && sl.length > 0) {
-        for (const d of sky.brightStars) {
+        for (const d0 of sky.brightStars) {
+          const d = planisphereDir(d0, lensEased);
           const rel = new THREE.Vector3(d[0], d[1], d[2]);
           if (rel.clone().applyQuaternion(inv).z >= 0) continue;
           v3.copy(rel).project(cam);
@@ -1238,7 +1266,13 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           el.style.display = 'none';
           continue;
         }
-        const rel = new THREE.Vector3(g.dir[0] * 1e12, g.dir[1] * 1e12, g.dir[2] * 1e12);
+        const gd = planisphereDir(g.dir, lensEased);
+        // Through the lens, names near the north ecliptic pole (where it is singular) are left out, as their stars are.
+        if (lensEased > 0 && g.dir[2] / Math.hypot(g.dir[0], g.dir[1], g.dir[2]) > Math.cos((PLANISPHERE_CUT_DEG * Math.PI) / 180)) {
+          el.style.display = 'none';
+          continue;
+        }
+        const rel = new THREE.Vector3(gd[0] * 1e12, gd[1] * 1e12, gd[2] * 1e12);
         if (rel.clone().applyQuaternion(inv).z > 0) {
           el.style.display = 'none';
           continue;
@@ -1384,6 +1418,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       skyLabels.forEach((el) => el.remove());
       halo.remove();
       wheel.dispose();
+      lensNote.remove();
       disposed = true;
       sky?.dispose();
       galaxy?.dispose();
