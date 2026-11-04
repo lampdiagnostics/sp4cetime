@@ -36,11 +36,11 @@ export interface Settings {
   readonly focus: 'sun' | PlanetId;
   /** The barycentre: the Sun's wobble around the solar system's centre of mass (0.5.0 trial). */
   readonly barycentre: boolean;
-  /** The galaxy web ruled in light years (0.4.3). */
+  /** The galaxy web ruled in light years (0.4.5). */
   readonly galaxyWeb: boolean;
-  /** The universe's expansion skin between groups of galaxies (ΛCDM, 0.4.3). */
+  /** The universe's expansion skin between groups of galaxies (ΛCDM, 0.4.5). */
   readonly expansion: boolean;
-  /** Teaching option: the matter-only universe in place of ΛCDM (0.4.3). */
+  /** Teaching option: the matter-only universe in place of ΛCDM (0.4.5). */
   readonly massOnly: boolean;
 }
 

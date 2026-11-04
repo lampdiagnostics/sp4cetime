@@ -1,6 +1,6 @@
 # ADR-0022: ▶ Go, the Download package, ▷ Paths and the Capture tiles
 
-Status: accepted (4 November 2026, 0.4.3).
+Status: accepted (4 November 2026, 0.4.5).
 
 ## Context
 
@@ -21,4 +21,4 @@ The owner set out the whole Starsigns video in one sequence: press ▶ Go; from 
 
 - The dialog lost ⤓ Download package, the video-size choice, ✶ Create Path and the coffee link; they live in the package now.
 - A path stopped early (■ Stop, Esc) has no package; its video still finishes and goes to Downloads only through Capture.
-- Paths saved before 0.4.3 have no `zone` (the clock shows the device's time) and Starsigns ones hold time still between points (they were made with `playing: false`); make the path again for the new tour.
+- Paths saved before 0.4.5 have no `zone` (the clock shows the device's time) and Starsigns ones hold time still between points (they were made with `playing: false`); make the path again for the new tour.

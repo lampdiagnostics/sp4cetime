@@ -1,5 +1,5 @@
 /**
- * The universe's expansion skin (0.4.3; docs/SPHERES.md §9, ADR-0021): how far apart
+ * The universe's expansion skin (0.4.5; docs/SPHERES.md §9, ADR-0021): how far apart
  * unbound galaxies are at any moment, as a scale factor a(t), 1 now. A pure function of
  * time (rule 4): the skin names a cosmology, not keyframes.
  *

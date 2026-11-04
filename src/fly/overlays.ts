@@ -33,7 +33,7 @@ export interface OverlayOptions {
    * mass, and the Sun's line and every path wobble around it (src/core/barycentre.ts).
    */
   readonly barycentre?: boolean;
-  /** The galaxy web ruled in light years (0.4.3; on unless turned off). */
+  /** The galaxy web ruled in light years (0.4.5; on unless turned off). */
   readonly galaxyWeb?: boolean;
   /** The universe's expansion skin between groups of galaxies (ΛCDM; on unless turned off). */
   readonly expansion?: boolean;

@@ -1,5 +1,5 @@
 /**
- * The nearest galaxies in Fly mode (0.4.3; docs/SPHERES.md §9, ADR-0021): about 500 from
+ * The nearest galaxies in Fly mode (0.4.5; docs/SPHERES.md §9, ADR-0021): about 500 from
  * the Updated Nearby Galaxy Catalog (public/sky/galaxies.json, src/core/galaxies.ts), each
  * at its measured place and true size, and the galaxy web joining them, ruled in light
  * years. With the expansion skin on, the space between groups stretches with time

@@ -58,7 +58,7 @@ export const SGR_A_B_DEG = -0.046_2;
 /** The galaxy sphere's radius: the disc is ~100,000 light years across (the stellar disc thins out beyond). */
 export const GALAXY_RADIUS_LY = 50_000;
 
-// --- Cosmology (the universe's expansion skin, 0.4.3; docs/SPHERES.md §9) -------------
+// --- Cosmology (the universe's expansion skin, 0.4.5; docs/SPHERES.md §9) -------------
 
 /** Hubble constant now, km/s per Mpc (Planck 2018: 67.4 ± 0.5; the distance ladder gives 73.0 ± 1.0, the "Hubble tension"). */
 export const HUBBLE_KM_S_MPC = 67.4;

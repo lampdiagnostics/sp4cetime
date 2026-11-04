@@ -324,7 +324,7 @@ export function App() {
   const [making, setMaking] = useState<Path | null>(null);
   const [dialog, setDialog] = useState<{ starting: boolean; point: PathPoint } | null>(null);
   const [starsigns, setStarsigns] = useState(false);
-  /** A path to show selected in ▷ Present's menu, opened (after ✶ Create Path). */
+  /** A path to show selected in ▷ Paths' menu, opened (after an upload). */
   const [focusPath, setFocusPath] = useState<{ id: string; n: number } | null>(null);
   const confirmPoint = (r: DialogResult): void => {
     if (!dialog) return;
@@ -402,7 +402,7 @@ export function App() {
     },
     [goToPoint],
   );
-  /** ▷ Present (in its menu) runs the path by itself (owner, 3 Nov 2026); arrow keys take over point by point. */
+  /** Plays a path by itself without recording (Shift); arrow keys take over point by point. ▶ Go records (go, below). */
   const startPresenting = (id: string): void => {
     const path = findPath(id);
     if (path) presentRun.current(path);

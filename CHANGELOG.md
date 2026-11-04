@@ -2,7 +2,9 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
-## 0.4.3 — unreleased
+## 0.4.5 — 4 November 2026
+
+(0.4.3 was a working version, never published, and 0.4.4 was skipped: everything since 0.4.2 is here.)
 
 - **One ▶ Go** (ADR-0022), in the Starsigns dialog and in ▷ Paths: it flies the path and records it (an MP4 made for X); at the end the **Download package** pops up: ⤓ Download (free: the MP4, a PDF of the last view and the path token in one .zip), ✶ Customize and ☕ Buy me a coffee (both to sp4cetime.store). The dialog's Go + Record, Create Path and Download package buttons are gone.
 - **The PDF is the video's last frame**, the very rectangle, with your signs and houses (by name) on the sides around the wheel, in light text on the night sky (dark on Bright).

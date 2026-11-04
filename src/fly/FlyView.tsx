@@ -283,7 +283,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     let paths = createOverlays(scene.scene, live.current.theme);
     let sky: ReturnType<typeof createSky> | null = null;
     let galaxy: ReturnType<typeof createGalaxy> | null = null;
-    // The nearest ~500 galaxies and their web (0.4.3), loaded with the galaxy view.
+    // The nearest ~500 galaxies and their web (0.4.5), loaded with the galaxy view.
     let nearby: Nearby | null = null;
     let nearbyStatement = '';
     let disposed = false;

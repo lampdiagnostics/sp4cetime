@@ -1,5 +1,5 @@
 /**
- * The nearest galaxies (0.4.3; docs/SPHERES.md §9, ADR-0021): about 500 from the Updated
+ * The nearest galaxies (0.4.5; docs/SPHERES.md §9, ADR-0021): about 500 from the Updated
  * Nearby Galaxy Catalog (public/sky/galaxies.json, built by scripts/build_galaxies.py),
  * each a sphere carried on the universe's orbit skin: a track (direction and distance)
  * from the Milky Way's centre, scaled by the universe's expansion skin (cosmology.ts)

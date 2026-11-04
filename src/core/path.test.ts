@@ -222,7 +222,7 @@ describe('helpers', () => {
   });
 });
 
-describe('Points among the nearby galaxies (0.4.3)', () => {
+describe('Points among the nearby galaxies (0.4.5)', () => {
   it('keep a camera 16 Mpc out, and the web, expansion and mass-only settings', () => {
     const p = parsePoint({
       view: 'fly', present: { day: 0, sec: 0 }, speed: 1, playing: false,

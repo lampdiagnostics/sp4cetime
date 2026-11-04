@@ -2109,7 +2109,7 @@ body:has(.dock[data-open='true']) .scale-corner {
   overflow-y: auto;
 }
 
-/* The place and the moment of a Starsigns chart (0.4.3): bottom right, about 20 pt, off-white;
+/* The place and the moment of a Starsigns chart (0.4.5): bottom right, about 20 pt, off-white;
    above the bottom buttons while they show, in the corner when they are hidden; gone with all text. */
 .place-stamp {
   position: fixed;

@@ -10,8 +10,8 @@ const VIDEO_FPS = 30;
 
 /**
  * Capture what is on screen (the view, its names, and the boxes if they are showing),
- * straight to Downloads (a Starsigns recording, started by ⤓ Download package in its dialog,
- * shows its running time and ■ Stop here instead):
+ * straight to Downloads (a recording started by ▶ Go shows its running time and ■ Stop here
+ * instead), as six tiles: small (for X) or large (hi-res) × picture, GIF, video:
  * - P a screenshot (in every view);
  * - G a GIF: time plays for 5 seconds while it records, then pauses;
  * - V a video: from V until V again, or a click on the running time.
@@ -46,7 +46,7 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
   /** A path recording (the Starsigns package): its length so far and ■ Stop (it also stops at the path's end). */
   pathRecording: { clock: string; stop: () => void } | null;
 }) {
-  /** Which menu is open: ◉ Capture or ▷ Present (two buttons since 3 Nov 2026), or neither. */
+  /** Which menu is open: ◉ Capture or ▷ Paths (two buttons since 3 Nov 2026), or neither. */
   const [openMenu, setOpenMenu] = useState<'capture' | 'present' | null>(null);
   const open = openMenu !== null;
   const setOpen = (on: boolean): void => setOpenMenu(on ? openMenu : null);

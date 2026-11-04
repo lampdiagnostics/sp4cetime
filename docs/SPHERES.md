@@ -295,7 +295,7 @@ Who does what: **owner** = on the Mac; **Claude** = in the cloud copy (the cloud
 
 ### The expanding universe: the universe's expansion skin
 
-**Built in 0.4.3** (ADR-0021), with the 500 galaxies: ΛCDM in Elements, and the matter-only universe after all, as a teaching option (owner, 4 November 2026). Still to do: redshift colours and the seed path.
+**Built in 0.4.5** (ADR-0021), with the 500 galaxies: ΛCDM in Elements, and the matter-only universe after all, as a teaching option (owner, 4 November 2026). Still to do: redshift colours and the seed path.
 
 Owner, 4 November 2026: part of 0.5.0. Inspired by a clip by Astronomy Today ([@astronomytodayy](https://x.com/astronomytodayy/status/2117602707322306826), 3 November 2026; the source, owner): a clump of galaxies in a universe filled only with matter (Friedmann, 1922), the space between them stretching and their light reddening. It is credited as an inspiration (in ? How to and README Credits, like @Geosophyy's); nothing from the clip itself is shipped, since no licence is stated. The instrument draws the same idea from its own maths and the real galaxies.
 

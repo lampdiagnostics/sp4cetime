@@ -33,10 +33,11 @@ Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 How to work (owner): commit changes locally as they are made; push to GitHub, and so to sp4cetime.org, only after substantial progress.
 
 ### 0.5.0 to-do
-- [ ] **Publish on GitHub:** push the `v0.4.0` tag from the Mac (`git push -f origin v0.4.0`), make a **GitHub Release** for v0.4.0 with the CHANGELOG entry; add the missing tags and releases v0.1.0–v0.3.0 (and v0.3.1's release). From now on, push in batches after substantial progress, then tag and release.
+- [ ] **Publish on GitHub:** push the `v0.4.0`, `v0.4.2` and `v0.4.5` tags from the Mac, make **GitHub Releases** for them with the CHANGELOG entry; add the missing tags and releases v0.1.0–v0.3.0 (and v0.3.1's release). From now on, push in batches after substantial progress, then tag and release.
 - [ ] **The money trail** (README.md "Opening sp4cetime.store: the money trail"): 0 the bank, 1 activate Stripe, 2 live mode in the Stripe connector, 3 live prices, 4 live coffee link (☕ turns on at once), 5–10 portal, the Worker on sp4cetime.store, secrets, webhook, email, open; 11 tax, 12 terms, refunds and privacy in the owner's words.
-- [ ] Turn ✶ Customize back on in the Starsigns dialog when the shop opens (`SHOP_OPEN`), and the shop's own checks: a real order of each product, a real readout email.
+- [ ] When the shop opens (`SHOP_OPEN`): the Download package's ✶ Customize and ☕ Buy me a coffee already link to sp4cetime.store (the coffee to `/coffee`, which the shop must serve); the shop's own checks: a real order of each product, a real readout email.
 - [ ] **Stand here** (README.md "0.4.0", rest of the design): the ground view as an instrument of its own (house wedges on the sky, a transparent-planet toggle in Elements, a time frame playing an hour), points remembering it; Placidus with honest labels.
+- [ ] ▶ Go on a real Mac, iPhone and Android: the recording made with the device's own H.264 encoder (only the fallback recorder was tried in the cloud), the Download package's .zip on iOS, the Capture tiles by thumb.
 - [ ] Starsigns: the night field brighter (the ground can hardly be seen at night); the planets to show in 3D during the path even when only Mercury–Mars are ticked? (the owner decides: the rule is that menus decide what is on screen).
 - [ ] Hospitals first in the place search (a Wikidata CC0 list the owner downloads; the cloud cannot reach it).
 - [ ] Live link / screen saver (`?live`), GIF and SVG posters for the package, sharing links.
@@ -45,9 +46,9 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
   - [ ] Owner answers the open questions at the end of SPHERES.md (frame, sphere size, the universe's working centre, time, inner skins, skin files, the viewer's figure and key, 500 galaxies or a round distance, stars later); record them in DECISIONS §4 and an ADR.
   - [ ] The model in code: `Sphere`, `Skin` (with the tracks of the children it carries), `Viewer` in `src/core/spheres.ts`; addresses on every sphere; skin files; property tests (SPHERES.md §11).
   - [ ] Visibility: walk the tree, skip spheres out of view or smaller than a pixel; home-sphere handover with a margin (SPHERES.md §8).
-  - [x] **The ~500 nearest galaxies** (done in 0.4.3, ADR-0021; from the HEASARC copy of the UNGC; discs face-on: no position angles yet): follow "Loading the galaxy library, step by step" (SPHERES.md §9): the licence checked, the owner downloads the Updated Nearby Galaxy Catalog, `scripts/build_galaxies.py`, `public/sky/galaxies.json`, `src/core/galaxies.ts`, flat tilted discs in Fly mode, the warp's third rung.
-  - [x] **The galaxy web ruled in light years** (0.4.3; still to do: the flight ruler counting down in the HUD): group lines, bridges joining the groups, the flight ruler counting down; an Elements toggle that points remember.
-  - [x] **The expanding universe** (0.4.3, ADR-0021: ΛCDM in Elements, the mass-only universe in Teaching options; still to do: redshift colours, a seed path; owner, 4 November 2026; SPHERES.md §9, "The expanding universe"): the universe's expansion skin, `src/core/cosmology.ts` (ΛCDM), bridges between groups stretching with a(t) while bound groups hold, Expansion and Redshift toggles that points remember, a seed path.
+  - [x] **The ~500 nearest galaxies** (done in 0.4.5, ADR-0021; from the HEASARC copy of the UNGC; discs face-on: no position angles yet): follow "Loading the galaxy library, step by step" (SPHERES.md §9): the licence checked, the owner downloads the Updated Nearby Galaxy Catalog, `scripts/build_galaxies.py`, `public/sky/galaxies.json`, `src/core/galaxies.ts`, flat tilted discs in Fly mode, the warp's third rung.
+  - [x] **The galaxy web ruled in light years** (0.4.5; still to do: the flight ruler counting down in the HUD): group lines, bridges joining the groups, the flight ruler counting down; an Elements toggle that points remember.
+  - [x] **The expanding universe** (0.4.5, ADR-0021: ΛCDM in Elements, the mass-only universe in Teaching options; still to do: redshift colours, a seed path; owner, 4 November 2026; SPHERES.md §9, "The expanding universe"): the universe's expansion skin, `src/core/cosmology.ts` (ΛCDM), bridges between groups stretching with a(t) while bound groups hold, Expansion and Redshift toggles that points remember, a seed path.
   - [ ] Honest labels: distance method and uncertainty; "seen as it was N million years ago".
   - [ ] **The viewer's skins**: a flying figure or a ship; first and third person (a key and a Display button); points remember it.
   - [ ] Stars stay as they are (owner); flying to other stars comes later, as their spheres fill in.
@@ -57,7 +58,7 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
 - [ ] **Package on iPhone/iPad:** Safari's video recording and .zip download are untested; Safari records MP4 only in recent versions.
 - [ ] **Package memory:** a hi-res (4K) recording is held in memory and copied once to make the .zip; long or 4K packages could strain phones. Consider small video by default on phones.
 - [ ] **Cross-fades:** names now vanish and fade back in when a presentation changes look (the snapshot leaves them out); a true name-by-name cross-fade would be nicer.
-- [ ] **Old saved paths** from before the four poses (6-point and 30-point Starsigns paths, with highlights) still sit in ▷ Present in browsers that made them; offer to clear them, or mark them old.
+- [ ] **Old saved paths** from before the four poses (6-point and 30-point Starsigns paths, with highlights) still sit in ▷ Paths in browsers that made them; offer to clear them, or mark them old.
 - [ ] **The first flight** of a path (from wherever you are to its START) can take 10–15 s; shorten it.
 - [ ] **Ground at eye height:** Earth's sphere is drawn with flat facets, so the ground can sit up to ~2 km below the eye at the horizon; finer tessellation near the camera.
 - [ ] **Labels:** on the wheel, the Sun's and Mercury's names can still touch when within a few degrees; the top-left box is cut to "SP4CETIM…" on narrow phones.
@@ -122,8 +123,8 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 
 ### On the list: the spheres model
 - [ ] Owner answers the open questions in SPHERES.md (now part of 0.5.0, above).
-- [x] 0.4.3: the barycentre as the first teaching option (Elements › Teaching options, off by default).
-- [x] 0.4.3 (local, not pushed yet): one eastward sweep round the sky (2 s at each planet or group, every body once), the field as a silhouette (black at night, dark green by day), a white-noise bed throughout, a calm final wheel with the zodiac constellations faintly behind.
+- [x] 0.4.5 (pushed 4 November 2026; 0.4.3 was never published; 0.4.4 was skipped): one ▶ Go that records the Starsigns tour and ends in the Download package (MP4 for X, a PDF of the last frame, the path token; ADR-0022), ▷ Paths with a drop box for tokens, ◉ Capture as six tiles, the tour's clock and place captions, the field dropping away from your feet, the nearest 500 galaxies with their web and the expansion of space (ADR-0021), the barycentre and the mass-only universe as teaching options, the space bar doing one thing only.
+- [x] 0.4.5: one eastward sweep round the sky (2 s at each planet or group, every body once), the field as a silhouette (black at night, dark green by day), a white-noise bed throughout, a calm final wheel with the zodiac constellations faintly behind.
 - [x] 0.4.2: videos made for X (WebCodecs + our MP4 writer: H.264 High, constant 30 fps, AAC sound always, 1080p; ADR-0020), recordings that pop, GIFs that keep thin lines and true timing, sound (silence in space; crickets and distant traffic on the ground), the Starsigns landing in a field that drops away, each body looked at once.
 - [x] SPHERES.md rewritten (0.4.2): the tree from the universe to atoms, children carried by their parent's skins, the viewer and visibility, precedents, the galaxy plan.
 - [ ] An ADR; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.

@@ -1,6 +1,6 @@
 # ADR-0021: The nearest 500 galaxies, the galaxy web, and the universe's expansion skin
 
-Status: accepted (4 November 2026, 0.4.3). Built ahead of the rest of 0.5.0 at the owner's request ("let's do the 500 now").
+Status: accepted (4 November 2026, 0.4.5). Built ahead of the rest of 0.5.0 at the owner's request ("let's do the 500 now").
 
 ## Context
 

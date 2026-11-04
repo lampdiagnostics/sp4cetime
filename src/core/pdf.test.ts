@@ -101,7 +101,7 @@ describe('The Starsigns card', () => {
   });
 });
 
-describe('Images and the tour’s frame PDF (0.4.3)', () => {
+describe('Images and the tour’s frame PDF (0.4.5)', () => {
   // A tiny stand-in for JPEG bytes (the writer copies them as they are).
   const jpeg = { data: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x80, 0x0a, 0xff, 0xd9]), width: 1920, height: 1080 };
   it('embeds a JPEG byte for byte, with its length, and draws it', () => {

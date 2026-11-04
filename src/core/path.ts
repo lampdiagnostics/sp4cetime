@@ -62,7 +62,7 @@ export interface ChartLook {
    * see-through it drops away from under the viewer's feet.
    */
   readonly ground?: boolean;
-  /** The moment as the person entered it, local time ("14 July 1985, 3:20 pm"), for the place-and-time label (0.4.3). */
+  /** The moment as the person entered it, local time ("14 July 1985, 3:20 pm"), for the place-and-time label (0.4.5). */
   readonly when?: string;
 }
 
@@ -95,11 +95,11 @@ export interface PointLook {
   readonly measure: 'near' | 'sun' | 'galaxy';
   /** The barycentre: the Sun's wobble around the solar system's centre of mass; 0.5.0, so older files take the default (off). */
   readonly barycentre: boolean;
-  /** The galaxy web ruled in light years; 0.4.3, so older files take the default (on). */
+  /** The galaxy web ruled in light years; 0.4.5, so older files take the default (on). */
   readonly galaxyWeb: boolean;
-  /** The universe's expansion skin (ΛCDM); 0.4.3, default on. */
+  /** The universe's expansion skin (ΛCDM); 0.4.5, default on. */
   readonly expansion: boolean;
-  /** Teaching option: the matter-only universe in place of ΛCDM; 0.4.3, default off. */
+  /** Teaching option: the matter-only universe in place of ΛCDM; 0.4.5, default off. */
   readonly massOnly: boolean;
 }
 
@@ -122,7 +122,7 @@ export interface PathPoint {
   readonly pause?: number;
   /** What is heard at the point (0.4.2): silence, or a soft white-noise bed. */
   readonly sound?: PointSound;
-  /** The clock caption's time zone, minutes ahead of UTC (0.4.3; Starsigns: the place's); absent: this device's. */
+  /** The clock caption's time zone, minutes ahead of UTC (0.4.5; Starsigns: the place's); absent: this device's. */
   readonly zone?: number;
 }
 
