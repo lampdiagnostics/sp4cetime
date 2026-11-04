@@ -120,6 +120,21 @@ The first piece of *Sky on your day* (DECISIONS §1), and the first example of *
 
 `sp4cetime.org/?live` opens one view with no boxes and time running (or loops a path), so the site is also a screen saver and a live wallpaper (docs/ROADMAP.md, "Screen saver").
 
+## The universe skin: to do
+
+Built in 0.4.3 ([ADR-0021](docs/adr/0021-nearby-galaxies-and-expansion.md)): the 500 nearest galaxies at their measured places, the galaxy web ruled in light years, the expansion of space between groups (ΛCDM; Elements › Expansion of space) and the mass-only universe (Teaching options). Still to do, in rough order:
+
+- [ ] **Redshift colours**: an Elements toggle tinting each galaxy by the z of the light reaching the Sun at the time shown (1 + z = a(now)/a(then)); truthfully faint in the Local Volume (z ≈ 0.002 at 8 Mpc) and said so, growing over billions of years; a version for each theme (Bright: warmer ink).
+- [ ] **The flight ruler**: flying from one galaxy to another, the straight line between them ruled in light years and the distance left counting down in the HUD.
+- [ ] **A seed path**: the Local Volume from outside at −4.6 billion years, then time running forward a billion years a second while the bridges stretch (and the same in the mass-only universe, for comparison).
+- [ ] **The warp's third rung**: zoom out past the Milky Way's domain to the nearby galaxies, zoom in on a galaxy to fly to it (today: Go to, flying out, or clicking a name).
+- [ ] **Discs at their true tilts**: position angles from HyperLEDA (licence first); today every disc faces you.
+- [ ] **Honest marks**: each line's light-year marks carry its distance uncertainty (5–10% for star-by-star distances, far more for those from speed alone), and galaxies with rough distances drawn as such.
+- [ ] **Groups from the catalogue's group lists** (today: each galaxy's main neighbour with tidal index Θ1 > 0, and everything within 1 Mpc as the Local Group), and the galaxies' own motions (a few hundred km/s) over hundreds of millions of years.
+- [ ] **The spheres model in code**: each galaxy a sphere carried on the universe sphere's skin file (docs/SPHERES.md), loaded only when in view.
+- [ ] **A bigger catalogue later**: the 2MASS Redshift Survey (~44,000 galaxies) or Cosmicflows-4, as coarser tiles of the same skin, for the clip's view of a web hundreds of millions of light years across (licences first).
+- [ ] **Checks**: screenshots in all three themes and on a phone, a Capture video of the bridges stretching, and the frame rate on a phone with 500 discs and the web.
+
 ## 0.5.0: the spheres and the 500 galaxies (next)
 
 Planned in [docs/SPHERES.md](docs/SPHERES.md). Everything is a sphere inside a bigger sphere, from the universe (conjectural, not drawn) to galaxies, stars, planets, moons, people, cells, molecules and atoms. Spheres never turn; only their skins do, and each child's motion is kept in a skin of its parent. The viewer is a sphere too, and only what it can see is loaded. 0.5.0 builds the model in code and its first big use: **the ~500 nearest galaxies** (Updated Nearby Galaxy Catalog), drawn flat at true size, joined by a **galaxy web ruled in light years**, so a flight from one galaxy to another counts down the light years; and **the viewer's skins** (a flying figure or a ship, first or third person).
@@ -152,7 +167,7 @@ npm run dev        # http://localhost:5173
 - **Bottom left**: SPACE (Go to: Solar system, Geostationary orbit, Low Earth orbit, Earth & Moon, Moon, Mars, Jupiter, Saturn, Sun, Whole galaxy); VIEW (Planets, Centre: Sun or Earth); ELEMENTS (Spirals, Strobe, Orbits, Time grid, Space grid, Constellations, Zodiac, Galaxy marks).
 - **Bottom right**: TIME (zoom: Minute, Hour, Day, Week, Month, Year, Decade, Century, Galactic year, Sun's life); SPEED: **▶ Play · speed and direction (Live, or ◀/▶ a minute … a century each second) · ❚❚ Pause** (choosing a speed holds time still until ▶ Play); the space grid's **scale bar** (two of its brown dashed lines and the km between them); **? How to** (instructions and credits).
 - **Layout** (every screen since 0.4.0, as on phones): the date at the top left; ● Now, ✦ Fly, ✶ Starsigns and ◯ Round / ▭ Full at the top right; ◉ Capture and ☰ More at the bottom. ☰ More opens one box at a time under **Time**, **Space** and **Display**; the boxes described below live there.
-- **Keys:** **Space** or **H** hides the controls, then all text, then brings everything back (also **Elements › Controls / Text and labels**, for phones). **Shift** on its own plays the path by itself; Shift again stops. An arrow key takes over (→ next, ← back) until Shift plays on from there.
+- **Keys:** **Space** does one thing only, in every view and whatever has the focus: the first press hides the controls, the second all text, the third brings everything back (**H** is the same; also **Elements › Controls / Text and labels**, for phones). Nothing else shows or hides them: a path's points never do. **Shift** on its own plays the path by itself; Shift again stops. An arrow key takes over (→ next, ← back) until Shift plays on from there.
 - **Bottom centre** (always on screen, never in a capture): the eye (also the H key, or a tap on empty space on a phone: hide the boxes, then all labels, then bring them back) **◉ Capture** and **▷ Present** (two menus). While a path records (⤓ Download package) its running time and **■ Stop** show here; it stops by itself at the end of the path.
 
 **Calendar** (the default view), with the real sky behind it, turned so the Sun's current sign is behind the Sun.

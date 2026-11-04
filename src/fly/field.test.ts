@@ -24,3 +24,22 @@ describe('The field under a Starsigns place', () => {
     for (const s of spots) expect((Math.atan2(s.h - 0.0017, Math.hypot(s.x, s.y)) * 180) / Math.PI).toBeLessThan(46);
   });
 });
+
+describe('The glowing grid on the ground', () => {
+  it('lies just above the grass, inside 150 m, brightest underfoot and gone at the edge', async () => {
+    const { groundGrid } = await import('./field');
+    const g = groundGrid();
+    const p = g.getAttribute('position')!, c = g.getAttribute('color')!;
+    expect(p.count).toBeGreaterThan(1000);
+    let near = 0, far = 1;
+    for (let i = 0; i < p.count; i++) {
+      const r = Math.hypot(p.getX(i), p.getY(i));
+      expect(r).toBeLessThanOrEqual(0.15 + 1e-7);
+      expect(p.getZ(i)).toBeCloseTo(0.00003, 9);
+      if (r < 0.005) near = Math.max(near, c.getY(i));
+      if (r > 0.149) far = Math.min(far, c.getY(i));
+    }
+    expect(near).toBeGreaterThan(0.4);
+    expect(far).toBeLessThan(0.01);
+  });
+});

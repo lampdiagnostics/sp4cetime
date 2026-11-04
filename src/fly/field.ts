@@ -47,6 +47,30 @@ export function treeSpots(seed: number, count = 220): TreeSpot[] {
   return out;
 }
 
+/** The ground's grid: lines every `step` km out to `radius` km, cut into short pieces so each fades with distance. */
+export function groundGrid(step = 0.003, radius = 0.15, piece = 0.006): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const glow = new THREE.Color(0x8affc8);
+  const fade = (x: number, y: number): number => Math.max(0, 1 - Math.hypot(x, y) / radius) ** 1.6 * 0.55;
+  const lift = 0.00003; // 3 cm above the grass
+  for (let a = -radius; a <= radius + 1e-9; a += step) {
+    const half = Math.sqrt(Math.max(0, radius * radius - a * a));
+    for (let b = -half; b < half; b += piece) {
+      const b2 = Math.min(half, b + piece);
+      for (const [x0, y0, x1, y1] of [[a, b, a, b2], [b, a, b2, a]] as const) {
+        pos.push(x0, y0, lift, x1, y1, lift);
+        const f0 = fade(x0, y0), f1 = fade(x1, y1);
+        col.push(glow.r * f0, glow.g * f0, glow.b * f0, glow.r * f1, glow.g * f1, glow.b * f1);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+
 /** The silhouette's colour at night and by day (owner, 4 Nov 2026: an outline, not a picture). */
 const NIGHT = new THREE.Color(0x000000);
 const DAY = new THREE.Color(0x0f2e17);
@@ -74,6 +98,15 @@ export function createField(seed: number): Field {
   const ink = new THREE.MeshBasicMaterial({ color: 0x000000 });
   mats.push(ink);
   group.add(new THREE.Mesh(ground, ink));
+
+  // A light, glowing grid on the ground (owner, 4 Nov 2026: so the ground can be seen, not
+  // just darkness): lines every 3 m, a few centimetres up, fading out by 150 m (among the trees).
+  const grid = groundGrid();
+  geos.push(grid);
+  const gridMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const gridLines = new THREE.LineSegments(grid, gridMat);
+  gridLines.frustumCulled = false;
+  group.add(gridLines);
 
   // The trees: trunks, spruce cones and round crowns, as instances (three draws in all).
   const spots = treeSpots(seed);
@@ -117,6 +150,7 @@ export function createField(seed: number): Field {
   return {
     group,
     setOpacity(k) {
+      gridMat.opacity = k;
       group.visible = k > 0.001;
       const solid = k >= 0.999;
       for (const mat of mats) {
@@ -133,6 +167,7 @@ export function createField(seed: number): Field {
       ink.color.copy(NIGHT).lerp(DAY, Math.max(0, Math.min(1, d)));
     },
     dispose() {
+      gridMat.dispose();
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
     },

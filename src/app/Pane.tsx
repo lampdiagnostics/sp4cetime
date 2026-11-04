@@ -622,7 +622,7 @@ export function Pane(p: Props) {
             </ul>
           )}
           <ul>
-            <li>Space or H (or the eye, or Elements › Controls and Text): hide the boxes, then all labels, then bring them back. On a phone, tap empty space.</li>
+            <li>Space (or H, the eye, Elements › Controls and Text): hide the controls, then all text, then bring them back. It does nothing else, and nothing else (a path's points included) shows or hides them. On a phone, tap empty space.</li>
             <li>Shift on its own: play the path by itself; Shift again stops it. An arrow key takes over (→ next, ← back); Shift plays on from there.</li>
             <li>Speed (bottom right): choose how fast time runs and which way (Live is real time); choosing holds time still until ▶ Play; ❚❚ Pause stops it.</li>
             <li>

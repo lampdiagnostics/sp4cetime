@@ -4,6 +4,10 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.4.3 — unreleased
 
+- **The space bar does one thing only**: hide the controls, then all text, then bring everything back. It used to go to whatever had the focus (an open menu, Round, a drop-down, a button), with no way back; now nothing but a text box ever gets a space.
+- **Presentations leave the controls alone**: stepping along a path (or stopping it) no longer brings the controls back; only the space bar (H, the eye) shows or hides them.
+- **A glowing grid on the Starsigns ground**: light lines every 3 metres across the field, fading out among the trees, so the ground can be seen at night, not just darkness.
+- **README › The universe skin: to do**: what is left of the galaxies and the expansion (redshift colours, the flight ruler, a seed path, the warp's third rung, true tilts, honest marks, groups, the spheres in code, a bigger catalogue, checks).
 - **The nearest 500 galaxies** (ADR-0021): Go to › **The nearby galaxies** flies 52 million light years out, where the ~500 nearest galaxies (out to 25 million light years, from the Updated Nearby Galaxy Catalog, Karachentsev et al. 2013) sit at their measured places and true sizes, as discs tinted by type (pictures modelled). Point at one for its distance, how it was measured, and how long ago its light left; click a name to fly there.
 - **The galaxy web, ruled in light years**: each galaxy joined to its main neighbour, so the groups (M81's, Centaurus A's, Sculptor's …) read as clusters, and the groups joined into one web by the shortest bridges, each labelled with its length; marks along every line at a round number of light years, the step shown bottom right. Elements › Galaxy web.
 - **The universe's expansion skin**: run time over billions of years and the space between groups of galaxies stretches with the universe (ΛCDM: 30% closer together when the Sun was born, 38% further apart in 5 billion years), while groups held together by gravity, our own Local Group included, keep their size. Elements › Expansion of space.

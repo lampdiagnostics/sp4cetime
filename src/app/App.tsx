@@ -79,29 +79,35 @@ export function App() {
   const [chrome, setChrome] = useState<0 | 1 | 2>(0);
   const cycleChrome = useCallback(() => setChrome((c) => ((c + 1) % 3) as 0 | 1 | 2), []);
   useEffect(() => {
+    /** Typing words (a text box), where a space is a space; not a checkbox, a slider, a drop-down or a button. */
     const typing = (): boolean => {
-      const a = document.activeElement;
-      return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
+      const a = document.activeElement as HTMLElement | null;
+      if (!a) return false;
+      if (a.tagName === 'TEXTAREA' || a.isContentEditable) return true;
+      if (a.tagName !== 'INPUT') return false;
+      return !['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'color', 'file'].includes((a as HTMLInputElement).type);
     };
-    // Space (owner, 3 Nov 2026) and H show and hide the controls, then all text, then bring
-    // everything back, in every view (neither flies: R and F do). Space never presses a
-    // button last clicked with the mouse; a button chosen with Tab still works.
+    // The space bar does one thing only (owner, 4 Nov 2026): hide the controls, then all
+    // text, then bring everything back, in every view, whatever has the focus (a button, a
+    // menu, a drop-down or a checkbox never gets it; Fly never sees it: R and F fly up and
+    // down). Only typing in a text box keeps its spaces. H does the same.
     const down = (e: globalThis.KeyboardEvent): void => {
       if (typing() || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'h' || e.key === 'H') {
-        e.preventDefault();
-        if (!e.repeat) cycleChrome();
-        return;
-      }
-      if (e.key === ' ' && !keyboardOnControl()) {
+      const space = e.key === ' ' || e.code === 'Space';
+      if (!space && e.key !== 'h' && e.key !== 'H') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (space) {
         const a = document.activeElement as HTMLElement | null;
-        if (a && a !== document.body && a.tagName === 'BUTTON') a.blur();
-        e.preventDefault();
-        if (!e.repeat) cycleChrome();
+        if (a && a !== document.body) a.blur();
       }
+      if (!e.repeat) cycleChrome();
     };
     const up = (e: globalThis.KeyboardEvent): void => {
-      if (e.key === ' ' && !typing() && !keyboardOnControl()) e.preventDefault();
+      if ((e.key === ' ' || e.code === 'Space') && !typing()) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
     window.addEventListener('keydown', down, true);
     window.addEventListener('keyup', up, true);
@@ -291,9 +297,10 @@ export function App() {
       }
       dissolve();
       // Round or full is the visitor's alone (owner, 3 Nov 2026): a path never changes it.
-      const { chrome: c, measure: _m, round: _r, ...rest } = look;
+      // So is what is showing (owner, 4 Nov 2026): only the space bar (or H, the eye) hides or
+      // shows the controls and the text; a path's points never change it.
+      const { chrome: _c, measure: _m, round: _r, ...rest } = look;
       update(rest);
-      setChrome(c);
     },
     reduced: reducedMotion,
   };
@@ -373,7 +380,6 @@ export function App() {
     if (before) {
       // Your settings back as they were, except round or full: that is whatever you last chose.
       setSettings((s) => ({ ...before.settings, round: s.round }));
-      setChrome(before.chrome);
     }
   }, []);
   /** Next (+1) or back (−1), from the keys or the ◀ ▶ buttons (phones). */
