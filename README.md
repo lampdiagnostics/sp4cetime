@@ -162,7 +162,7 @@ npm run dev        # http://localhost:5173
 - Scroll or pinch (or [ and ]) make the solar system larger or smaller; Shift + scroll or pinch (or +/−) zoom time, from about a minute to the Sun's whole life. Each gesture does one thing; zooming holds the Sun in place. Orbits are in their true proportions and orientation.
 - **Centre: Earth** makes it geocentric: Earth's path is the straight line, the Sun coils around it, and the planets loop back (retrograde).
 - **Strobe** (Elements): the whole solar system's pose freezes behind the present so many times a year (1–24): whole numbers draw still polygons, in-between numbers turn lap by lap. Click a frozen pose to go back to that moment.
-- The Moon's and the Sun's signs are marked on the sky ("☾ Moon in ♋︎ Cancer").
+- The Sun's sign is written under the Sun ("☉ Sun in ♏︎ Scorpio"), the Moon's in its name on its path ("Moon in ♑︎ Capricorn").
 
 **Fly** (✦ Fly, or click a name). You are in the solar system, in 3D, at true scale.
 
