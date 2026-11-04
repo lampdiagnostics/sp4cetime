@@ -54,7 +54,7 @@ export function createWheel(scene: THREE.Scene, host: HTMLElement): Wheel {
   const bodyMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false });
   // A dark disc behind the wheel (0.4.2, owner: the final circle and planets must stand out
   // from the crowded sky): the stars show faintly through it, the wheel's lines and bodies on top.
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.72, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const backMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
   const back = new THREE.Mesh(new THREE.CircleGeometry(1.2, 128), backMat);
   back.renderOrder = 4;
   back.frustumCulled = false;

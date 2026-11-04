@@ -74,7 +74,7 @@ describe('The Starsigns path', () => {
     const mars = pts.find((p) => p.caption.includes('Mars 23° Cancer'))!;
     expect(mars.look.chart).toBeNull();
     expect(mars.pause).toBe(2);
-    expect(pts.find((p) => p.caption.includes('Mercury 18° Leo'))!.pause).toBeGreaterThanOrEqual(3.8);
+    expect(pts.find((p) => p.caption.includes('Mercury 18° Leo'))!.pause).toBe(2);
     for (const p of pts) expect(p.pause).toBeGreaterThan(0);
   });
 
@@ -119,16 +119,37 @@ describe('The Starsigns path', () => {
     for (const p of pts) expect(p.caption.length).toBeLessThan(110);
   });
 
-  it('looks at every body once: one brisk stop where the first pose faces the Sun, then once round', () => {
-    const overWorld = pts.filter((p) => !p.look.chart);
-    for (const b of r.bodies) expect(overWorld.filter((p) => p.caption.includes(`${b.name} `)).length).toBe(1);
-    // The Sun's group is the first stop itself: 2 seconds, from the first pose's camera.
-    expect(pts[0]!.caption).toContain('Sun ');
-    expect(pts[0]!.pause).toBe(2);
-    expect(overWorld.filter((p) => JSON.stringify(p.fly) === JSON.stringify(pts[0]!.fly))).toHaveLength(1);
-    // Then on round the zodiac, every view a different direction.
-    const quats = overWorld.map((p) => JSON.stringify(p.fly!.quat));
-    expect(new Set(quats).size).toBe(quats.length);
+  it('sweeps once round the sky, east from the Sun, 2 s at each planet or group, every body once (any date, any place)', () => {
+    const lonOfQuat = (q: readonly number[]): number => {
+      const d = rot(q, [0, 0, -1]);
+      return ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
+    };
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1900, max: 2100 }), fc.integer({ min: 1, max: 12 }), fc.integer({ min: 1, max: 28 }), fc.integer({ min: 0, max: 86_399 }),
+        fc.double({ min: -60, max: 60, noNaN: true }), fc.double({ min: -180, max: 180, noNaN: true }),
+        (y, m, d, sec, lat, lon) => {
+          const rr = readingAt(fromCivil(y, m, d, sec), lat, lon, 'whole');
+          const p = starsignsPath(rr, { ...base, id: 'p', created: '', placeLabel: 'X', placeName: 'X', whenText: 'w', system: 'whole' }).points;
+          const sweep = p.filter((x) => !x.look.chart);
+          // Starts facing the Sun's group, from the first pose itself.
+          expect(sweep[0]!.caption).toContain('Sun ');
+          // Every body named once; each named stop 2 s, each pass-through point no pause and no name.
+          for (const b of rr.bodies) expect(sweep.filter((x) => x.caption.includes(`${b.name} `)).length).toBe(1);
+          for (const x of sweep) expect(x.pause).toBe(x.caption ? 2 : 0);
+          // Always turning east, each turn under 120° (so the short way is east), less than once round in all.
+          let total = 0;
+          for (let i = 1; i < sweep.length; i++) {
+            const step = (lonOfQuat(sweep[i]!.fly!.quat) - lonOfQuat(sweep[i - 1]!.fly!.quat) + 360) % 360;
+            expect(step).toBeGreaterThan(0);
+            expect(step).toBeLessThanOrEqual(120 + 1e-6);
+            total += step;
+          }
+          expect(total).toBeLessThan(360);
+        },
+      ),
+      { numRuns: 60 },
+    );
   });
 
   it('has a soft white-noise bed throughout, and the field under the place from the landing on', () => {

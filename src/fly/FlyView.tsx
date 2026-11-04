@@ -1051,9 +1051,10 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       lensNow = reduced() ? lensTarget : lensNow + Math.sign(lensTarget - lensNow) * Math.min(Math.abs(lensTarget - lensNow), dt / 1.2);
       const lensEased = lensNow * lensNow * (3 - 2 * lensNow);
       sky?.setLens(lensEased);
-      // The final view is about the wheel (owner, 4 Nov 2026: less busy): the sky steps back to a
-      // quarter of its brightness, without its names, and the paths and grids step aside.
-      if (lensEased > 0) sky?.setFade(Math.min(1 - far, 1 - 0.75 * lensEased));
+      // The final view is about the wheel (owner, 4 Nov 2026: less busy, but with the zodiac's
+      // own constellations shining faintly through): the sky steps back to under half its
+      // brightness, only the zodiac's figures and their names stay, and paths and grids step aside.
+      if (lensEased > 0) sky?.setFade(Math.min(1 - far, 1 - 0.55 * lensEased));
       const gl: Array<{ pos: Vec3; text: string; kind: 'time' | 'space' | 'galaxy'; action?: string }> = [
         ...paths.update(
           far > 0.5 || lensEased > 0.3 ? { ...o, spirals: false, orbits: false, timeGrid: false, spaceGrid: false } : o,
@@ -1281,7 +1282,7 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       } else lensNote.style.display = 'none';
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
-      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, equinoxShift: skyNow.lonShift, chart: skyChart, planisphere: lensEased > 0.5 }) : [];
+      const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, ...(lensEased > 0.5 && { constellations: false, zodiac: true }), equinoxShift: skyNow.lonShift, chart: skyChart, planisphere: lensEased > 0.5 }) : [];
       const starPts: Array<[number, number]> = [];
       if (sky && sl.length > 0) {
         for (const d0 of sky.brightStars) {

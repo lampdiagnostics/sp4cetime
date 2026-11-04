@@ -5,10 +5,10 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 ## 0.4.3 — unreleased
 
 - **✶ Starsigns, a brisker and calmer video** (owner, 4 November 2026):
-  - **The Sun gets one brisk stop of 2 seconds**, then the view moves on (it lingered there about ten).
+  - **One sweep round the sky**, the pattern for every Starsigns path: from the Sun's group, always turning east, stopping **2 seconds at each planet or group of planets**, every body once. It used to turn the short way between views, so after a big gap it swung back west over sky it had done (past the Sun again, before Pluto); now a wide gap gets pass-through points that keep the turn eastward. A test checks the pattern on random dates and places.
   - **The field is an outline**: the ground and the trees are one flat colour, **solid black at night and solid dark green by day** (following the Sun at the place, blended through twilight), instead of shaded grass and trees.
   - **A soft white-noise bed throughout** the path instead of crickets and distant traffic (and instead of silence in space).
-  - **The final view is less busy**: the wheel and its planets sit on a dark disc, the planets larger with a dark ring and their own glow, the wheel's lines at full strength; the sky behind is dimmed to a quarter, without its names, and the paths and grids step aside.
+  - **The final view is less busy**: the wheel and its planets sit on a half-dark disc, the planets larger with a dark ring and their own glow, the wheel's lines at full strength; behind them **only the zodiac's own constellations shine faintly through** (the rest of the sky dimmed, other figures and names gone), and the paths and grids step aside.
 
 ## 0.4.2 — 2026-11-04
 

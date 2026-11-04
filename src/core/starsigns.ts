@@ -5,10 +5,9 @@
  *
  *   1. SIGNS FROM ABOVE: where clicking Earth's name takes you, above its north pole,
  *      facing the Sun, the zodiac around the horizon.
- *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
- *      body picked out in turn (it pulses; its caption gives its sign and degree). 0.4.2:
- *      starting with the Sun's group where pose 1 already looks (one brisk 2-second stop),
- *      once round the zodiac, so no body is looked at twice.
+ *   2. THE PLANETS: one sweep round the sky, east from the Sun's group (where pose 1
+ *      already looks), stopping 2 seconds at each planet or group of planets (as few views
+ *      as hold them all), every body once; pass-through points keep every turn eastward.
  *   3. THE SKY OVER THE PLACE (owner, 3 Nov 2026): standing in a field at the place (a town
  *      at its centre; 0.4.2: a gentle fall from space into a field ringed by trees, drawn as
  *      a silhouette, black at night and dark green by day), the ground along
@@ -109,6 +108,10 @@ export interface StarsignsOptions {
 export const WHEEL_RADII = 12;
 /** Eye height above the place, km: standing in a field (owner, 3 Nov 2026: ground level). */
 const STAND_KM = 0.002;
+/** Seconds the sweep stops at each planet or group of planets (owner, 4 Nov 2026). */
+export const SWEEP_PAUSE = 2;
+/** The largest turn between two points of the sweep, degrees (a turn takes the short way, so under 180°). */
+export const MAX_TURN_DEG = 120;
 /** Half the angle a view of planets may span (so each group fits even on a narrow screen). */
 const GROUP_HALF_DEG = 28;
 
@@ -207,26 +210,34 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   };
   const ids = r.bodies.map((b) => b.id);
   const dirs = ids.map(geo);
-  // Each body is looked at once (owner, 4 Nov 2026: it stopped at the Sun twice, first
-  // facing it and again when its group came round). The tour starts with the Sun's group,
-  // seen from where the first pose already faces the Sun (one stop, 2 s), and goes once round the zodiac.
+  // ONE SWEEP ROUND THE SKY (owner, 4 Nov 2026), the pattern for every Starsigns path: from
+  // the Sun's group (where the first view already looks), always turning east (the way the
+  // longitudes run), stopping 2 seconds at each planet or group of planets, every body once.
+  // A turn always takes the short way, so a gap of more than 120° between two stops gets
+  // pass-through points (no pause): the camera never swings back over sky it has done.
   const groups = groupDirections(dirs, GROUP_HALF_DEG);
-  const sunAt = groups.findIndex((g) => g.some((i) => ids[i] === 'sun'));
-  const tour = sunAt > 0 ? [...groups.slice(sunAt), ...groups.slice(0, sunAt)] : groups;
+  const sunAt = Math.max(0, groups.findIndex((g) => g.some((i) => ids[i] === 'sun')));
+  const tour = [...groups.slice(sunAt), ...groups.slice(0, sunAt)];
+  const lonOf = (d: Vec3): number => ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
+  let lastLon = lonOf(forward);
   for (const [k, g] of tour.entries()) {
     const centre = unit(g.reduce<Vec3>((acc, i) => add(acc, dirs[i]!), [0, 0, 0]));
-    const view: FlyState = k === 0 && sunAt >= 0 ? pole : { ...pole, quat: lookQuat(centre, n) };
-    // A pause over each view, longer when it holds more bodies (owner, 3 Nov 2026: no picking
-    // out or pulsing; their names and signs are on screen).
+    // Their names and signs are on screen (no picking out or pulsing, owner 3 Nov 2026).
     const names = g.map((i) => `${r.bodies[i]!.name} ${formatSignDeg(r.bodies[i]!.lon)}`);
     const caption = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
-    if (k === 0 && sunAt >= 0) {
-      // The Sun's group is where the first view already looks: one brisk stop of 2 seconds
-      // there (owner, 4 Nov 2026: it lingered on the Sun), then on round the zodiac.
-      points[0] = point(pole, `${whose}: ${caption}`, false, null, '', false, false, 2);
+    if (k === 0) {
+      points[0] = point(pole, `${whose}: ${caption}`, false, null, '', false, false, SWEEP_PAUSE);
       continue;
     }
-    points.push(point(view, caption, false, null, '', false, false, 3 + 0.8 * g.length));
+    const lon = lonOf(centre);
+    const gap = (lon - lastLon + 360) % 360;
+    const legs = Math.ceil(gap / MAX_TURN_DEG);
+    for (let j = 1; j < legs; j++) {
+      const a = ((lastLon + (gap * j) / legs) * Math.PI) / 180;
+      points.push(point({ ...pole, quat: lookQuat([Math.cos(a), Math.sin(a), 0], n) }, '', false, null, '', false, false, 0));
+    }
+    points.push(point({ ...pole, quat: lookQuat(centre, n) }, caption, false, null, '', false, false, SWEEP_PAUSE));
+    lastLon = lon;
   }
 
   // 3. Down to the place, looking straight up: the zodiac and the houses overhead (the MC at the top of the view).
