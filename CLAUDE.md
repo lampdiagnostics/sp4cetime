@@ -42,7 +42,7 @@ Context for any AI assistant (Claude, GPT, Gemini, Grok, a local model) or human
 | `content/themes/*.json` | Themes as data, validated by `parseTheme`. |
 | `public/sky`, `public/textures` | Star catalogue, Milky Way, galaxy model, Earth and Moon maps, Earth's coastline and border lines (`scripts/build_earth_lines.py`), with licences and credits. |
 | `public/paths/` | Example paths as `.sp4ce.json` files, listed in `index.json` (shown under Examples in the Present menu). Empty since 0.4.0 (owner took down "A first tour"); the loader still reads any listed. |
-| `docs/ROADMAP.md`, `docs/SPHERES.md` | To-do lists by version and the four modes (Galactic, Planetary, Cellular, Atomic); the draft spheres-and-skins model. |
+| `docs/ROADMAP.md`, `docs/SPHERES.md` | To-do lists by version and the four modes (Galactic, Planetary, Cellular, Atomic); the draft spheres-and-skins model: the tree from the universe to atoms, children carried by their parent's skins, the viewer and loading only what is seen, precedents (OpenSpace, games), and the 0.5.0 galaxy plan with its step-by-step loading. **Read it before any 0.5.0 work.** |
 
 ## Rules
 
@@ -107,9 +107,9 @@ Paste one of these as the first message (adjust the bracketed parts). They are m
 
 > In sp4cetime (read CLAUDE.md, then the "Going live" section of README.md), help me release to GitHub and launch on sp4cetime.org. Use the built-in browser where I'm signed in; ask me before anything that publishes, changes an account or touches DNS; I type any passwords or tokens myself. Work through the steps in order and tick them off in the README as they are done.
 
-**0.4.0: Stand here (signs and houses)**
+**0.5.0: the spheres and the 500 galaxies**
 
-> In sp4cetime (read CLAUDE.md, DECISIONS.md and the "0.4.0" section of README.md and docs/ROADMAP.md), build "Stand here" as designed there: the house maths in `src/core/houses.ts` with property tests first, then the dialog (place in degrees, minutes, seconds; a time frame), the ground view with house wedges and a transparent planet, and points that remember it. Verify with screenshots and a video of each view.
+> In sp4cetime (read CLAUDE.md, DECISIONS.md, docs/SPHERES.md and the "0.5.0" section of docs/ROADMAP.md), we are building 0.5.0. First go through the open questions at the end of SPHERES.md with me and record my answers (DECISIONS §4, then an ADR). Then follow "Loading the galaxy library, step by step" (SPHERES.md §9): tell me what to download on the Mac, write `scripts/build_galaxies.py`, then `src/core/galaxies.ts` with property tests, the discs and the galaxy web ruled in light years in Fly mode, and points that remember it. Verify with screenshots and a video of a flight between galaxies. Commit and tag locally; do not push or deploy until I release 0.5.0.
 
 **Release**
 

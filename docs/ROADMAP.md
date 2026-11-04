@@ -1,6 +1,6 @@
 # Roadmap and to-do lists
 
-What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 2 November 2026.
+What comes next, as working lists. The reasons and the owner's preferences are in [DECISIONS.md](../DECISIONS.md); the 12-month critique is in [PLAN.md](PLAN.md) (its phase order predates this file; where they differ, this file wins). Updated 3 November 2026. Nothing is pushed or deployed until 0.5.0 is released (owner, 3 November 2026); 0.4.0 and 0.4.1 are committed and tagged on the Mac.
 
 ## The four modes: what the 4 in sp4cetime means
 
@@ -41,7 +41,16 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
 - [ ] Hospitals first in the place search (a Wikidata CC0 list the owner downloads; the cloud cannot reach it).
 - [ ] Live link / screen saver (`?live`), GIF and SVG posters for the package, sharing links.
 - [ ] Phones: gyroscope looking, tap to travel. A check on a real phone and tablet of everything changed in 0.4.0 (compact layout, Round on phones, Starsigns, package download on iOS).
-- [ ] The spheres model (owner's open questions in docs/SPHERES.md), then events and stories.
+- [ ] **The spheres and the galaxies** (owner, 3 November 2026; design in [SPHERES.md](SPHERES.md), rewritten in 0.4.1):
+  - [ ] Owner answers the open questions at the end of SPHERES.md (frame, sphere size, the universe's working centre, time, inner skins, skin files, the viewer's figure and key, 500 galaxies or a round distance, stars later); record them in DECISIONS §4 and an ADR.
+  - [ ] The model in code: `Sphere`, `Skin` (with the tracks of the children it carries), `Viewer` in `src/core/spheres.ts`; addresses on every sphere; skin files; property tests (SPHERES.md §11).
+  - [ ] Visibility: walk the tree, skip spheres out of view or smaller than a pixel; home-sphere handover with a margin (SPHERES.md §8).
+  - [ ] **The ~500 nearest galaxies**: follow "Loading the galaxy library, step by step" (SPHERES.md §9): the licence checked, the owner downloads the Updated Nearby Galaxy Catalog, `scripts/build_galaxies.py`, `public/sky/galaxies.json`, `src/core/galaxies.ts`, flat tilted discs in Fly mode, the warp's third rung.
+  - [ ] **The galaxy web ruled in light years**: group lines, bridges joining the groups, the flight ruler counting down; an Elements toggle that points remember.
+  - [ ] Honest labels: distance method and uncertainty; "seen as it was N million years ago".
+  - [ ] **The viewer's skins**: a flying figure or a ship; first and third person (a key and a Display button); points remember it.
+  - [ ] Stars stay as they are (owner); flying to other stars comes later, as their spheres fill in.
+- [ ] Then events and stories.
 
 ### Bugs and loose ends to fix
 - [ ] **Package on iPhone/iPad:** Safari's video recording and .zip download are untested; Safari records MP4 only in recent versions.
@@ -111,7 +120,8 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 - [ ] `sp4cetime.org/?live` (see Screen saver below).
 
 ### On the list: the spheres model
-- [ ] Owner answers the open questions in SPHERES.md (frame, sphere size, galaxy root, time, inner skins).
+- [ ] Owner answers the open questions in SPHERES.md (now part of 0.5.0, above).
+- [x] SPHERES.md rewritten (0.4.1): the tree from the universe to atoms, children carried by their parent's skins, the viewer and visibility, precedents, the galaxy plan.
 - [ ] An ADR; `Sphere` and `Skin` in `src/core/spheres.ts` with property tests; read-outs show sphere address and skin (map) position.
 - [ ] 2D painting on skins: an image or GeoJSON layer on any sphere, from a file (local first, like paths).
 - [x] Zodiac signs from the equinox of the viewed date (0.4.0).
@@ -155,7 +165,7 @@ See the owner's notes in DECISIONS §1. Built as a separate, clearly labelled pr
 Fly to Earth, the Moon or Mars and keep going down to the ground; build imaginary planets.
 - [x] Earth's first surface skin (0.4.0): coastlines, big lakes and country borders as light lines on the globe in 3D (Natural Earth, public domain), an Elements toggle that path points remember.
 - [ ] 2D painting on Earth's skin: a light picture or GeoJSON layer from a file (the place of a chart marked; later, anyone's map). First example: "Stand here" in 0.4.0 (a person, a sphere on Earth's surface skin, with the sky's houses around them). In Planetary mode each organism is a sphere; in Cellular mode each cell; in Atomic mode each atom; every attribute of a sphere is coded in its skin (SPHERES.md).
-- [ ] Skins with relief (SPHERES.md §5): elevation models as tiled height fields.
+- [ ] Layers with relief (SPHERES.md §6): elevation models as tiled height fields.
   - Moon: LRO LOLA elevation and LROC imagery (NASA, public domain).
   - Mars: MGS MOLA elevation, Mars Express HRSC and Viking colour mosaics (NASA/ESA, check each licence).
   - Earth: Copernicus DEM or SRTM elevation, NASA Blue Marble imagery (public domain).
@@ -183,7 +193,7 @@ Owner, 1 November 2026: Earth's surface skin is a function of time, so speeding 
 ### On the list: Cellular mode (year two at the earliest)
 - [ ] Decide the first subject (a human cell? a bacterium?) and the scale bridge from Planetary (a person on Earth's surface → a cell).
 - [ ] Candidate first subject (owner's inspiration, 1 November 2026: an AI-made bacterium video on X; the cell is the sphere): ***Mycoplasma genitalium***, one of the smallest living cells (a near-sphere ~0.3 µm across) and the first to be modelled whole, from its genes (whole-cell model, Karr et al. 2012) to every molecule placed in 3D (Maritan et al. 2022, built with CellPACK). Built from measured parts, so it can be labelled "reconstructed", not invented; and every molecule leads on into Atomic mode via the Protein Data Bank.
-- [ ] Rod-shaped and other cells: the sphere stays a sphere; the shape is a skin with relief (SPHERES.md §5), as mountains are on Earth.
+- [ ] Rod-shaped and other cells: the sphere stays a sphere; the shape is a layer with relief on its skin (SPHERES.md §6), as mountains are on Earth.
 - [ ] Sources to add and check: CellPACK and the Mesoscope models (Scripps; check the licence), David Goodsell's cell paintings (PDB-101, CC BY 4.0) for reference and credit.
 - [ ] AI-imagined cells only as clearly labelled art, never as the instrument's own picture (rule 5).
 - [ ] Sources to evaluate (licences first): Allen Cell Explorer (cell structure, 3D), Human Protein Atlas (where proteins sit in the cell), EMDB and the Cell Image Library (microscopy), Protein Data Bank (molecules, shared with Atomic).

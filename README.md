@@ -4,7 +4,7 @@
 
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
-Version 0.3.1 (public beta) · 2 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
+Version 0.4.1 · 3 November 2026 (live on sp4cetime.org: 0.3.1, the public beta; 0.4 goes live with 0.5.0) · solo, part-time project (Lamp Diagnostics) with AI help.
 Live at [sp4cetime.org](https://sp4cetime.org). (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
@@ -120,7 +120,11 @@ The first piece of *Sky on your day* (DECISIONS §1), and the first example of *
 
 `sp4cetime.org/?live` opens one view with no boxes and time running (or loops a path), so the site is also a screen saver and a live wallpaper (docs/ROADMAP.md, "Screen saver").
 
-Everything else not yet built is on the to-do list in [docs/ROADMAP.md](docs/ROADMAP.md): the spheres model, events and stories, the screen saver, the four modes.
+## 0.5.0: the spheres and the 500 galaxies (next)
+
+Planned in [docs/SPHERES.md](docs/SPHERES.md) (0.4.1). Everything is a sphere inside a bigger sphere, from the universe (conjectural, not drawn) to galaxies, stars, planets, moons, people, cells, molecules and atoms. Spheres never turn; only their skins do, and each child's motion is kept in a skin of its parent. The viewer is a sphere too, and only what it can see is loaded. 0.5.0 builds the model in code and its first big use: **the ~500 nearest galaxies** (Updated Nearby Galaxy Catalog), drawn flat at true size, joined by a **galaxy web ruled in light years**, so a flight from one galaxy to another counts down the light years; and **the viewer's skins** (a flying figure or a ship, first or third person).
+
+Everything else not yet built is on the to-do list in [docs/ROADMAP.md](docs/ROADMAP.md): events and stories, the screen saver, the four modes.
 
 ## Run it
 
