@@ -626,7 +626,7 @@ export function Pane(p: Props) {
               around at a point and the next press flies you back to it first. Paths are small .sp4ce.json files: Download yours to keep them, Upload one to
               present it or ✎ Continue it (this browser keeps a copy too).
             </li>
-            <li>✶ Starsigns: ✶ Create Path makes the path of your sky and opens it in ▷ Present, whose button runs it; ⤓ Download package records it and downloads the PDF, the video and the path token in one .zip. ◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
+            <li>✶ Starsigns: ✶ Create Path makes the path of your sky and opens it in ▷ Present, whose button runs it (in its last view the sky is folded like a planisphere, so each zodiac constellation sits behind its signs: longitudes true, latitudes squeezed); ⤓ Download package records it and downloads the PDF, the video and the path token in one .zip. ◉ Capture (bottom centre), straight to Downloads: P a screenshot, G a 5-second GIF (time plays while it records, then pauses), V a video until V again or a click on its running time. What is on screen is recorded, the boxes too if showing, never the Capture button, with an @sp4cetime.org watermark unless you turn it off.</li>
           </ul>
           <h3>About this beta</h3>
           <ul>

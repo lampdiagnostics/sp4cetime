@@ -476,12 +476,6 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
     const wheel = createWheel(scene.scene, labelHost);
     // The planisphere lens (Starsigns' last pose): eased in and out so the sky folds visibly.
     let lensNow = 0;
-    const lensNote = document.createElement('div');
-    lensNote.className = 'fly-wheel-label';
-    lensNote.dataset.kind = 'note';
-    lensNote.style.display = 'none';
-    lensNote.textContent = 'Planisphere lens: the sky folded so each zodiac constellation sits behind its signs (longitudes true, latitudes squeezed)';
-    labelHost.appendChild(lensNote);
     const labels = new Map<BodyId, HTMLDivElement>();
     for (const b of BODIES) {
       const el = document.createElement('div');
@@ -1267,19 +1261,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         W,
         H,
       );
-      // The lens is labelled under the wheel while it is on (CLAUDE.md rule 5).
-      if (lensEased > 0.5 && wheelOn) {
-        const c = new THREE.Vector3(0, 0, -1e12).project(cam);
-        const e = new THREE.Vector3(1e12 * Math.sin((SKY_WHEEL_DEG * Math.PI) / 180), 0, -1e12 * Math.cos((SKY_WHEEL_DEG * Math.PI) / 180)).project(cam);
-        const cx = ((c.x + 1) / 2) * W, cy = ((1 - c.y) / 2) * H;
-        const rpx = Math.hypot((e.x - c.x) * W / 2, (e.y - c.y) * H / 2);
-        lensNote.style.display = 'block';
-        lensNote.style.opacity = String(Math.min(1, (lensEased - 0.5) * 2) * 0.85);
-        lensNote.style.width = `${Math.min(W - 32, 340)}px`;
-        lensNote.style.whiteSpace = 'normal';
-        lensNote.style.textAlign = 'center';
-        lensNote.style.transform = `translate(${Math.max(16, cx - Math.min(W - 32, 340) / 2)}px, ${Math.min(H - 96, cy + rpx + 14)}px)`;
-      } else lensNote.style.display = 'none';
+      // No note on screen about the lens (owner, 4 Nov 2026: the final view stays clean); it is
+      // explained under ? How to and in README, ADR-0020.
 
       // Sky labels: directions on the sky sphere, kept clear of bodies and bright stars.
       const sl: readonly SkyLabel[] = sky ? sky.update({ ...L.overlays, ...(lensEased > 0.5 && { constellations: false, zodiac: true }), equinoxShift: skyNow.lonShift, chart: skyChart, planisphere: lensEased > 0.5 }) : [];
@@ -1467,7 +1450,6 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       skyLabels.forEach((el) => el.remove());
       halo.remove();
       wheel.dispose();
-      lensNote.remove();
       disposed = true;
       sky?.dispose();
       galaxy?.dispose();
