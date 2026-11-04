@@ -332,9 +332,18 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
         {/* ✶ Create Path (owner, 3 Nov 2026; it was ▶ Go): the path is saved and opens in ▷ Present,
             where its Present button runs it. */}
         <div className="row astro-go">
+          {/* ▶ Go and ◉ Go + Record (owner, 4 Nov 2026): shortcuts past ▷ Present and ◉ Capture;
+              the path is saved to ▷ Present's list all the same. Go + Record ends by itself five
+              seconds into the final wheel and saves the MP4 to Downloads. */}
+          <button type="button" className="go-big" disabled={!reading} onClick={() => go(false)} title="Save the path and fly it now">
+            <span aria-hidden="true">▶</span> Go
+          </button>
+          <button type="button" className="go-big go-rec" disabled={!reading} onClick={() => go(true)} title="Save the path, fly it and record it; the MP4 goes to Downloads when the final wheel has been shown for 5 seconds">
+            <span aria-hidden="true">◉</span> Go + Record
+          </button>
           <button
             type="button"
-            className="go-big"
+            className="go-create"
             disabled={!reading}
             onClick={() => {
               const p = path();

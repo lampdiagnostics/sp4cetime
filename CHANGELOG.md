@@ -4,6 +4,7 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 ## 0.4.3 — unreleased
 
+- **▶ Go and ◉ Go + Record in the Starsigns dialog**: Go flies the path at once; Go + Record also records it, ends by itself after 5 seconds on the final wheel and saves the MP4 to Downloads. Either way the path is listed in ▷ Present (✶ Create Path is still there).
 - **Presenting from the calendar goes straight to Fly mode**: no long wait while the calendar squeezes time out to months first; the flight to Earth starts at once.
 - **Quieter sound**: Starsigns paths are silent except for a quiet white-noise hum (a quarter of the earlier level) while you stand in the field; this applies to paths saved earlier too.
 - **The place and the moment, bottom right**: while a Starsigns chart is on, "Winnipeg - 49°52′59″ N - 97°09′58″ W - 14 July 1985 - 3:20 pm" in large off-white letters (about 20 pt), in videos and screenshots too; it goes with all text (the space bar's second press).

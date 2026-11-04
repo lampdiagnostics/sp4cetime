@@ -2131,3 +2131,29 @@ body:has(.dock[data-open='true']) .scale-corner {
     font-size: 17px;
   }
 }
+
+/* ◉ Go + Record beside ▶ Go (owner, 4 Nov 2026); ✶ Create Path quieter beside them. */
+.astro-go {
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.go-big.go-rec,
+.astro-dialog .go-big.go-rec,
+.astro-dialog .go-big.go-rec:focus,
+.astro-dialog .go-big.go-rec:focus-visible {
+  background: #c8323a;
+  animation: none;
+}
+.astro-dialog .go-big.go-rec:hover:not(:disabled) {
+  background: #dc3d45;
+}
+.astro-dialog .go-big.go-rec:disabled {
+  background: #5a3d3f;
+}
+.astro-dialog .go-create {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  font-size: 15px;
+}

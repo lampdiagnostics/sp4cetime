@@ -558,7 +558,7 @@ export function App() {
     const id = window.setInterval(() => setRecNow(performance.now()), 250);
     return () => window.clearInterval(id);
   }, [recording]);
-  const autoPlay = async (path: Path, record: boolean, from = 0, opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void } = {}): Promise<void> => {
+  const autoPlay = async (path: Path, record: boolean, from = 0, opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; lastHold?: number; stopAtEnd?: boolean } = {}): Promise<void> => {
     const run = ++playing.current;
     unlockSound();
     setAuto(true);
@@ -630,13 +630,17 @@ export function App() {
       // A body picked out is a quick beat; a new view is held long enough to take in.
       // A point may say how long to stay (Starsigns does); otherwise a body picked out is a quick
       // beat and a new view is held long enough to take in.
-      await hold(pt.pause !== undefined ? pt.pause * 1000 : i === path.points.length - 1 ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
+      const last = i === path.points.length - 1;
+      await hold(last && opts.lastHold !== undefined ? opts.lastHold * 1000 : pt.pause !== undefined ? pt.pause * 1000 : last ? 3500 : pt.look.highlight ? 1600 : 3200 + picks * 700);
     }
+    const ended = live();
     finish();
     if (playing.current === run) {
       playing.current++;
       setAuto(false);
     }
+    // ◉ Go + Record: the presentation ends by itself once the video is done.
+    if (opts.stopAtEnd && ended && showRef.current?.path.id === path.id) stopPresenting();
   };
   presentRun.current = (p: Path) => void autoPlay(p, false);
   // Shift (owner, 3 Nov 2026): one tap plays the path by itself, the next stops it. After an
@@ -660,7 +664,8 @@ export function App() {
     play: (path, capture) => {
       setStarsigns(false);
       void savePath(path).then(refreshPaths);
-      void autoPlay(path, capture);
+      // ◉ Go + Record (owner, 4 Nov 2026): 5 seconds on the final wheel, then the end; the MP4 goes to Downloads.
+      void autoPlay(path, capture, 0, capture ? { lastHold: 5, stopAtEnd: true } : {});
     },
     download: (path) => exportPath(path),
     // ✶ Create Path (owner, 3 Nov 2026): saved, then listed in ▷ Present, ready to run.
