@@ -5,6 +5,7 @@ import { addSeconds, fromUnixMs, type Time } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
 import { drawShot, recordVideo, type Shot, stageIn, viewStages, type VideoSize } from './capture';
 import type { StarsignsActions } from './StarsignsDialog';
+import { setSound, soundNow, unlockSound } from './sound';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
 import { newPathId, type Path, pathFileName, type PathPoint, type PointLook, pointLabel } from '../core/path';
@@ -345,6 +346,17 @@ export function App() {
   const goToPoint = useCallback((path: Path, index: number): void => {
     const pt = path.points[index];
     if (!pt) return;
+    // What is heard there (0.4.2): a field's night fades in as you come down to it; leaving
+    // it (the ground falling away, or space), silence within a quarter of a second.
+    unlockSound();
+    const sound = pt.sound ?? 'silence';
+    if (sound !== soundNow()) {
+      const was = showRef.current;
+      const prev = was && was.path.id === path.id ? path.points[was.index] : undefined;
+      // Coming down from space (an eight-second fall): the night grows audible over its second half.
+      const fromAfar = !prev?.look.chart?.ground;
+      setSound(sound, sound === 'field' ? { delay: fromAfar ? 3.5 : 0.2, fade: fromAfar ? 4.5 : 1.2 } : { fade: 0.25 });
+    }
     signal.current.cancelled = true;
     const sig: FlightSignal = { cancelled: false };
     signal.current = sig;
@@ -359,6 +371,7 @@ export function App() {
   }, []);
   const stopPresenting = useCallback((): void => {
     signal.current.cancelled = true;
+    setSound('silence', { fade: 0.4 });
     // Stopped mid-flight: time is held where the flight left it; the controls show it paused.
     if (showRef.current?.flying) setPaused(true);
     setShowing(null);
@@ -544,6 +557,7 @@ export function App() {
   }, [recording]);
   const autoPlay = async (path: Path, record: boolean, from = 0, opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void } = {}): Promise<void> => {
     const run = ++playing.current;
+    unlockSound();
     setAuto(true);
     const live = (): boolean => playing.current === run && showRef.current?.path.id === path.id;
     const arrive = async (i: number): Promise<boolean> => {

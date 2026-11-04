@@ -6,14 +6,19 @@
  *   1. SIGNS FROM ABOVE: where clicking Earth's name takes you, above its north pole,
  *      facing the Sun, the zodiac around the horizon.
  *   2. THE PLANETS: turning to as few views as hold them all (each group centred), each
- *      body picked out in turn (it pulses; its caption gives its sign and degree).
+ *      body picked out in turn (it pulses; its caption gives its sign and degree). 0.4.2:
+ *      starting with the Sun's group where pose 1 already looks, once round the zodiac, so
+ *      no body is looked at twice.
  *   3. THE SKY OVER THE PLACE (owner, 3 Nov 2026): standing in a field at the place (a town
- *      at its centre), the ground along the bottom of the view, looking up toward the highest
+ *      at its centre; 0.4.2: a gentle fall from space into a grassy field ringed by trees,
+ *      crickets chirping and traffic far off, after the silence of space), the ground along
+ *      the bottom of the view, looking up toward the highest
  *      point of the zodiac (90° from the Ascendant) so the most of it is in view, with the
  *      constellations and the houses, the sky coloured for that hour. A pause, then the ground
  *      drops away (pose 4).
  *   4. THE WHOLE ZODIAC (owner, 3 Nov 2026): still standing at the place, the planet drops
- *      away beneath your feet (see-through), and looking down past them toward the ecliptic's
+ *      away beneath your feet (see-through; 0.4.2: the field falls away from under you, in
+ *      silence), and looking down past them toward the ecliptic's
  *      south pole the whole zodiac is a ring around the sky, exactly as on the printed chart
  *      (Ascendant on the left, Midheaven at the top; looking up the north pole shows it
  *      mirrored), every body at its longitude, picked out in turn with its sign and house.
@@ -26,7 +31,7 @@
 import { BODIES, type BodyId, moonGeocentric, solarSystemAt } from './bodies';
 import type { Vec3 } from './geometry';
 import { eclipticDirOfDate, formatSignDeg, signOf } from './houses';
-import type { ChartLook, FlyState, Path, PathPoint, PointLook } from './path';
+import type { ChartLook, FlyState, Path, PathPoint, PointLook, PointSound } from './path';
 import type { Reading } from './reading';
 
 const EARTH_R = BODIES.find((b) => b.id === 'earth')!.radiusKm;
@@ -153,15 +158,18 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   // taken away for clarity). The path sets only what its poses need: the place's houses on the
   // sky, the body picked out, Earth see-through at the end; and, at the owner's request, no Milky
   // Way direction marks ("l 270° · behind the Sun").
-  const look = (withChart: boolean, highlight: BodyId | null = null, _ground = false, seeThrough = false): PointLook => ({
+  const look = (withChart: boolean, highlight: BodyId | null = null, ground = false, seeThrough = false): PointLook => ({
     ...o.look,
     galactic: false,
-    chart: withChart ? chart : null,
+    // On the ground: the field and its trees under the place (0.4.2), which fall away when Earth goes see-through.
+    chart: withChart ? (ground ? { ...chart, ground: true } : chart) : null,
     highlight,
     seeThrough,
   });
-  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false, pause?: number): PathPoint => ({
+  const point = (fly: FlyState, caption: string, withChart: boolean, highlight: BodyId | null = null, where = '', ground = false, seeThrough = false, pause?: number, sound?: PointSound): PathPoint => ({
     ...(pause !== undefined ? { pause } : {}),
+    // Silence in space (owner, 4 Nov 2026); the field's night sounds only standing in it.
+    ...(sound && sound !== 'silence' ? { sound } : {}),
     view: 'fly',
     present: t,
     speed: 1,
@@ -199,9 +207,15 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   };
   const ids = r.bodies.map((b) => b.id);
   const dirs = ids.map(geo);
-  for (const g of groupDirections(dirs, GROUP_HALF_DEG)) {
+  // Each body is looked at once (owner, 4 Nov 2026: it stopped at the Sun twice, first
+  // facing it and again when its group came round). The tour starts with the Sun's group,
+  // seen from where the first pose already faces the Sun, and goes once round the zodiac.
+  const groups = groupDirections(dirs, GROUP_HALF_DEG);
+  const sunAt = groups.findIndex((g) => g.some((i) => ids[i] === 'sun'));
+  const tour = sunAt > 0 ? [...groups.slice(sunAt), ...groups.slice(0, sunAt)] : groups;
+  for (const [k, g] of tour.entries()) {
     const centre = unit(g.reduce<Vec3>((acc, i) => add(acc, dirs[i]!), [0, 0, 0]));
-    const view: FlyState = { ...pole, quat: lookQuat(centre, n) };
+    const view: FlyState = k === 0 && sunAt >= 0 ? pole : { ...pole, quat: lookQuat(centre, n) };
     // A pause over each view, longer when it holds more bodies (owner, 3 Nov 2026: no picking
     // out or pulsing; their names and signs are on screen).
     const names = g.map((i) => `${r.bodies[i]!.name} ${formatSignDeg(r.bodies[i]!.lon)}`);
@@ -233,6 +247,8 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
       true,
       false,
       6,
+      // A gentle fall into a grassy field ringed by trees; crickets and traffic far off.
+      'field',
     ),
   );
 

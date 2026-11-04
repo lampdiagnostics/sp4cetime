@@ -173,15 +173,38 @@ npm run dev        # http://localhost:5173
 
 **Whole galaxy** (◎ Galaxy). Past 1,000 AU from the Sun you warp out, past light speed, until the whole Milky Way (a labelled model made of stars, 3D, with a dust lane, the bar and the Fermi bubbles) lies in front of you. The Sun's path is highlighted from any angle, with its whole life (≈42 overlapping turns, bobbing through the disc and swinging in and out) and a light-year ruler. Sgr A* (the black hole) and the Local Group neighbours (Andromeda, Triangulum, the Magellanic Clouds, M32, M110) are labelled; click one to fly there.
 
-**Capture** (◉ Capture, bottom centre, straight to Downloads): **P** a screenshot (PNG at screen resolution), **G** a 5-second GIF (time plays while it records, then pauses), **V** a video (MP4 where the browser can, else WebM; until V again or a click on its running time). What is on screen is recorded, the boxes too if they are showing; the Capture button never is. Watermark "@sp4cetime.org" unless turned off. **Video size**: Hi-res for desktop screens (up to 4K) or Small for X (720p, about 15 MB a minute); remembered, and used by ✶ Starsigns' ◉ Record too. For screen savers: set a view and a speed, hide the boxes with H, ▶ Play, then V.
+**Capture** (◉ Capture, bottom centre, straight to Downloads): **P** a screenshot (PNG at screen resolution), **G** a 5-second GIF (time plays while it records, then pauses), **V** a video until V again or a click on its running time: an MP4 drawn at the video's full resolution and made to pop a little (brighter, a touch more contrast and colour), with sound (what you hear, or silence). **G** GIFs are 800 px at 20 frames a second, thin lines thickened so they survive, in true time. What is on screen is recorded, the boxes too if they are showing; the Capture button never is. Watermark "@sp4cetime.org" unless turned off. **Video size**: Hi-res for desktop screens (up to 4K) or **For X** (1080p, ready to post: below); remembered, and used by ✶ Starsigns' ◉ Record too. For screen savers: set a view and a speed, hide the boxes with H, ▶ Play, then V.
 
 **Paths** (presentations). Go anywhere and press **Return**: name the path, and what is on screen becomes START. Travel (in time, in space, into another view, another look) and press Return for POINT 1, 2 …, with a caption if you like; tick "Stop making the path after this point" for END (or press Finish beside Capture). **◉ Capture · ▷ Present** lists your paths: Present flies from point to point, never cutting; **Return** or **→** next, **←** back, **Esc** stops. Look around at a point and the next press first flies you back to it. Each point's box shows its caption, view, moment, place and direction. Record a presentation with V. Paths are small `.sp4ce.json` files: **⤓ Download** yours to keep them, **⤒ Upload** one to present it or **✎ Continue** adding points (no account needed; this browser also keeps a copy). The app comes with an example, *A first tour*.
+
+### Posting on X
+
+Videos at **Video size › For X** (Capture menu, or beside the Starsigns package) are made to X's rules ([ADR-0020](docs/adr/0020-video-for-x-and-sound.md)), so they upload as they are, on a free account too (up to 2 min 20 s; Premium allows hours):
+
+| X wants | A sp4cetime video |
+| --- | --- |
+| MP4 container, index at the front | MP4, moov before mdat ("fast start") |
+| H.264 video (not HEVC, VP9) | H.264 High profile (level 4.0) |
+| AAC-LC sound; a sound track at all | AAC-LC stereo, 48 kHz, 160 kbit/s, always there (silence if nothing is heard) |
+| Constant frame rate, ideally 30 | Exactly 30 frames a second (frame n stamped n/30 s) |
+| 4:2:0 pixels (yuv420p), even sides, progressive | yes |
+| At most 1920 × 1200, aspect 1:2.39 to 2.39:1 | The screen's shape within 1920 × 1080 (upright 1080 × 1920); don't record a window wider than 2.39:1 |
+| Closed groups of pictures | A keyframe every 2 seconds |
+| Bitrate | About 12 Mbit/s at 1080p (X allows 25) |
+
+It needs WebCodecs: current Chrome, Edge or Safari. Firefox has no AAC encoder, so its videos carry a silent sound track (still accepted). Hi-res (4K) is not for X. An older browser falls back to its own recorder; if X refuses a file, note X's exact message and re-encode it:
+
+```
+ffmpeg -i input.mp4 -c:v libx264 -profile:v high -pix_fmt yuv420p -r 30 -c:a aac -b:a 160k -ac 2 -movflags +faststart output.mp4
+```
+
+(With no sound track at all, add `-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000` as a second input and `-shortest`.) To check a file: `ffprobe -v error -show_entries stream=codec_name,profile,pix_fmt,width,height,r_frame_rate,sample_rate,channels -of compact file.mp4` should print `h264|High|yuv420p|…|30/1` and `aac|LC|48000|2`.
 
 ## Layout
 
 ```
 src/core/     Pure TypeScript: time, camera, ticks, orbits, spheres, sky maths, calendar renderer.
-src/app/      React UI: App (the page), Pane (the window and its boxes), capture, GIF encoder, menus.
+src/app/      React UI: App (the page), Pane (the window and its boxes), capture (GIF encoder and its worker, the X-ready video encoder), sound, menus.
 src/fly/      Fly mode and the galaxy (Three.js), loaded only when opened.
 content/      Themes as validated JSON.
 public/       Sky data, Milky Way, galaxy, Earth and Moon maps (with credits).

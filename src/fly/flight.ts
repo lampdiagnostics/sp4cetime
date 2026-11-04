@@ -97,8 +97,11 @@ const unit = (a: Vec3): Vec3 => scale(a, 1 / Math.hypot(...a));
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 /** Rotate unit vector a toward b by `angle` radians in their common plane. */
-function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
-  const n = unit(cross(a, b));
+export function rotateToward(a: Vec3, b: Vec3, angle: number): Vec3 {
+  const x = cross(a, b);
+  // The same direction (to rounding): nothing to turn through (and no plane to turn in).
+  if (Math.hypot(...x) < 1e-12) return a;
+  const n = unit(x);
   const c = Math.cos(angle), s = Math.sin(angle);
   return addv(scale(a, c), scale(cross(n, a), s));
 }

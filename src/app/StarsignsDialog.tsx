@@ -384,10 +384,10 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
               setVideoSize(v);
             }}
             aria-label="Video size"
-            title="Hi-res for desktop screens (up to 4K), or small for X (720p)"
+            title="Hi-res for desktop screens (up to 4K), or for X (1080p, 30 frames a second, with sound: made to X's rules)"
           >
             <option value="hires">Video: hi-res</option>
-            <option value="small">Video: small, for X</option>
+            <option value="small">Video: for X (1080p)</option>
           </select>
           <Coffee />
         </div>

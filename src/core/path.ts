@@ -56,6 +56,12 @@ export interface ChartLook {
   readonly system: 'whole' | 'equal';
   /** The place's name, for labels ("Winnipeg"). */
   readonly place: string;
+  /**
+   * Standing on the ground there (0.4.2): a grassy field ringed by trees, drawn under the
+   * viewer near the place (an illustration, not a map), fading out with height; with Earth
+   * see-through it drops away from under the viewer's feet.
+   */
+  readonly ground?: boolean;
 }
 
 export interface PointLook {
@@ -104,7 +110,11 @@ export interface PathPoint {
   readonly facing: string;
   /** Seconds to stay here when the path plays by itself (Shift, ▶ Go); a default if not given. 0.4.0. */
   readonly pause?: number;
+  /** What is heard at the point (0.4.2): silence (space), or a summer field at night (crickets, distant traffic). */
+  readonly sound?: PointSound;
 }
+
+export type PointSound = 'silence' | 'field';
 
 export interface Path {
   readonly id: string;
@@ -141,6 +151,8 @@ export interface FilePoint {
   readonly caption?: string;
   /** Seconds to stay when playing by itself. */
   readonly pause?: number;
+  /** What is heard (absent: silence). */
+  readonly sound?: PointSound;
   /** The present: [whole days since 2000-01-01 00:00 UTC, seconds into the day]. */
   readonly t: readonly [number, number];
   /** Time running: seconds per second (0 = paused). */
@@ -255,6 +267,7 @@ function parseChart(o: Obj, where: string): ChartLook {
     lon: num(o, 'lon', where, (x) => Math.abs(x) <= 180),
     system: oneOf(o, 'system', where, ['whole', 'equal'] as const),
     place: str(o, 'place', where, 80),
+    ...(o.ground === true && { ground: true }),
   };
 }
 
@@ -301,6 +314,7 @@ export function parsePoint(x: unknown, where = 'point'): PathPoint {
     where: typeof x.where === 'string' ? str(x, 'where', where, 400) : '',
     facing: typeof x.facing === 'string' ? str(x, 'facing', where, 400) : '',
     ...(typeof x.pause === 'number' && Number.isFinite(x.pause) && x.pause >= 0 && x.pause <= 120 ? { pause: x.pause } : {}),
+    ...(x.sound !== undefined && x.sound !== 'silence' && { sound: oneOf(x, 'sound', where, ['silence', 'field'] as const) }),
   };
 }
 
@@ -349,6 +363,7 @@ export function toSp4ceFile(path: Path, when: (t: Time) => string = () => ''): S
         ...(p.facing && { facing: p.facing }),
         ...(p.caption && { caption: p.caption }),
         ...(p.pause !== undefined && { pause: Math.round(p.pause * 10) / 10 }),
+        ...(p.sound && p.sound !== 'silence' && { sound: p.sound }),
         t: [p.present.day, dec(p.present.sec, 3)],
         rate: p.playing ? p.speed : 0,
         cal: { off: [c.offset.day, dec(c.offset.sec, 3)], spp: sig(c.secondsPerPixel, 6), roll: dec(c.roll, 6), yaw: dec(c.yaw, 6), size: sig(c.spaceZoom, 6), y: dec(c.panY, 1) },
@@ -383,6 +398,7 @@ function fromFilePoint(x: unknown, where: string): PathPoint {
       where: typeof x.where === 'string' ? x.where : '',
       facing: typeof x.facing === 'string' ? x.facing : '',
       pause: x.pause,
+      ...(x.sound !== undefined && { sound: x.sound }),
     },
     where,
   );

@@ -1,6 +1,6 @@
 # ADR-0018: Starsigns free on sp4cetime.org; customising on sp4cetime.shop
 
-Status: accepted in part (2 November 2026; revised twice that evening: no prices on the main site). The path, the card and the recording are built; the shop, its customisation page and its payment provider are the owner's to set up.
+Status: accepted in part (2 November 2026; revised twice that evening: no prices on the main site). The path, the card and the recording are built; the shop, its customisation page and its payment provider are the owner's to set up. 0.4.2 (ADR-0020): the path lands in a grassy field with night sounds after the silence of space, the field drops away for the wheel, each body is looked at once, and the video is made to X's rules.
 
 ## Context
 

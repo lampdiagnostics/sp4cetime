@@ -34,6 +34,18 @@ describe('resolution governor', () => {
     expect(feed(g, 40, 2000).length).toBeGreaterThan(0);
   });
 
+  it('draws a recording at its own resolution, then comes back to the screen\'s', () => {
+    const g = createGovernor({ max: 2 });
+    feed(g, 40, 2000);
+    expect(g.scale).toBeLessThan(1);
+    holdQuality(true, 2.4);
+    expect(g.sample(16)).toBe(2.4);
+    expect(feed(g, 40, 500)).toEqual([]);
+    holdQuality(false);
+    feed(g, 10, 2000);
+    expect(g.scale).toBeLessThanOrEqual(2);
+  });
+
   it('leaves a browser that caps the rate at 30 frames a second alone', () => {
     const g = createGovernor({ max: 2 });
     expect(feed(g, 1000 / 30, 3000)).toEqual([]);

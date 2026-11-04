@@ -25,8 +25,12 @@ export interface GovernorOptions {
 
 /** While a screenshot, GIF or video is being made, the resolution holds still (a recording slows frames; it should not soften them). */
 let held = 0;
-export function holdQuality(on: boolean): void {
+/** While recording, the resolution to draw at (device px per CSS px), or null to hold the one there is. */
+let forced: number | null = null;
+export function holdQuality(on: boolean, scale?: number): void {
   held = Math.max(0, held + (on ? 1 : -1));
+  if (on && scale !== undefined) forced = scale;
+  if (held === 0) forced = null;
 }
 
 export function createGovernor(o: GovernorOptions): Governor {
@@ -48,7 +52,15 @@ export function createGovernor(o: GovernorOptions): Governor {
     },
     sample(ms) {
       // Gaps (a hidden tab, a pause, a dialog) say nothing about drawing speed.
-      if (!(ms > 0) || ms > 250 || held > 0) return null;
+      if (held > 0) {
+        // A recording sets its own resolution (sharp enough for 1080p), whatever the screen managed before.
+        if (forced !== null && Math.abs(forced - scale) > 0.01) {
+          scale = forced;
+          return scale;
+        }
+        return null;
+      }
+      if (!(ms > 0) || ms > 250) return null;
       dev += (Math.abs(ms - avg) - dev) * 0.1;
       avg += (ms - avg) * 0.1;
       const capped = dev < 1.5 && Math.abs(avg - 1000 / 30) < 2.5;
@@ -61,6 +73,8 @@ export function createGovernor(o: GovernorOptions): Governor {
       let next = scale;
       if (slow >= patience && scale > min) next = Math.max(min, scale * 0.8);
       else if (fast >= patience * 4 && scale < max) next = Math.min(max, scale * 1.15);
+      // After a recording raised it, come back down to the screen's own.
+      if (scale > max) next = max;
       if (next === scale) return null;
       scale = Math.round(next * 100) / 100;
       slow = 0;

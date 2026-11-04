@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GifEncoder, medianCut } from './gif';
 
-/** A minimal GIF decoder (global palette, full frames), to check the encoder round-trips. */
-function decode(bytes: Uint8Array): { w: number; h: number; pal: Uint8Array; frames: Uint8Array[]; delays: number[] } {
+/** A minimal GIF decoder (global or local palettes, full frames), to check the encoder round-trips. */
+function decode(bytes: Uint8Array): { w: number; h: number; pal: Uint8Array; frames: Uint8Array[]; delays: number[]; pals: Uint8Array[] } {
   let p = 0;
   const u8 = (): number => bytes[p++]!;
   const u16 = (): number => u8() | (u8() << 8);
@@ -15,6 +15,7 @@ function decode(bytes: Uint8Array): { w: number; h: number; pal: Uint8Array; fra
   p += pal.length;
   const frames: Uint8Array[] = [];
   const delays: number[] = [];
+  const pals: Uint8Array[] = [];
   for (;;) {
     const b = u8();
     if (b === 0x3b) break;
@@ -33,7 +34,12 @@ function decode(bytes: Uint8Array): { w: number; h: number; pal: Uint8Array; fra
     }
     expect(b).toBe(0x2c);
     p += 8;
-    u8();
+    const lf = u8();
+    if (lf & 0x80) {
+      const n = 3 * (1 << ((lf & 7) + 1));
+      pals.push(bytes.slice(p, p + n));
+      p += n;
+    } else pals.push(pal);
     const min = u8();
     const data: number[] = [];
     for (let n = u8(); n > 0; n = u8()) for (let i = 0; i < n; i++) data.push(u8());
@@ -74,7 +80,7 @@ function decode(bytes: Uint8Array): { w: number; h: number; pal: Uint8Array; fra
     }
     frames.push(Uint8Array.from(out));
   }
-  return { w, h, pal, frames, delays };
+  return { w, h, pal, frames, delays, pals };
 }
 
 describe('GIF encoder', () => {
@@ -120,6 +126,36 @@ describe('GIF encoder', () => {
           // The flat half is (nearly) exact.
           const flat = idx[w - 1]!;
           expect(Math.abs(g.pal[flat * 3]! - 10) + Math.abs(g.pal[flat * 3 + 1]! - 20) + Math.abs(g.pal[flat * 3 + 2]! - 40)).toBeLessThan(12);
+        }
+      });
+  });
+
+  it('keeps each frame on screen as long as asked, and gives a new picture its own palette', () => {
+    const w = 64, h = 32;
+    const solid = (r: number, g: number, b: number): Uint8ClampedArray => {
+      const a = new Uint8ClampedArray(w * h * 4);
+      for (let i = 0; i < w * h; i++) a.set([r, g, b, 255], i * 4);
+      return a;
+    };
+    const enc = new GifEncoder(w, h, 5);
+    enc.add(solid(10, 10, 30), 4);
+    enc.add(solid(12, 10, 30), 7);
+    // A completely different picture (a new view): the first palette fits it badly.
+    enc.add(solid(240, 200, 20), 6);
+    enc.add(solid(238, 200, 22));
+    return enc
+      .finish()
+      .arrayBuffer()
+      .then((buf) => {
+        const g = decode(new Uint8Array(buf));
+        expect(g.delays).toEqual([4, 7, 6, 5]);
+        expect(g.pals[0]).toBe(g.pal);
+        expect(g.pals[1]).toBe(g.pal);
+        expect(g.pals[2]).not.toBe(g.pal);
+        for (const [k, want] of [[0, [10, 10, 30]], [2, [240, 200, 20]], [3, [238, 200, 22]]] as const) {
+          const c = g.frames[k]![0]!;
+          const pal = g.pals[k]!;
+          expect(Math.abs(pal[c * 3]! - want[0]) + Math.abs(pal[c * 3 + 1]! - want[1]) + Math.abs(pal[c * 3 + 2]! - want[2])).toBeLessThan(12);
         }
       });
   });

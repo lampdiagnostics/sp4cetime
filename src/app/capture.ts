@@ -4,8 +4,8 @@
  * the boxes (when they are showing), the windows' tabs. The capture controls themselves
  * (anything marked data-no-capture) are never in it. A watermark is added by default.
  */
-import { GifEncoder } from './gif';
 import { holdQuality } from '../core/quality';
+import { soundStream, unlockSound } from './sound';
 
 export const WATERMARK = '@sp4cetime.org';
 
@@ -258,6 +258,23 @@ export interface PaintOptions {
   readonly watermark: boolean;
   /** Leave out the views' moving names and dots (the cross-fade between looks: the live ones stay on top). */
   readonly noLabels?: boolean;
+  /**
+   * Make the views pop (videos and GIFs): a little brighter, more contrast and colour, the
+   * names and boxes left as they are. 0 is the screen as it is; 1 the recording's look.
+   */
+  readonly pop?: number;
+}
+
+/** Is the page in a light look (Bright: ink on paper)? Then popping darkens the ink instead of brightening. */
+const lightLook = (): boolean => document.documentElement.dataset.ui === 'light';
+
+/** The canvas filter that makes a view pop, or 'none'. */
+export function popFilter(pop: number, light = lightLook()): string {
+  if (!(pop > 0)) return 'none';
+  const k = Math.min(1.5, pop);
+  return light
+    ? `contrast(${(1 + 0.12 * k).toFixed(3)}) saturate(${(1 + 0.15 * k).toFixed(3)})`
+    : `brightness(${(1 + 0.18 * k).toFixed(3)}) contrast(${(1 + 0.08 * k).toFixed(3)}) saturate(${(1 + 0.15 * k).toFixed(3)})`;
 }
 
 /** Paint the shot into `out`, w × h px: the views, their moving names, the page's HTML, the watermark. */
@@ -278,7 +295,10 @@ export function drawShot(shot: Shot, out: CanvasRenderingContext2D, w: number, h
     }
     const src = drawsBlank(st.canvas) ? readBack(st.canvas) : st.canvas;
     out.globalAlpha = st.alpha ?? 1;
+    const filter = popFilter(o.pop ?? 0);
+    if (filter !== 'none') out.filter = filter;
     out.drawImage(src, (r.left - R.left) * sx, (r.top - R.top) * sy, r.width * sx, r.height * sy);
+    out.filter = 'none';
     for (const host of o.noLabels ? [] : st.overlays) {
       if (!shown(getComputedStyle(host))) continue;
       const halo = getComputedStyle(host).getPropertyValue('--label-halo').trim() || 'rgba(0,0,0,0.85)';
@@ -412,9 +432,125 @@ export interface Recording {
   stop(): void;
 }
 
+/** Even, at least 2 (H.264 and X need even sizes). */
+const even = (x: number): number => Math.max(2, Math.floor(x / 2) * 2);
+const nextFrame = (): Promise<number> => new Promise((r) => requestAnimationFrame(r));
+
 /**
- * An animated GIF, `seconds` long at `fps`, `width` px wide, looping. `onProgress` gets
- * the fraction done.
+ * Thin lines kept visible in a smaller picture: the views are thickened before they are
+ * shrunk (every bright line and star grows by `r` px on each side; in the light look the
+ * dark ink grows instead), so a 1-pixel constellation line or spiral survives being made
+ * three or four times smaller instead of fading to nothing between frames.
+ */
+let thickScratch: HTMLCanvasElement | null = null;
+export function thicken(src: CanvasImageSource & { width: number; height: number }, r: number, light: boolean): CanvasImageSource {
+  if (r < 1) return src;
+  const c = (thickScratch ??= document.createElement('canvas'));
+  if (c.width !== src.width || c.height !== src.height) {
+    c.width = src.width;
+    c.height = src.height;
+  }
+  const x = c.getContext('2d');
+  if (!x) return src;
+  x.globalCompositeOperation = 'copy';
+  x.drawImage(src, 0, 0);
+  x.globalCompositeOperation = light ? 'darken' : 'lighten';
+  // Separable: across, then down (each pass a few copies of the picture, shifted).
+  for (let d = 1; d <= r; d++) {
+    x.drawImage(c, d, 0);
+    x.drawImage(c, -d, 0);
+  }
+  for (let d = 1; d <= r; d++) {
+    x.drawImage(c, 0, d);
+    x.drawImage(c, 0, -d);
+  }
+  x.globalCompositeOperation = 'source-over';
+  return c;
+}
+
+const thickCopies = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+/** A shot with each view thickened by `r` px (in the view's own pixels) for a small recording. */
+function thickShot(shot: Shot, r: number): Shot {
+  if (r < 1) return shot;
+  const light = lightLook();
+  return {
+    ...shot,
+    stages: shot.stages.map((st) => {
+      const src = drawsBlank(st.canvas) ? readBack(st.canvas) : st.canvas;
+      const t = thicken(src as HTMLCanvasElement, r, light);
+      // Copied out of the shared scratch (one copy kept per view), so the next view does not overwrite it.
+      let own = thickCopies.get(st.canvas);
+      if (!own) {
+        own = document.createElement('canvas');
+        thickCopies.set(st.canvas, own);
+      }
+      if (own.width !== st.canvas.width || own.height !== st.canvas.height) {
+        own.width = st.canvas.width;
+        own.height = st.canvas.height;
+      }
+      const ox = own.getContext('2d');
+      if (ox) {
+        ox.globalCompositeOperation = 'copy';
+        ox.drawImage(t, 0, 0);
+        ox.globalCompositeOperation = 'source-over';
+      }
+      // Drawn where the view's own canvas is on screen.
+      const r0 = st.canvas.getBoundingClientRect();
+      Object.defineProperty(own, 'getBoundingClientRect', { value: () => r0, configurable: true });
+      return { ...st, canvas: own };
+    }),
+  };
+}
+
+/** The GIF encoder, in a worker where possible (so the view keeps moving smoothly while frames are compressed). */
+interface GifSink {
+  add(rgba: Uint8ClampedArray, delayCs: number): void;
+  finish(): Promise<Blob | null>;
+}
+async function gifSink(w: number, h: number): Promise<GifSink> {
+  try {
+    const worker = new Worker(new URL('./gif.worker.ts', import.meta.url), { type: 'module' });
+    let frames = 0;
+    worker.postMessage({ type: 'init', w, h });
+    return {
+      add(rgba, delayCs) {
+        const buf = rgba.slice().buffer;
+        worker.postMessage({ type: 'frame', rgba: buf, delayCs }, [buf]);
+        frames++;
+      },
+      finish: () =>
+        new Promise((res) => {
+          if (frames === 0) {
+            worker.terminate();
+            return res(null);
+          }
+          worker.onmessage = (e: MessageEvent<{ type: string; bytes?: ArrayBuffer }>) => {
+            worker.terminate();
+            res(e.data.bytes ? new Blob([e.data.bytes], { type: 'image/gif' }) : null);
+          };
+          worker.onerror = () => {
+            worker.terminate();
+            res(null);
+          };
+          worker.postMessage({ type: 'finish' });
+        }),
+    };
+  } catch {
+    const { GifEncoder } = await import('./gif');
+    const enc = new GifEncoder(w, h, 5);
+    return {
+      add: (rgba, d) => enc.add(rgba, d),
+      finish: async () => (enc.frames > 0 ? enc.finish() : null),
+    };
+  }
+}
+
+/**
+ * An animated GIF, `seconds` long at `fps`, `width` px wide, looping. Each frame waits
+ * as long as really passed before the next (so motion keeps its true speed even when the
+ * screen stutters); the views are thickened and made to pop before they are shrunk, so
+ * thin lines (constellations, spirals) stay visible. `onProgress` gets the fraction done.
  */
 export async function recordGif(
   getShot: () => Shot | null,
@@ -429,28 +565,44 @@ export async function recordGif(
   const page = liveOverlay(getShot, first ? w / first.region.width : 1);
   holdQuality(true);
   await page.ready;
+  const sink = await gifSink(w, h);
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
-  const delay = Math.max(2, Math.round(100 / o.fps));
-  const enc = new GifEncoder(w, h, delay);
+  if (ctx) ctx.imageSmoothingQuality = 'high';
   const total = Math.max(1, Math.round(o.seconds * o.fps));
   const interval = 1000 / o.fps;
+  // How much smaller than the views the GIF is: lines grow by a third of that on each side (thick enough to survive, thin enough that text stays text).
+  const shrink = first ? shotScale(first) * (first.region.width / w) : 1;
+  const r = Math.max(0, Math.min(3, Math.round(shrink / 3)));
   let last = -Infinity;
   let raf = 0;
   let done = false;
+  let count = 0;
+  let pending: { rgba: Uint8ClampedArray; t: number } | null = null;
+  let shownCs = 0;
+  let startT = 0;
+  /** Send the frame before this one, now that we know how long it was on screen. */
+  const flush = (until: number): void => {
+    if (!pending) return;
+    const endCs = Math.round((until - startT) / 10);
+    const d = Math.max(2, endCs - shownCs);
+    shownCs += d;
+    sink.add(pending.rgba, d);
+    pending = null;
+  };
   const finish = (): void => {
     if (done) return;
     done = true;
     cancelAnimationFrame(raf);
     page.stop();
     holdQuality(false);
-    try {
-      if (enc.frames > 0) download(enc.finish(), 'gif');
-    } finally {
-      onDone();
-    }
+    flush(pending ? pending.t + interval : 0);
+    void sink
+      .finish()
+      .then((b) => b && download(b, 'gif'))
+      .finally(onDone);
   };
   const tick = (t: number): void => {
     if (done) return;
@@ -459,11 +611,14 @@ export async function recordGif(
         last = t;
         const s = getShot();
         if (s && ctx) {
-          drawShot(s, ctx, w, h, { overlay: page.current(), watermark: o.watermark });
-          enc.add(ctx.getImageData(0, 0, w, h).data);
-          onProgress(enc.frames / total);
+          if (count === 0) startT = t;
+          flush(t);
+          drawShot(thickShot(s, r), ctx, w, h, { overlay: page.current(), watermark: o.watermark, pop: 1 });
+          pending = { rgba: ctx.getImageData(0, 0, w, h).data, t };
+          count++;
+          onProgress(count / total);
         }
-        if (enc.frames >= total) return finish();
+        if (count >= total) return finish();
       }
     } catch (e) {
       // A picture the browser will not let us read (or anything else): stop cleanly, keep what was recorded.
@@ -476,14 +631,16 @@ export async function recordGif(
   return { stop: finish };
 }
 
-/** The best video format this browser can record: MP4 (H.264) where it can, else WebM. */
+/** The best video format MediaRecorder can make (the fallback where WebCodecs is missing): MP4 (H.264, AAC) where it can, else WebM. */
 export function videoFormat(): { mime: string; ext: string } | null {
-  if (typeof MediaRecorder === 'undefined') return null;
+  if (typeof MediaRecorder === 'undefined') return typeof VideoEncoder !== 'undefined' ? { mime: 'video/mp4', ext: 'mp4' } : null;
   for (const [mime, ext] of [
+    ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'mp4'],
+    ['video/mp4;codecs=avc1,mp4a.40.2', 'mp4'],
     ['video/mp4;codecs=avc1', 'mp4'],
     ['video/mp4', 'mp4'],
-    ['video/webm;codecs=vp9', 'webm'],
-    ['video/webm;codecs=vp8', 'webm'],
+    ['video/webm;codecs=vp9,opus', 'webm'],
+    ['video/webm;codecs=vp8,opus', 'webm'],
     ['video/webm', 'webm'],
   ] as const) {
     if (MediaRecorder.isTypeSupported(mime)) return { mime, ext };
@@ -494,9 +651,11 @@ export function videoFormat(): { mime: string; ext: string } | null {
 /**
  * Video size (owner, 3 Nov 2026), one choice for every recording (the Capture menu and
  * the ✶ Starsigns package), remembered in this browser:
- * - 'hires': for desktop screens, up to 4K wide, a high bit rate (8–50 Mbit/s);
- * - 'small': for posting on X, at most 1280 × 720 and about 2 Mbit/s (roughly 15 MB a
- *   minute, far under X's 512 MB; X re-encodes to 720p anyway).
+ * - 'hires': for desktop screens, up to 4K, a high bit rate (up to 40 Mbit/s);
+ * - 'small': for posting on X (0.4.2, ADR-0020): within 1920 × 1080, about 12 Mbit/s
+ *   (about 90 MB a minute; X takes 512 MB and 25 Mbit/s), H.264 High, constant 30 frames a
+ *   second, AAC sound, index first, so X accepts it as it is. (0.4.0 made it 720p at
+ *   2 Mbit/s through MediaRecorder; X rejected that file.)
  */
 export type VideoSize = 'hires' | 'small';
 const VIDEO_SIZE_KEY = 'sp4ce-video-size';
@@ -515,89 +674,163 @@ export function setVideoSize(s: VideoSize): void {
   }
 }
 
-/** A video of what is on screen, until stopped: hi-res (up to 4K wide) or small (720p, for X). */
+/**
+ * The video's size: the screen's shape, as large as fits 1920 × 1080 for X ('small') or
+ * 3840 × 2160 ('hires'), upright too, even on both sides.
+ */
+export function videoDims(width: number, height: number, size: VideoSize): { w: number; h: number; k: number } {
+  const long = size === 'small' ? 1920 : 3840, short = size === 'small' ? 1080 : 2160;
+  const k = Math.min(long / Math.max(width, height, 1), short / Math.max(1, Math.min(width, height)));
+  return { w: even(width * k), h: even(height * k), k };
+}
+
+/**
+ * A video of what is on screen, until stopped. Made for X (ADR-0020) where the browser has
+ * WebCodecs: H.264 High, a constant 30 frames a second, AAC sound always there (what is
+ * heard, or silence), the index first; 'small' fits 1920 × 1080 (X's size), 'hires' up to 4K
+ * for big screens. Otherwise MediaRecorder, with the sound as a track. While it records the
+ * views are drawn at the video's own resolution (never the softer one a slow screen may
+ * have dropped to) and made to pop a little.
+ */
 export async function recordVideo(
   getShot: () => Shot | null,
   o: { fps: number; watermark: boolean; size?: VideoSize; onBlob?: (video: Blob, ext: string) => void },
   onDone: () => void,
 ): Promise<Recording | null> {
-  const fmt = videoFormat();
-  const first = getShot();
-  if (!fmt || !first) return null;
-  const px = shotScale(first);
-  const small = (o.size ?? getVideoSize()) === 'small';
-  // Small: fit within 1280 × 720 (either way round). Hi-res: up to 4K wide.
-  const k = small
-    ? Math.min(px, 1280 / Math.max(1, Math.max(first.region.width, first.region.height)), 720 / Math.max(1, Math.min(first.region.width, first.region.height)))
-    : Math.min(px, 3840 / Math.max(1, first.region.width));
+  unlockSound();
+  const first0 = getShot();
+  if (!first0) return null;
+  const size = o.size ?? getVideoSize();
+  const dims = videoDims(first0.region.width, first0.region.height, size);
+  // Views at least as sharp as the video (up to 3 device px per CSS px).
+  holdQuality(true, Math.min(3, Math.max(shotScale(first0), dims.k)));
+  // Let the views redraw at that resolution before the first frame.
+  for (let i = 0; i < 3; i++) await nextFrame();
+  const first = getShot() ?? first0;
   const c = document.createElement('canvas');
-  c.width = Math.max(2, Math.floor((first.region.width * k) / 2) * 2);
-  c.height = Math.max(2, Math.floor((first.region.height * k) / 2) * 2);
+  c.width = dims.w;
+  c.height = dims.h;
   const ctx = c.getContext('2d');
-  if (!ctx) return null;
-  const page = liveOverlay(getShot, k);
-  holdQuality(true);
-  await page.ready;
-  const startVideo = (): Recording => {
-  drawShot(first, ctx, c.width, c.height, { overlay: page.current(), watermark: o.watermark });
-  // Frames are handed to the encoder one by one, as they are drawn, at an even rate: no
-  // frame is sampled twice or skipped, so motion stays smooth.
-  const stream = c.captureStream(0);
-  const track = stream.getVideoTracks()[0] as (MediaStreamTrack & { requestFrame?: () => void }) | undefined;
-  const manual = typeof track?.requestFrame === 'function';
-  const live = manual ? stream : c.captureStream(o.fps);
-  // Hi-res: about 0.12 bits per pixel per frame, 8 to 50 Mbit/s. Small: about 2 Mbit/s (1.2 to 2.5).
-  const bps = small ? Math.min(2.5e6, Math.max(1.2e6, c.width * c.height * o.fps * 0.07)) : Math.min(50e6, Math.max(8e6, c.width * c.height * o.fps * 0.12));
-  const rec = new MediaRecorder(live, { mimeType: fmt.mime, videoBitsPerSecond: bps });
-  const chunks: Blob[] = [];
-  rec.ondataavailable = (e) => {
-    if (e.data.size > 0) chunks.push(e.data);
-  };
-  let raf = 0;
-  let stopped = false;
-  rec.onstop = () => {
+  if (!ctx) {
     holdQuality(false);
-    live.getTracks().forEach((t) => t.stop());
-    stream.getTracks().forEach((t) => t.stop());
-    if (chunks.length) {
-      const video = new Blob(chunks, { type: fmt.mime.split(';')[0] ?? fmt.mime });
-      // Handed back (the Starsigns package zips it), or saved to Downloads.
-      if (o.onBlob) o.onBlob(video, fmt.ext);
-      else download(video, fmt.ext);
-    }
-    onDone();
+    return null;
+  }
+  ctx.imageSmoothingQuality = 'high';
+  const page = liveOverlay(getShot, dims.k);
+  await page.ready;
+  const paint = (s: Shot): void => drawShot(s, ctx, c.width, c.height, { overlay: page.current(), watermark: o.watermark, pop: 1 });
+  const deliver = (video: Blob, ext: string): void => {
+    // Handed back (the Starsigns package zips it), or saved to Downloads.
+    if (o.onBlob) o.onBlob(video, ext);
+    else download(video, ext);
   };
-  // Draw at the video's frame rate (not every screen frame), on the screen's own frames.
-  const period = 1000 / o.fps;
-  let next = performance.now();
-  const tick = (ts: number): void => {
-    if (stopped) return;
-    raf = requestAnimationFrame(tick);
-    if (ts + 2 < next) return;
-    next = Math.max(next + period, ts - period);
-    const s = getShot();
-    if (s) {
-      drawShot(s, ctx, c.width, c.height, { overlay: page.current(), watermark: o.watermark });
-      if (manual) track?.requestFrame?.();
-    }
-  };
-  rec.start(1000);
-  raf = requestAnimationFrame(tick);
-  return {
-    stop(): void {
+
+  // Made for X: WebCodecs and our MP4 writer (loaded when first needed, outside the calendar's budget).
+  const x = await import('./videoEncode').then((m) => m.startXVideo(c.width, c.height, o.fps)).catch(() => null);
+  if (x) {
+    const period = 1000 / o.fps;
+    let t0 = -1;
+    let nextSlot = 0;
+    let raf = 0;
+    let stopped = false;
+    const tick = (ts: number): void => {
       if (stopped) return;
-      stopped = true;
-      cancelAnimationFrame(raf);
-      page.stop();
-      if (rec.state !== 'inactive') rec.stop();
-      else holdQuality(false);
-    },
-  };
+      raf = requestAnimationFrame(tick);
+      if (t0 < 0) t0 = ts;
+      const slot = Math.floor((ts - t0) / period);
+      if (slot < nextSlot) return;
+      const s = getShot();
+      if (!s) return;
+      try {
+        paint(s);
+        // A slow screen frame fills the slots it missed with itself: time in the video stays true.
+        x.frame(c, slot - nextSlot + 1);
+      } catch (e) {
+        console.warn('Video frame skipped:', e);
+      }
+      nextSlot = slot + 1;
+    };
+    raf = requestAnimationFrame(tick);
+    return {
+      stop(): void {
+        if (stopped) return;
+        stopped = true;
+        cancelAnimationFrame(raf);
+        page.stop();
+        void x
+          .finish()
+          .then((blob) => {
+            if (blob) deliver(blob, 'mp4');
+            else console.warn('The video could not be finished.');
+          })
+          .finally(() => {
+            holdQuality(false);
+            onDone();
+          });
+      },
+    };
+  }
+
+  // Fallback: MediaRecorder (the sound as a track; the file may need re-encoding for X).
+  const fmt = videoFormat();
+  if (!fmt || typeof MediaRecorder === 'undefined') {
+    page.stop();
+    holdQuality(false);
+    return null;
+  }
+  const startVideo = (): Recording => {
+    paint(first);
+    // Frames are handed to the encoder one by one, as they are drawn, at an even rate.
+    const stream = c.captureStream(0);
+    const track = stream.getVideoTracks()[0] as (MediaStreamTrack & { requestFrame?: () => void }) | undefined;
+    const manual = typeof track?.requestFrame === 'function';
+    const vid = manual ? stream : c.captureStream(o.fps);
+    const sound = soundStream();
+    const live = new MediaStream([...vid.getVideoTracks(), ...(sound ? sound.getAudioTracks() : [])]);
+    const bps = size === 'small' ? Math.min(12e6, Math.max(4e6, c.width * c.height * o.fps * 0.13)) : Math.min(50e6, Math.max(8e6, c.width * c.height * o.fps * 0.12));
+    const rec = new MediaRecorder(live, { mimeType: fmt.mime, videoBitsPerSecond: bps, audioBitsPerSecond: 160_000 });
+    const chunks: Blob[] = [];
+    rec.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    let raf = 0;
+    let stopped = false;
+    rec.onstop = () => {
+      holdQuality(false);
+      vid.getTracks().forEach((t) => t.stop());
+      stream.getTracks().forEach((t) => t.stop());
+      if (chunks.length) deliver(new Blob(chunks, { type: fmt.mime.split(';')[0] ?? fmt.mime }), fmt.ext);
+      onDone();
+    };
+    const period = 1000 / o.fps;
+    let next = performance.now();
+    const tick = (ts: number): void => {
+      if (stopped) return;
+      raf = requestAnimationFrame(tick);
+      if (ts + 2 < next) return;
+      next = Math.max(next + period, ts - period);
+      const s = getShot();
+      if (s) {
+        paint(s);
+        if (manual) track?.requestFrame?.();
+      }
+    };
+    rec.start(1000);
+    raf = requestAnimationFrame(tick);
+    return {
+      stop(): void {
+        if (stopped) return;
+        stopped = true;
+        cancelAnimationFrame(raf);
+        page.stop();
+        if (rec.state !== 'inactive') rec.stop();
+        else holdQuality(false);
+      },
+    };
   };
   try {
     return startVideo();
   } catch (e) {
-    // This browser would not record (a format or stream it refuses): say so and leave nothing running.
     console.warn('Video recording could not start:', e);
     page.stop();
     holdQuality(false);

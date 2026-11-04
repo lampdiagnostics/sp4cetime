@@ -28,6 +28,7 @@ import {
   type Pose,
   poseFrom,
   pushOut,
+  rotateToward,
   vantage,
   WARP_HINT_KM,
   WARP_IN_ANGLE,
@@ -200,6 +201,13 @@ interface Flight {
    * face it, fly at it, and only at the end turn to the view on arrival.
    */
   body?: { id: BodyId; fromRel: Vec3; up: Vec3; face?: boolean };
+  /**
+   * Landing or lifting off (0.4.2): to or from a spot just above a body's surface. Height
+   * above the ground changes by equal factors (thousands of km a second high up, the last
+   * metres slowly), the ground still to cross shrinking with it; landing, you look down at
+   * the spot until you stand up; lifting off, the ground drops away under your feet.
+   */
+  land?: { radius: number };
   /** Start from this pose, recomputed every frame (time may run during the flight). */
   fromPose?: Pose;
   /** The view's width and the "up" for flying, on arrival (a path's point). */
@@ -762,7 +770,22 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           fov: { from: fov, to: st.fov }, upTo: st.up,
         };
         let f: Flight;
-        if (isWarp(fromKm, toKm)) f = { ...base, ms: reduced() ? 0 : WARP_MS, warp: true };
+        const anchorBody = find(bodies, to.anchor);
+        const groundKm = len3(sub3(dest, anchorBody.pos)) - anchorBody.info.radiusKm;
+        const fromGroundKm = len3(sub3(from.pos, anchorBody.pos)) - anchorBody.info.radiusKm;
+        const onGround = (km: number): boolean => km > 0 && km < 0.05;
+        const landing = onGround(groundKm) && fromGroundKm > 20;
+        const liftOff = onGround(fromGroundKm) && groundKm > 20;
+        if (landing || liftOff) {
+          // Down to the ground, a gentle fall of about eight seconds, looking at where you will
+          // stand; or up from it, the ground dropping away from under your feet (six seconds).
+          const up = new THREE.Vector3(0, 1, 0).applyQuaternion(from.quat);
+          f = {
+            ...base, ms: reduced() ? 0 : landing ? 8000 : 6000, warp: false,
+            body: { id: to.anchor, fromRel: sub3(from.pos, anchorBody.pos), up: [up.x, up.y, up.z], face: landing },
+            land: { radius: anchorBody.info.radiusKm },
+          };
+        } else if (isWarp(fromKm, toKm)) f = { ...base, ms: reduced() ? 0 : WARP_MS, warp: true };
         else if (galaxyFade(len3(from.pos)) > 0.5 && galaxyFade(len3(dest)) > 0.5) {
           // Out among the galaxies: close in by equal factors of distance on where you are going.
           f = { ...base, ms: reduced() ? 0 : 4000, warp: false, toward: dest };
@@ -849,7 +872,23 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         if (fl.fov) fov = logLerp(fl.fov.from, fl.fov.to, e);
         const jb = fl.body;
         const c = jb ? find(bodies, jb.id).pos : null;
-        pos = fl.warp
+        const ld = fl.land;
+        pos = c && jb && ld
+          ? (() => {
+              const a = jb.fromRel, b = sub3(to.pos, c);
+              const ra = len3(a), rb = len3(b);
+              const ua: Vec3 = [a[0] / ra, a[1] / ra, a[2] / ra], ub: Vec3 = [b[0] / rb, b[1] / rb, b[2] / rb];
+              const ang = Math.acos(Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2])));
+              // Height falls by equal factors; the distance still to go across the ground falls
+              // with it (in proportion), so the spot stays well below you and you come down on it
+              // from above, never skimming in low from the side.
+              const h0 = Math.max(1e-4, ra - ld.radius), h1 = Math.max(1e-4, rb - ld.radius);
+              const h = k >= 1 ? h1 : Math.exp(Math.log(h0) + (Math.log(h1) - Math.log(h0)) * e);
+              const left = k >= 1 ? 0 : Math.min(1, Math.max(0, (h - h1) / Math.max(1e-9, h0 - h1)));
+              const dir = ang < 1e-9 ? ub : rotateToward(ua, ub, ang * (1 - left));
+              return [c[0] + dir[0] * (ld.radius + h), c[1] + dir[1] * (ld.radius + h), c[2] + dir[2] * (ld.radius + h)] as Vec3;
+            })()
+          : fl.warp
           ? warpPoint(sunPos, fl.fromPos, to.pos, e)
           : c && jb
             ? warpPoint(c, [c[0] + jb.fromRel[0], c[1] + jb.fromRel[1], c[2] + jb.fromRel[2]], to.pos, e)
@@ -858,7 +897,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
           : ([0, 1, 2].map((i) => fl.fromPos[i]! + (to.pos[i]! - fl.fromPos[i]!) * e) as unknown as Vec3);
         if (c && jb && jb.face !== false) {
           // Turn to face it, fly at it, and turn to the arrival view only at the end.
-          const face = lookAt(pos, c, jb.up);
+          // Landing, you look at the spot below; otherwise at the body.
+          const face = lookAt(pos, ld ? to.pos : c, jb.up);
           const sm = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
           quat = k < 0.8 ? fl.fromQuat.clone().slerp(face, sm(k / 0.2)) : face.slerp(to.quat, sm((k - 0.8) / 0.2));
         } else quat = fl.fromQuat.clone().slerp(to.quat, e);
@@ -1000,6 +1040,9 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
       const galaxyLabels = galaxy ? galaxy.update(now, pos, pxAngle, scene.renderer.getPixelRatio()) : [];
       const o = L.overlays;
       scene.setEarthLines(o.coastlines ?? true);
+      // A Starsigns place on the ground: its field, falling away when Earth goes see-through.
+      const ch0 = o.chart;
+      scene.setGround(ch0?.ground ? { lat: ch0.lat, lon: ch0.lon } : null, !!o.seeThrough);
       // Starsigns' last pose: Earth see-through, as if it were not under your feet.
       const seeThrough = !!o.seeThrough;
       scene.setBodyVisible('earth', !seeThrough);
@@ -1045,7 +1088,8 @@ export default function FlyView({ active, focused = true, theme, overlays, clock
         } else scene.setDaylight('#000000', 0);
       }
       scene.setFov(lensFov);
-      scene.setNear(Math.min(1000, Math.max(0.01, nearest(pos, bodies).altitude * 1e-4)));
+      // Standing in the field, things a metre away must not be cut off.
+      scene.setNear(Math.min(1000, Math.max(scene.groundShowing() > 0 ? 0.0002 : 0.01, nearest(pos, bodies).altitude * 1e-4)));
       scene.render(bodies, pos, quat);
 
       // Labels.

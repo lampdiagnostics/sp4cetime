@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import { earthLines } from './earthLines';
+import { createField, type Field } from './field';
 import { BODIES, type BodyId, type BodyInfo, type BodyState } from '../core/bodies';
 import type { Vec3 } from '../core/geometry';
 import type { SkyStyle } from '../core/theme';
@@ -50,6 +51,14 @@ export interface FlyScene {
   setStyle(s: SkyStyle): void;
   /** Earth's line skin (coastlines, lakes, borders): loaded the first time it is shown. */
   setEarthLines(on: boolean): void;
+  /**
+   * A grassy field ringed by trees at a place on Earth (a Starsigns place, 0.4.2), or none.
+   * `dropped`: Earth is see-through and the field falls away from under the viewer (once,
+   * over a few seconds), then is gone.
+   */
+  setGround(place: { readonly lat: number; readonly lon: number } | null, dropped?: boolean): void;
+  /** How much of the field shows now (0 … 1), from the last frame. */
+  groundShowing(): number;
   /** Show or hide a body's globe (Earth, see-through in Starsigns' last pose). */
   setBodyVisible(id: BodyId, on: boolean): void;
   /** Near the ground, the sky's colour for the hour (blue by day, black by night): a colour and how much of it (0–1). */
@@ -192,6 +201,7 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   const loader = new THREE.TextureLoader();
   const meshes = new Map<BodyId, THREE.Mesh>();
   let sunGlow: THREE.SpriteMaterial | null = null;
+  let earthGrid: THREE.LineSegments | null = null;
   let earthAtmosphere: THREE.Mesh | null = null;
   for (const info of BODIES) {
     const geo = new THREE.SphereGeometry(1, 128, 96);
@@ -226,6 +236,7 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
       );
       lines.scale.setScalar(1.002);
       mesh.add(lines);
+      if (info.id === 'earth') earthGrid = lines;
     } else {
       sunGlow = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false });
       const glow = new THREE.Sprite(sunGlow);
@@ -243,11 +254,30 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
   }
 
   let lines: THREE.Group | null = null;
+  let field: { lat: number; lon: number; f: Field } | null = null;
+  let fieldK = 0;
+  /** When the field began to fall (ms, performance.now()), or null while it is underfoot. */
+  let dropAt: number | null = null;
   const baseSky = new THREE.Color(0x000000);
   const dayTint = new THREE.Color();
   const basis = new THREE.Matrix4();
   const tmp = new THREE.Vector3();
   return {
+    setGround(place, dropped = false) {
+      if (field && (!place || field.lat !== place.lat || field.lon !== place.lon)) {
+        scene.remove(field.f.group);
+        field.f.dispose();
+        field = null;
+      }
+      if (place && !field) {
+        const f = createField(Math.round((place.lat + 90) * 1000) * 360_001 + Math.round((place.lon + 180) * 1000));
+        scene.add(f.group);
+        field = { lat: place.lat, lon: place.lon, f };
+      }
+      if (!dropped) dropAt = null;
+      else if (dropAt === null) dropAt = performance.now();
+    },
+    groundShowing: () => fieldK,
     setBodyVisible(id, on) {
       const m = meshes.get(id);
       if (m && m.visible !== on) m.visible = on;
@@ -257,7 +287,10 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
         lines = earthLines(import.meta.env.BASE_URL);
         meshes.get('earth')?.add(lines);
       }
-      if (lines) lines.visible = on;
+      if (lines) {
+        lines.userData.on = on;
+        lines.visible = on;
+      }
     },
     renderer,
     camera,
@@ -280,6 +313,36 @@ export function createScene(canvas: HTMLCanvasElement): FlyScene {
         if (b.info.id === 'sun') sunLight.position.set(b.pos[0] - camPos[0], b.pos[1] - camPos[1], b.pos[2] - camPos[2]);
       }
       const earth = bodies.find((b) => b.info.id === 'earth');
+      fieldK = 0;
+      if (field && earth) {
+        // The place's own frame (east, north, up) in the world, placed relative to the camera in double precision.
+        const [ex, ey, ez] = earth.axes;
+        const la = (field.lat * Math.PI) / 180, lo = (field.lon * Math.PI) / 180;
+        const inWorld = (v: readonly [number, number, number]): THREE.Vector3 =>
+          new THREE.Vector3(ex[0] * v[0] + ey[0] * v[1] + ez[0] * v[2], ex[1] * v[0] + ey[1] * v[1] + ez[1] * v[2], ex[2] * v[0] + ey[2] * v[1] + ez[2] * v[2]);
+        const up = inWorld([Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)]);
+        const east = inWorld([-Math.sin(lo), Math.cos(lo), 0]);
+        const north = inWorld([-Math.sin(la) * Math.cos(lo), -Math.sin(la) * Math.sin(lo), Math.cos(la)]);
+        const R = earth.info.radiusKm;
+        // Falling away: slowly at first, then ever faster, by equal factors (a metre in the first
+        // half second, 16 km by two seconds, over a thousand by three), fading out as it goes.
+        const t = dropAt === null ? 0 : (performance.now() - dropAt) / 1000;
+        const fall = dropAt === null ? 0 : 0.0005 * (Math.exp(4.6 * t) - 1);
+        const px = earth.pos[0] + up.x * (R - fall) - camPos[0], py = earth.pos[1] + up.y * (R - fall) - camPos[1], pz = earth.pos[2] + up.z * (R - fall) - camPos[2];
+        // Measured from where the field would be underfoot, so falling away fades it by time, not by distance.
+        const d = Math.hypot(px + up.x * fall, py + up.y * fall, pz + up.z * fall);
+        // Fully there within 2 km of it, gone by 25 km (coming down it grows out of the globe).
+        fieldK = Math.max(0, Math.min(1, (Math.log(25) - Math.log(Math.max(1e-6, d))) / Math.log(25 / 2)));
+        if (dropAt !== null) fieldK *= Math.max(0, Math.min(1, 1 - (t - 2.2) / 0.9));
+        const m = field.f.group.matrix;
+        m.makeBasis(east, north, up);
+        m.setPosition(px, py, pz);
+        field.f.group.matrixWorldNeedsUpdate = true;
+        field.f.setOpacity(fieldK);
+      }
+      // On the ground, the lines drawn kilometres up around the globe would cross the sky.
+      if (earthGrid) earthGrid.visible = fieldK < 0.05;
+      if (lines) lines.visible = lines.userData.on !== false && fieldK < 0.05;
       if (earth && earthAtmosphere) {
         const d = Math.hypot(...earth.pos);
         const sunDirWorld = new THREE.Vector3(-earth.pos[0] / d, -earth.pos[1] / d, -earth.pos[2] / d);

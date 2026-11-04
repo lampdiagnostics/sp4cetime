@@ -81,6 +81,9 @@ export function medianCut(rgba: Uint8ClampedArray, colours = 256): Uint8Array {
   return pal;
 }
 
+/** A palette fitting worse than this (mean squared colour error) is made again for the frame. */
+const REPALETTE = 180;
+
 const stamp = new Int32Array(4096 * 256);
 const code = new Uint16Array(4096 * 256);
 let lzwGen = 0;
@@ -148,6 +151,8 @@ function lzw(indices: Uint8Array, out: Bytes): void {
 export class GifEncoder {
   private out = new Bytes();
   private pal: Uint8Array | null = null;
+  /** The first frame's palette, written as the file's global colour table. */
+  private globalPal: Uint8Array | null = null;
   private cache = new Int16Array(1 << 15).fill(-1);
   private indices: Uint8Array;
   frames = 0;
@@ -176,11 +181,37 @@ export class GifEncoder {
     return best;
   }
 
-  /** Add a frame (RGBA, width × height). The first one sets the palette. */
-  add(rgba: Uint8ClampedArray): void {
+  /** How badly the palette fits these pixels: mean squared error of a sample of them. */
+  private misfit(rgba: Uint8ClampedArray): number {
+    const n = rgba.length / 4;
+    const step = Math.max(1, Math.floor(n / 4000));
+    let e = 0, m = 0;
+    const pal = this.pal as Uint8Array;
+    for (let i = 0; i < n; i += step) {
+      const r = rgba[i * 4]!, g = rgba[i * 4 + 1]!, b = rgba[i * 4 + 2]!;
+      const k = this.nearest(r, g, b);
+      const dr = pal[k * 3]! - r, dg = pal[k * 3 + 1]! - g, db = pal[k * 3 + 2]! - b;
+      e += dr * dr + dg * dg + db * db;
+      m++;
+    }
+    return e / Math.max(1, m);
+  }
+
+  /**
+   * Add a frame (RGBA, width × height), shown for `delayCs` hundredths of a second (the
+   * encoder's own delay if not given). The first frame sets the palette; when the picture
+   * has changed so much that its colours fit badly (a new view, a new look), the frame
+   * gets a palette of its own, which the frames after it share.
+   */
+  add(rgba: Uint8ClampedArray, delayCs = this.delayCs): void {
     const o = this.out;
+    if (this.pal && this.misfit(rgba) > REPALETTE) {
+      this.pal = medianCut(rgba);
+      this.cache.fill(-1);
+    }
     if (!this.pal) {
       this.pal = medianCut(rgba);
+      this.globalPal = this.pal;
       o.text('GIF89a');
       o.word(this.width);
       o.word(this.height);
@@ -196,14 +227,18 @@ export class GifEncoder {
     const idx = this.indices;
     for (let i = 0, n = idx.length; i < n; i++) idx[i] = this.nearest(rgba[i * 4]!, rgba[i * 4 + 1]!, rgba[i * 4 + 2]!);
     o.bytes([0x21, 0xf9, 4, 0]);
-    o.word(this.delayCs);
+    o.word(Math.max(2, Math.min(65535, Math.round(delayCs))));
     o.bytes([0, 0]);
     o.byte(0x2c);
     o.word(0);
     o.word(0);
     o.word(this.width);
     o.word(this.height);
-    o.byte(0);
+    if (this.pal !== this.globalPal) {
+      // A local colour table of 256 colours (this frame's palette is not the first one).
+      o.byte(0x87);
+      o.bytes(this.pal as Uint8Array);
+    } else o.byte(0);
     lzw(idx, o);
     this.frames++;
   }

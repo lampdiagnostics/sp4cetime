@@ -3,8 +3,8 @@ import { getVideoSize, type Recording, recordGif, recordVideo, screenshot, setVi
 import type { Path } from '../core/path';
 
 const GIF_SECONDS = 5;
-const GIF_WIDTH = 640;
-const GIF_FPS = 15;
+const GIF_WIDTH = 800;
+const GIF_FPS = 20;
 const VIDEO_FPS = 30;
 
 /**
@@ -218,11 +218,11 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
           </label>
           <fieldset className="video-size">
             <legend>Video size (also the ✶ Starsigns package)</legend>
-            <label title="Up to 4K wide at a high bit rate: for showing on a computer or a big screen (heavier while recording)">
+            <label title="Up to 4K at a high bit rate: for showing on a computer or a big screen (heavier while recording; larger than X takes)">
               <input type="radio" name="video-size" checked={size === 'hires'} onChange={() => (setSize('hires'), setVideoSize('hires'))} /> Hi-res, for desktop screens
             </label>
-            <label title="720p at about 2 Mbit/s (around 15 MB a minute): quick to upload to X and other social sites">
-              <input type="radio" name="video-size" checked={size === 'small'} onChange={() => (setSize('small'), setVideoSize('small'))} /> Small, for X (720p)
+            <label title="1080p, a constant 30 frames a second, H.264 with AAC sound, about 90 MB a minute: made to X's rules, so it uploads as it is">
+              <input type="radio" name="video-size" checked={size === 'small'} onChange={() => (setSize('small'), setVideoSize('small'))} /> For X (1080p, ready to post)
             </label>
           </fieldset>
           <p className="note">

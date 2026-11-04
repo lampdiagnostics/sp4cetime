@@ -117,10 +117,33 @@ describe('The Starsigns path', () => {
     for (const p of pts) expect(p.caption.length).toBeLessThan(110);
   });
 
+  it('looks at every body once: the tour starts where the first pose faces the Sun and goes once round', () => {
+    const overWorld = pts.filter((p) => !p.look.chart);
+    for (const b of r.bodies) expect(overWorld.filter((p) => p.caption.includes(`${b.name} `)).length).toBe(1);
+    // The Sun's group is seen from the first pose's own camera (no turning away and back to it).
+    const sunStop = overWorld.find((p) => p.caption.includes('Sun '))!;
+    expect(sunStop.fly).toEqual(pts[0]!.fly);
+    expect(overWorld.indexOf(sunStop)).toBe(1);
+    // Then on round the zodiac, every view a different direction.
+    const quats = overWorld.slice(1).map((p) => JSON.stringify(p.fly!.quat));
+    expect(new Set(quats).size).toBe(quats.length);
+  });
+
+  it('is silent in space and when the ground falls away; crickets and traffic only standing in the field', () => {
+    const ground = pts.findIndex((p) => p.caption.startsWith('The sky over Winnipeg'));
+    expect(pts.map((p) => p.sound ?? 'silence')).toEqual(pts.map((_, i) => (i === ground ? 'field' : 'silence')));
+    // The field is under the place from the landing on, and falls away with the see-through planet.
+    expect(pts[ground]!.look.chart?.ground).toBe(true);
+    expect(pts[pts.length - 1]!.look.chart?.ground).toBe(true);
+    expect(pts.slice(0, ground).every((p) => !p.look.chart?.ground)).toBe(true);
+  });
+
   it('is a path like any other: written to a .sp4ce.json file and read back', () => {
     const back = parseSp4ceFile(JSON.parse(JSON.stringify(toSp4ceFile(path))));
     expect(back.points).toHaveLength(pts.length);
     expect(back.points.map((p) => p.look.highlight)).toEqual(pts.map((p) => p.look.highlight));
     expect(back.points.map((p) => p.pause)).toEqual(pts.map((p) => (p.pause === undefined ? undefined : Math.round(p.pause * 10) / 10)));
+    expect(back.points.map((p) => p.sound)).toEqual(pts.map((p) => p.sound));
+    expect(back.points.map((p) => p.look.chart?.ground)).toEqual(pts.map((p) => p.look.chart?.ground));
   });
 });
