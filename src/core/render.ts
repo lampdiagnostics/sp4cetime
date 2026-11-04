@@ -804,7 +804,11 @@ export function skyMatrix(roll: number, yaw: number, now: Time): Mat3 {
   return matMul(matMul(v, t(v0)), home);
 }
 
-/** The Sun and the Moon on the sky as seen from Earth now, with the zodiac sign each is in. */
+/**
+ * The Sun's and the Moon's signs as seen from Earth now. The Sun's is written on the sky
+ * under the Sun; the Moon's goes into the Moon's own label on its path (owner, 4 Nov 2026:
+ * a mark on the sky raced across the screen with time sped up), so only the Sun's is drawn.
+ */
 export function skyBodies(now: Time): Array<{ dir: Vec3; text: string; glyph: string }> {
   // Signs from the equinox of this date, not of 2000.
   const sky = skyOfDate(now);
@@ -823,6 +827,12 @@ export function skyBodies(now: Time): Array<{ dir: Vec3; text: string; glyph: st
     { dir: unitV(sun), text: `Sun in ${sign(sun)}`, glyph: '☉' },
     { dir: unitV(m), text: `Moon in ${sign(m)}`, glyph: '☾' },
   ];
+}
+
+/** The Moon's sign as seen from Earth now, e.g. "♑︎ Capricorn" (for its label in the calendar). */
+export function moonSign(now: Time): string {
+  const s = signOf(lonOfDateFromVector(moonGeocentric(now), skyOfDate(now)));
+  return `${s.glyph} ${s.name}`;
 }
 
 export function drawFrame(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
@@ -918,7 +928,7 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
         constellations: view.constellations,
         zodiac: view.zodiac,
         galactic: view.galactic,
-        ...(view.zodiac && { bodies: skyBodies(f.now), equinoxShift: skyOfDate(f.now).lonShift }),
+        ...(view.zodiac && { bodies: skyBodies(f.now).filter((b) => b.glyph === '☉'), equinoxShift: skyOfDate(f.now).lonShift }),
       },
     );
   } else {
@@ -1132,7 +1142,7 @@ function drawScene(ctx: CanvasRenderingContext2D, f: FrameInput): FrameResult {
         };
         if (mlen > 2) strokeFuse(ctx, trailPoints(ax, mlen, 48, at), theme.moon, 1.2, additive);
         const [mx, my] = at(ax);
-        tips.push({ x: mx, y: my, r: 2, color: theme.moon, name: 'Moon', id: 'moon' });
+        tips.push({ x: mx, y: my, r: 2, color: theme.moon, name: view.zodiac ? `Moon in ${moonSign(f.now)}` : 'Moon', id: 'moon' });
       }
     }
   }

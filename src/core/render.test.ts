@@ -187,6 +187,13 @@ describe('The Sun and the Moon on the zodiac, seen from Earth', () => {
     // The Moon stays within ~5° of the ecliptic.
     expect(Math.abs(Math.asin(moon!.dir[2]) * 180 / Math.PI)).toBeLessThan(5.5);
   });
+
+  it('gives the Moon’s label the same sign (the Moon’s mark left the sky, 4 Nov 2026)', async () => {
+    const { skyBodies, moonSign } = await import('./render');
+    const { fromCivil, addSeconds } = await import('./time');
+    let t = fromCivil(2026, 11, 4);
+    for (let i = 0; i < 30; i++, t = addSeconds(t, 86_400)) expect(`Moon in ${moonSign(t)}`).toBe(skyBodies(t)[1]!.text);
+  });
 });
 
 describe('Centre: Earth (geocentric)', () => {

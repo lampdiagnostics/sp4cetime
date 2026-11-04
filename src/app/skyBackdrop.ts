@@ -239,10 +239,6 @@ export async function loadBackdrop(base: string): Promise<Backdrop> {
           if (x < box.x || x > box.x + box.w || y < box.y || y > box.y + box.h) continue;
           ctx.fillStyle = style.labelZodiac;
           ctx.strokeStyle = style.labelZodiac;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(x, y, 7, 0, 2 * Math.PI);
-          ctx.stroke();
           ctx.font = '12px ui-sans-serif, system-ui, sans-serif';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
