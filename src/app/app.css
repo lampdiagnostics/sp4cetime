@@ -1311,7 +1311,7 @@ select option {
     top: var(--gap);
     left: var(--gap);
     z-index: 24;
-    max-width: calc(100vw - 3 * var(--gap) - 274px);
+    max-width: calc(100vw - 3 * var(--gap) - var(--top-row, 296px));
     flex-direction: row;
     flex-wrap: wrap;
     align-items: baseline;
@@ -1484,7 +1484,7 @@ select option {
     bottom: var(--gap);
     transform: none;
     flex-wrap: wrap;
-    max-width: calc(100vw - 3 * var(--gap) - 110px);
+    max-width: calc(100vw - 3 * var(--gap) - 160px);
   }
   .float-tools .capture > button {
     height: 36px;
@@ -2413,4 +2413,247 @@ body:has(.dock[data-open='true']) .scale-corner {
   padding: 0;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* --- Watch buttons (owner, 5 Nov 2026) ------------------------------------
+   Every main control is a little round button, like a watch's, with an icon for what it is:
+   Now, the calendar, Fly (a spaceship), Galaxy, ✶ Starsigns and the window's shape at the top;
+   Capture and Paths at the bottom left; the speedometer, ▶ Play / ❚❚ Pause and ☰ More at the
+   bottom right. A button that is on glows in its own colour. */
+:root {
+  --wb: 44px;
+  --wb-face: rgba(26, 31, 48, 0.8);
+  --wb-edge: rgba(190, 205, 255, 0.18);
+  --wb-shine: rgba(255, 255, 255, 0.14);
+  --wb-shadow: rgba(0, 0, 0, 0.45);
+  --wb-view: #8fc3ff;
+  --top-row: 296px;
+}
+:root[data-ui='light'] {
+  --wb-face: rgba(255, 253, 248, 0.92);
+  --wb-edge: rgba(30, 30, 30, 0.14);
+  --wb-shine: rgba(255, 255, 255, 0.9);
+  --wb-shadow: rgba(40, 30, 10, 0.18);
+  --wb-view: #1d4ed8;
+}
+
+.watch-row {
+  align-items: center;
+  gap: 7px;
+}
+.dock-bar.watch-row {
+  gap: 8px;
+}
+
+.watch-row .wb,
+.float-tools .capture > button.wb,
+.dock-open .dock-bar button.wb {
+  --tint: var(--text);
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--wb);
+  height: var(--wb);
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--wb-edge);
+  color: var(--text);
+  font-size: 0;
+  background:
+    radial-gradient(120% 100% at 50% 8%, var(--wb-shine), transparent 52%),
+    var(--wb-face);
+  box-shadow:
+    inset 0 1px 0 var(--wb-shine),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.22),
+    0 3px 10px var(--wb-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.watch-row .wb:hover,
+.float-tools .capture > button.wb:hover {
+  border-color: color-mix(in srgb, var(--tint) 45%, var(--wb-edge));
+}
+.watch-row .wb:active,
+.float-tools .capture > button.wb:active {
+  transform: scale(0.9);
+}
+.watch-row .wb svg {
+  display: block;
+}
+
+/* On: the face takes the button's colour, and it glows. */
+:is(.top-bar, .dock-bar).watch-row .wb[aria-pressed='true'],
+.float-tools .capture > button.wb[aria-expanded='true'],
+.dock-open .dock-bar button.wb.dock-toggle {
+  color: var(--tint);
+  border-color: color-mix(in srgb, var(--tint) 60%, transparent);
+  background:
+    radial-gradient(120% 100% at 50% 8%, var(--wb-shine), transparent 52%),
+    color-mix(in srgb, var(--tint) 22%, var(--wb-face));
+  box-shadow:
+    inset 0 1px 0 var(--wb-shine),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--tint) 25%, transparent),
+    0 0 16px color-mix(in srgb, var(--tint) 38%, transparent),
+    0 3px 10px var(--wb-shadow);
+}
+
+.wb-now {
+  --tint: var(--live) !important;
+}
+.wb-view {
+  --tint: var(--wb-view) !important;
+}
+.watch-row .wb-astro {
+  --tint: var(--accent);
+  color: var(--accent);
+}
+.watch-row .wb-astro .twinkle {
+  display: grid;
+  place-items: center;
+}
+/* The window's shape is a choice, not a mode: its button never glows. */
+.top-bar.watch-row .round-button[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--wb-edge);
+  background:
+    radial-gradient(120% 100% at 50% 8%, var(--wb-shine), transparent 52%),
+    var(--wb-face);
+  box-shadow:
+    inset 0 1px 0 var(--wb-shine),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.22),
+    0 3px 10px var(--wb-shadow);
+}
+
+/* The three views share a little tray, like a watch's paired buttons. */
+.wb-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--wb-edge);
+  background: color-mix(in srgb, var(--wb-face) 55%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.wb-group .wb {
+  --wb: 40px;
+  box-shadow:
+    inset 0 1px 0 var(--wb-shine),
+    inset 0 -3px 7px rgba(0, 0, 0, 0.2);
+}
+
+/* Play waits in green while time is held; Pause is a plain face while it runs. */
+.watch-row .wb-play {
+  --tint: var(--live);
+}
+.watch-row .wb-play.waiting {
+  color: #06140c;
+  border-color: transparent;
+  background:
+    radial-gradient(120% 100% at 50% 8%, rgba(255, 255, 255, 0.45), transparent 55%),
+    var(--live);
+  box-shadow:
+    inset 0 -3px 7px rgba(0, 0, 0, 0.2),
+    0 0 16px color-mix(in srgb, var(--live) 45%, transparent),
+    0 3px 10px var(--wb-shadow);
+}
+:root[data-ui='light'] .watch-row .wb-play.waiting {
+  color: #fff;
+}
+
+/* The speedometer: the whole face opens the Speed menu (an invisible select over it). */
+.watch-row .wb-speed {
+  --tint: var(--accent);
+}
+.watch-row .wb-speed.set {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.wb-speed select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  opacity: 0;
+  font-size: 16px; /* no zooming in on phones */
+  cursor: pointer;
+  appearance: none;
+}
+.wb-speed:has(select:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #160c02;
+  font: 700 9px/1 system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+:root[data-ui='light'] .wb-badge {
+  color: #fff;
+}
+
+/* The views now live in the top row, so the Display box keeps only the theme. */
+.dock .tr .segmented {
+  display: none;
+}
+
+/* Recording states stay as words (the running time, Stop), in a pill. */
+.float-tools .capture > button.recording {
+  width: auto;
+}
+
+/* Phones: a size smaller, so the top row leaves room for the date. */
+@media (max-width: 480px) {
+  :root {
+    --wb: 38px;
+    --top-row: 262px;
+  }
+  .watch-row {
+    gap: 5px;
+  }
+  .wb-group {
+    gap: 2px;
+    padding: 2px;
+  }
+  .wb-group .wb {
+    --wb: 36px;
+  }
+  .watch-row .wb svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-row .wb,
+  .float-tools .capture > button.wb {
+    transition: none;
+  }
+  .watch-row .wb:active,
+  .float-tools .capture > button.wb:active {
+    transform: none;
+  }
 }

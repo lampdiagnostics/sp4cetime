@@ -571,32 +571,7 @@ export function Pane(p: Props) {
             ))}
           </select>
         </label>
-        <span className="heading">Speed</span>
-        <div className="row play-row">
-          <button type="button" className={playing ? 'on' : 'primary'} onClick={() => onPlay(true)} aria-pressed={playing} title="Run time at the chosen speed and direction">
-            ▶ Play
-          </button>
-          <label className="select">
-            <span className="visually-hidden">Speed and direction</span>
-            <select
-              value={speed}
-              title="Speed and direction: choosing one holds time still until ▶ Play"
-              onChange={(e) => {
-                changeRate(Number(e.target.value));
-                e.target.blur();
-              }}
-            >
-              {RATES.map((r) => (
-                <option key={r.rate} value={r.rate}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className={playing ? '' : 'on'} onClick={() => onPlay(false)} aria-pressed={!playing} title="Hold time still">
-            ❚❚ Pause
-          </button>
-        </div>
+        {/* Speed, ▶ Play and ❚❚ Pause are round buttons at the bottom right of the page (App.tsx, owner 5 Nov 2026). */}
         {in3D && flyHud?.hint && <p className="note fly-hint">{flyHud.hint}</p>}
         <HelpButton>
           {in3D ? (

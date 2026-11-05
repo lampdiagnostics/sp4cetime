@@ -2,6 +2,11 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.9 — 6 November 2026
+
+- **Watch buttons** (owner, 5 November 2026): the main controls are little round buttons, like a watch's, each with an icon for what it is. Top right: **Now** (a clock, green while live), **the three views in one tray**: the calendar (a calendar page), **Fly** (a spaceship) and **Galaxy** (a spiral galaxy), always there so any view is one tap away; then **✶ Starsigns** and the window's shape. Bottom left: **Capture** (a camera) and **Paths** (a route to a flag). Bottom right: **the speedometer** (tap for speed and direction; its needle leans right for forwards, left for backwards, further the faster, with a small badge such as "day" or "◀ yr" when not Live), **▶ Play / ❚❚ Pause** (Play waits in green while time is held) and **☰ More**.
+- The button for the view you are in glows in its own colour, in all three themes. Speed, Play and Pause left ☰ More › Time, and the views left More › Display, since they are on the main screen now.
+
 ## 0.4.8 — 6 November 2026
 
 - **The gift's e-card** (ADR-0024), in place of the PDF in the gift edition's Download package: one HTML file that opens in any browser like a greeting card folded in half (8.5 × 11 in landscape). The **front** is a picture from the person's own tour (the landing in the field) with the heading and message; **a click opens it**: their sky on the left (every body's sign, degree and house, the Ascendant and Midheaven) and the final star map on the right; **another click closes it, turned over**: the sp4cetime spiral and a **QR code** that opens their own tour on sp4cetime.org. **Print the card** gives the real thing: outside and inside on two landscape Letter pages, to print double-sided and fold.

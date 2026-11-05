@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { getVideoSize, type Recording, recordGif, recordVideo, screenshot, setVideoSize, type Shot, type VideoSize, videoFormat } from './capture';
+import { CameraIcon, PathsIcon } from './Icons';
 import type { Path } from '../core/path';
 
 const GIF_SECONDS = 5;
@@ -204,8 +205,8 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
           GIF {Math.round(busy.progress * 100)}%
         </button>
       ) : (
-        <button type="button" aria-expanded={openMenu === 'capture'} aria-controls={panelId} onClick={() => setOpenMenu(openMenu === 'capture' ? null : 'capture')} title="Picture, GIF or video, small (for X) or large (hi-res); keys P, G, V take the large one">
-          ◉ Capture
+        <button type="button" aria-expanded={openMenu === 'capture'} aria-controls={panelId} onClick={() => setOpenMenu(openMenu === 'capture' ? null : 'capture')} className="wb" aria-label="Capture" title="Capture: a picture, GIF or video, small (for X) or large (hi-res); keys P, G, V take the large one">
+          <CameraIcon />
         </button>
       )}
       {openMenu === 'capture' && !busy && (
@@ -248,8 +249,8 @@ export function CaptureMenu({ getShot, onPlay, in3D, present, pathRecording, foc
       )}
     </div>
     <div className="picker capture present">
-      <button type="button" aria-expanded={openMenu === 'present'} aria-controls={presentId} onClick={() => setOpenMenu(openMenu === 'present' ? null : 'present')} title="Your paths: ▶ Go flies and records one; drop a path token here (Shift plays without recording)">
-        ▷ Paths
+      <button type="button" aria-expanded={openMenu === 'present'} aria-controls={presentId} onClick={() => setOpenMenu(openMenu === 'present' ? null : 'present')} className="wb" aria-label="Paths" title="Paths: ▶ Go flies and records one; drop a path token here (Shift plays without recording)">
+        <PathsIcon />
       </button>
       {openMenu === 'present' && (
         <div className="popover capture-popover" id={presentId} role="dialog" aria-label="Paths">

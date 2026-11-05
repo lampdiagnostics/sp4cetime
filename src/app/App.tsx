@@ -9,7 +9,8 @@ import { tourFromLink } from './skyTour';
 import type { Gift, StarsignsActions } from './StarsignsDialog';
 import { playSoundtrack, setSound, soundNow, stopSoundtrack, unlockSound } from './sound';
 import { loadSettings, saveSettings, type Settings } from './settings';
-import { Pane, type PaneHandle, type PaneInfo } from './Pane';
+import { Pane, type PaneHandle, type PaneInfo, RATES } from './Pane';
+import { CalendarIcon, GalaxyIcon, MoreIcon, NowIcon, PauseIcon, PlayIcon, SpaceshipIcon, SpeedometerIcon, StarsignsIcon, WindowIcon } from './Icons';
 import { newPathId, type Path, pathFileName, type PathPoint, type PointLook, pointLabel } from '../core/path';
 import { formatTime } from '../core/time';
 import { formatLat, formatLon } from '../core/spheres';
@@ -1017,36 +1018,83 @@ export function App() {
         )}
       </div>
 
-      {/* Phones and short windows: the only buttons at the top are Now and Fly (CSS shows them). */}
-      <div className="top-bar" data-no-capture>
-        <button type="button" className={live && rate === 1 ? 'primary live' : 'primary'} onClick={goNow} aria-pressed={live && rate === 1}>
-          {live && rate === 1 ? '● Now' : 'Back to now'}
+      {/* The top row (owner, 5 Nov 2026): round buttons like a watch's, each with an icon for
+          what it is. Now; the three views (the calendar, ✦ Fly, ◎ Galaxy); ✶ Starsigns; the window's shape. */}
+      <div className="top-bar watch-row" data-no-capture>
+        <button
+          type="button"
+          className={`wb wb-now${live && rate === 1 ? ' live' : ''}`}
+          onClick={goNow}
+          aria-pressed={live && rate === 1}
+          aria-label={live && rate === 1 ? 'Now' : 'Back to now'}
+          title={live && rate === 1 ? 'Now: the present moment, live' : 'Back to now'}
+        >
+          <NowIcon />
         </button>
-        <button type="button" aria-pressed={in3D} onClick={() => pane.current?.show(in3D ? 'calendar' : 'fly')} title={in3D ? 'Back to the galactic calendar' : 'Fly through the solar system in 3D'}>
-          {in3D ? 'Calendar' : '✦ Fly'}
-        </button>
-        <button type="button" className="astro-button" onClick={() => setStarsigns(true)} aria-label="Starsigns" title="Starsigns: the planets' signs and houses for a date, a time and a place">
-          <span className="twinkle" aria-hidden="true">✶</span>
+        <span className="wb-group" role="group" aria-label="View">
+          <button type="button" className="wb wb-view" aria-pressed={!in3D} onClick={() => pane.current?.show('calendar')} aria-label="Calendar" title="The galactic calendar">
+            <CalendarIcon />
+          </button>
+          <button type="button" className="wb wb-view" aria-pressed={in3D && !inGalaxy} onClick={() => pane.current?.show('fly')} aria-label="Fly" title="Fly: the solar system in 3D">
+            <SpaceshipIcon />
+          </button>
+          <button type="button" className="wb wb-view" aria-pressed={inGalaxy} onClick={() => pane.current?.show('galaxy')} aria-label="Galaxy" title="Galaxy: the whole Milky Way from outside, with the Sun’s path">
+            <GalaxyIcon />
+          </button>
+        </span>
+        <button type="button" className="wb wb-astro astro-button" onClick={() => setStarsigns(true)} aria-label="Starsigns" title="Starsigns: the planets' signs and houses for a date, a time and a place">
+          <span className="twinkle">
+            <StarsignsIcon />
+          </span>
         </button>
         {/* Round or Full (owner, 3 Nov 2026: at the top right on every screen, phones too). */}
         <button
           type="button"
-          className="round-button"
+          className="wb round-button"
           onClick={() => update({ round: !settings.round })}
           aria-pressed={settings.round}
           aria-label={settings.round ? 'Round window (tap for full screen)' : 'Full screen (tap for the round window)'}
           title={settings.round ? 'Round window: tap for full screen' : 'Full screen: tap for the round window'}
         >
-          {settings.round ? '◯' : '▭'}
+          <WindowIcon round={settings.round} />
         </button>
       </div>
 
       {/* The boxes. On wide screens they sit in the corners; on phones and short windows
           they share one dock at the bottom (CSS), minimised to a row or open on one tab. */}
       <div className="dock" data-open={dockOpen ? 'true' : 'false'} data-tab={dockTab}>
-      <div className="dock-bar" data-no-capture>
-        <button type="button" className="dock-toggle" onClick={toggleDock} aria-expanded={dockOpen} aria-controls="dock-panels" aria-label={dockOpen ? 'Hide the controls' : 'More controls'}>
-          {dockOpen ? '✕ Close' : '☰ More'}
+      {/* Bottom right (owner, 5 Nov 2026): the speedometer (speed and direction), ▶ Play or ❚❚ Pause,
+          and ☰ More, as round watch buttons. */}
+      <div className="dock-bar watch-row" data-no-capture>
+        <span className={`wb wb-speed${speed === 1 ? '' : ' set'}`} title={`Speed: ${rateLabel(speed)} (choosing one holds time still until ▶ Play)`}>
+          <SpeedometerIcon turn={needleTurn(speed)} />
+          {speed !== 1 && <span className="wb-badge" aria-hidden="true">{shortRate(speed)}</span>}
+          <select
+            aria-label="Speed and direction"
+            value={speed}
+            onChange={(e) => {
+              changeRate(Number(e.target.value));
+              e.target.blur();
+            }}
+          >
+            {RATES.map((r) => (
+              <option key={r.rate} value={r.rate}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </span>
+        <button
+          type="button"
+          className={`wb wb-play${paused ? ' waiting' : ''}`}
+          onClick={() => play(paused)}
+          aria-label={paused ? 'Play' : 'Pause'}
+          title={paused ? 'Play: run time at the chosen speed and direction' : 'Pause: hold time still'}
+        >
+          {paused ? <PlayIcon /> : <PauseIcon />}
+        </button>
+        <button type="button" className="wb dock-toggle" onClick={toggleDock} aria-expanded={dockOpen} aria-controls="dock-panels" aria-label={dockOpen ? 'Close the controls' : 'More controls'} title={dockOpen ? 'Close' : 'More: time, space and display'}>
+          <MoreIcon open={dockOpen} />
         </button>
       </div>
       <div className="dock-tabs" role="tablist" aria-label="Controls" data-no-capture>
@@ -1098,6 +1146,36 @@ export function App() {
       </div>
     </div>
   );
+}
+
+/** The Speed menu's words for a rate ("Live", "▶ Forward, 1 day/s"). */
+function rateLabel(rate: number): string {
+  return RATES.find((r) => r.rate === rate)?.label ?? `${rate}×`;
+}
+
+/** Where the speedometer's needle points: Live just right of upright, the fastest forward far right, backwards to the left. */
+function needleTurn(rate: number): number {
+  const steps = RATES.filter((r) => r.rate > 0).map((r) => r.rate);
+  const k = Math.max(0, steps.indexOf(Math.abs(rate)));
+  const t = 0.12 + (k / Math.max(1, steps.length - 1)) * 0.88;
+  return rate < 0 ? -t : t;
+}
+
+/** The little badge under the speedometer: "1 d", "◀ 1 y" (nothing for Live). */
+function shortRate(rate: number): string {
+  const units: ReadonlyArray<[number, string]> = [
+    [3_155_760_000, 'cen'],
+    [315_576_000, 'dec'],
+    [31_557_600, 'yr'],
+    [2_629_800, 'mo'],
+    [604_800, 'wk'],
+    [86_400, 'day'],
+    [3600, 'hr'],
+    [60, 'min'],
+    [1, '1×'],
+  ];
+  const u = units.find(([s]) => Math.abs(rate) === s)?.[1] ?? `${Math.abs(rate)}`;
+  return rate < 0 ? `◀ ${u}` : u;
 }
 
 /** "0:07", "1:42": a recording's length. */
