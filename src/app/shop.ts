@@ -14,7 +14,7 @@ export const SHOP_OPEN = false;
  * Stripe dashboard, product "Buy us a coffee (sp4cetime)", lookup key coffee). Paste the live
  * https://donate.stripe.com/… address here; empty hides the button.
  */
-export const COFFEE_URL = '';
+export const COFFEE_URL = 'https://donate.stripe.com/6oU8wJ4wkgPS08JaZw67S00';
 
 /** The design and the clock time as typed, in the link's fragment (never sent to a server). */
 export function shopLink(design: Design, local: { date: string; time: string; zone: string | null }): string {

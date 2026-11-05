@@ -16,7 +16,7 @@
     "SITE_URL": "https://sp4cetime.store",
     "MAIL_FROM": "readouts@sp4cetime.store",
     "PORTAL_URL": "",
-    "COFFEE_URL": ""
+    "COFFEE_URL": "https://donate.stripe.com/6oU8wJ4wkgPS08JaZw67S00"
   },
   // Cloudflare Email Service (Email Sending, beta): onboard sp4cetime.store under
   // Compute › Email Service › Email Sending. Sending to anyone needs the Workers Paid plan.
