@@ -42,7 +42,9 @@ describe('Grouping the planets into views', () => {
         for (const grp of g) {
           const ls = grp.map((i) => lons[i]!);
           const first = ls[0]!;
-          for (const l of ls) expect((l - first + 360) % 360).toBeLessThanOrEqual(56 + 1e-9);
+          // Measured east from the group's first body; two bodies 1e-12° apart may come back in
+          // either order from the vector maths, so a hair west of the first counts as 0, not 360.
+          for (const l of ls) expect(((l - first + 360 + 1e-7) % 360) - 1e-7).toBeLessThanOrEqual(56 + 1e-6);
         }
         // Never more groups than a fixed 56° tiling of the circle needs.
         expect(g.length).toBeLessThanOrEqual(7);
@@ -154,6 +156,20 @@ describe('The Starsigns path', () => {
       ),
       { numRuns: 60 },
     );
+  });
+
+  it('never sweeps round the sky more than once, even with a planet just past the Sun (16 Aug 1915 swept 1.5 times)', () => {
+    const lonOfQuat = (q: readonly number[]): number => {
+      const d = rot(q, [0, 0, -1]);
+      return ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
+    };
+    const rr = readingAt(fromCivil(1915, 8, 16, 4372), 0, 0, 'whole');
+    const sweep = starsignsPath(rr, { ...base, id: 'p', created: '', placeLabel: 'X', placeName: 'X', whenText: 'w', system: 'whole' }).points.filter((x) => !x.look.chart);
+    let total = 0;
+    for (let i = 1; i < sweep.length; i++) total += (lonOfQuat(sweep[i]!.fly!.quat) - lonOfQuat(sweep[i - 1]!.fly!.quat) + 360) % 360;
+    expect(total).toBeLessThan(360);
+    for (const b of rr.bodies) expect(sweep.filter((x) => x.caption.includes(`${b.name} `)).length).toBe(1);
+    expect(sweep[0]!.caption).toContain('Mercury ');
   });
 
   it('is silent except a quiet hum in the field, which is under the place from the landing on', () => {

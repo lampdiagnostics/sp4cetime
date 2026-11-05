@@ -224,18 +224,33 @@ export function starsignsPath(r: Reading, o: StarsignsOptions): Path {
   const sunAt = Math.max(0, groups.findIndex((g) => g.some((i) => ids[i] === 'sun')));
   const tour = [...groups.slice(sunAt), ...groups.slice(0, sunAt)];
   const lonOf = (d: Vec3): number => ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360;
+  const list = (names: readonly string[]): string =>
+    names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
   let lastLon = lonOf(forward);
+  let stopNames: string[] = [];
   for (const [k, g] of tour.entries()) {
     const centre = unit(g.reduce<Vec3>((acc, i) => add(acc, dirs[i]!), [0, 0, 0]));
     // Their names and signs are on screen (no picking out or pulsing, owner 3 Nov 2026).
     const names = g.map((i) => `${r.bodies[i]!.name} ${formatSignDeg(r.bodies[i]!.lon)}`);
-    const caption = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
     if (k === 0) {
-      points[0] = point(pole, `${whose}: ${caption}`, false, null, '', false, false, SWEEP_PAUSE);
+      stopNames = names;
+      points[0] = point(pole, `${whose}: ${list(stopNames)}`, false, null, '', false, false, SWEEP_PAUSE);
       continue;
     }
     const lon = lonOf(centre);
     const gap = (lon - lastLon + 360) % 360;
+    // Already in view, just west of where the camera looks (the first view faces the Sun from
+    // above Earth's tilted pole, so its centre can sit a few degrees east of the Sun, past a
+    // planet beside it): name it at this stop rather than turning east all the way round to it
+    // (5 Nov 2026: 16 Aug 1915 swept 1.5 times round the sky).
+    if (gap > 360 - GROUP_HALF_DEG) {
+      stopNames = [...stopNames, ...names];
+      const last = points[points.length - 1]!;
+      points[points.length - 1] = { ...last, caption: points.length === 1 ? `${whose}: ${list(stopNames)}` : list(stopNames) };
+      continue;
+    }
+    stopNames = names;
+    const caption = list(names);
     const legs = Math.ceil(gap / MAX_TURN_DEG);
     for (let j = 1; j < legs; j++) {
       const a = ((lastLon + (gap * j) / legs) * Math.PI) / 180;

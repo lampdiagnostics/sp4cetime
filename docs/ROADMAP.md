@@ -62,7 +62,7 @@ How to work (owner): commit changes locally as they are made; push to GitHub, an
 - [ ] **The first flight** of a path (from wherever you are to its START) can take 10–15 s; shorten it.
 - [ ] **Ground at eye height:** Earth's sphere is drawn with flat facets, so the ground can sit up to ~2 km below the eye at the horizon; finer tessellation near the camera.
 - [ ] **Labels:** on the wheel, the Sun's and Mercury's names can still touch when within a few degrees; the top-left box is cut to "SP4CETIM…" on narrow phones.
-- [ ] **A property test** (planet grouping) once ran past its time limit under load in `npm run check`; give it fewer runs or a longer limit.
+- [x] **A property test** (planet grouping) failing now and then: not a time limit but rounding in the test, and the sweep test found a real bug (a tour going round 1.5 times); both fixed 5 Nov 2026.
 - [ ] **Readouts:** the webhook's email path is tested with a mock only; test with Stripe's test events and Cloudflare Email Service once set up.
 - [ ] **Keys:** check Shift-to-present and Space-to-hide on Windows and in Firefox and Safari (only Chromium tested).
 
