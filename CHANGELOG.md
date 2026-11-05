@@ -2,6 +2,12 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.6 — 4 November 2026
+
+- **sp4cetime.store is free for now** (`FREE_FOR_NOW` in `src/core/catalog.ts`): every product (card, wedding pack, sky calendar, screensaver, phone background) is customised on its page and **⤓ Make my files (free)** makes and downloads them straight away in your browser: no cart, no checkout, no watermark. Prices read "Free for now"; the readouts by email say "Coming soon" (they need the email service).
+- **☕ Buy me a coffee** sits beside every free download and at the top of the shop. It goes to the live Stripe Payment Link once `COFFEE_URL` is set in `wrangler.store.jsonc`; until then `/coffee` (where sp4cetime.org's ☕ points) says payments open soon.
+- The shop no longer gets stuck when its API cannot be reached.
+
 ## 0.4.5 — 4 November 2026
 
 (0.4.3 was a working version, never published, and 0.4.4 was skipped: everything since 0.4.2 is here.)

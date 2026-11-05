@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ASTROLOGERS, type CartItem, cartTotal, type Design, encodeDesign, formatPrice, parseCart, parseDesign, type Product, type ProductId, PRODUCTS, productById, SUBSCRIPTION, type ReadoutInterval } from '../src/core/catalog';
+import { ASTROLOGERS, type CartItem, cartTotal, type Design, encodeDesign, formatPrice, FREE_FOR_NOW, priceLabel, parseCart, parseDesign, type Product, type ProductId, PRODUCTS, productById, SUBSCRIPTION, type ReadoutInterval } from '../src/core/catalog';
 import { art, calendarFile, cardPdf, type MadeFile, makeFiles, openPdf, previewMark, save } from './make';
 import { DesignForm, designOf, emptyForm, type FormState, formFromDesign } from './DesignForm';
 import { drawArt } from '../src/core/wallArt';
@@ -91,10 +91,11 @@ export function Shop() {
   useEffect(() => store.set('sp4ce-form', form), [form]);
   useEffect(() => {
     if (location.hash.includes('starsigns=')) history.replaceState(null, '', location.pathname + location.search);
+    const none = { ready: false, test: false, portal: '', coffee: '' };
     fetch('/api/config')
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : none))
       .then(setConfig)
-      .catch(() => setConfig(null));
+      .catch(() => setConfig(none));
   }, []);
 
   const count = lines.reduce((s, l) => s + l.qty, 0);
@@ -106,7 +107,9 @@ export function Shop() {
   const make = route.match(/^\/make\/([a-z]+)$/);
 
   let page: React.ReactNode;
-  if (make && productById(make[1]!)) page = <Make product={productById(make[1]!)!} form={form} setForm={setForm} onAdd={(l) => (setLines([...lines, l]), go('/cart'))} />;
+  const coffee = config?.coffee ?? '';
+  if (make && productById(make[1]!)) page = <Make product={productById(make[1]!)!} form={form} setForm={setForm} onAdd={(l) => (setLines([...lines, l]), go('/cart'))} coffee={coffee} />;
+  else if (route === '/coffee') page = <CoffeePage config={config} go={go} />;
   else if (route === '/cart') page = <Cart lines={lines} setLines={setLines} go={go} config={config} />;
   else if (route === '/order') page = <Order onDone={() => setLines([])} />;
   else if (route === '/readouts') page = <Readouts form={form} setForm={setForm} config={config} />;
@@ -116,21 +119,27 @@ export function Shop() {
 
   return (
     <div className="shop">
-      {config?.test && <div className="testbar">Test mode: no real payments. Use card 4242 4242 4242 4242, any future date, any CVC.</div>}
+      {!FREE_FOR_NOW && config?.test && <div className="testbar">Test mode: no real payments. Use card 4242 4242 4242 4242, any future date, any CVC.</div>}
       <header>
         <a href="/" onClick={link('/')} className="brand">
           <span className="logo">✶</span> sp4cetime<span className="tld">.store</span>
         </a>
         <nav>
-          <a href="/readouts" onClick={link('/readouts')}>
-            Readouts
-          </a>
+          {!FREE_FOR_NOW && (
+            <a href="/readouts" onClick={link('/readouts')}>
+              Readouts
+            </a>
+          )}
           <a href="/astrologers" onClick={link('/astrologers')}>
             Astrologers
           </a>
-          <a href="/cart" onClick={link('/cart')} className="cart-link" aria-label={`Cart, ${count} items`}>
-            Cart{count ? <span className="badge">{count}</span> : null}
-          </a>
+          {FREE_FOR_NOW ? (
+            <CoffeeButton href={coffee} go={go} />
+          ) : (
+            <a href="/cart" onClick={link('/cart')} className="cart-link" aria-label={`Cart, ${count} items`}>
+              Cart{count ? <span className="badge">{count}</span> : null}
+            </a>
+          )}
         </nav>
       </header>
       <main>{page}</main>
@@ -138,9 +147,15 @@ export function Shop() {
         <p>
           Made from the real sky by <a href="https://sp4cetime.org">sp4cetime.org</a>, where the path, the video and the one-sided card are free. Positions are astronomy; signs, houses and what they mean are astrology.
         </p>
-        <p>
-          Digital files only: you download them right after paying (and the link is in your receipt). Payments by Stripe. Questions: reply to your receipt.
-        </p>
+        {FREE_FOR_NOW ? (
+          <p>
+            Everything here is free for now: your files are made in your browser and nothing is sent anywhere. If you like them, ☕ a coffee (pay what you like, through Stripe) keeps sp4cetime going. Questions: hello@sp4cetime.org.
+          </p>
+        ) : (
+          <p>
+            Digital files only: you download them right after paying (and the link is in your receipt). Payments by Stripe. Questions: reply to your receipt.
+          </p>
+        )}
       </footer>
     </div>
   );
@@ -160,7 +175,7 @@ function Home({ go }: { go: (to: string) => void }) {
               {ICONS[p.id]}
             </div>
             <h2>{p.name}</h2>
-            <p className="price">{formatPrice(p.cents)}</p>
+            <p className="price">{priceLabel(p.cents)}</p>
             <p>{p.blurb}</p>
             <button type="button" className="primary" onClick={() => go(`/make/${p.id}`)}>
               Customize
@@ -172,10 +187,10 @@ function Home({ go }: { go: (to: string) => void }) {
             ✉
           </div>
           <h2>{SUBSCRIPTION.name}</h2>
-          <p className="price">{formatPrice(SUBSCRIPTION.cents)} a readout</p>
+          <p className="price">{FREE_FOR_NOW ? 'Coming soon' : `${formatPrice(SUBSCRIPTION.cents)} a readout`}</p>
           <p>The sky now, laid over your own chart, in your inbox every week or every month: each planet’s sign and the house of yours it is passing through, and the close angles it makes to your planets. Stop any time.</p>
-          <button type="button" className="primary" onClick={() => go('/readouts')}>
-            Subscribe
+          <button type="button" className="primary" disabled={FREE_FOR_NOW} onClick={() => go('/readouts')}>
+            {FREE_FOR_NOW ? 'Coming soon' : 'Subscribe'}
           </button>
         </article>
       </section>
@@ -202,15 +217,17 @@ function ArtPreview({ design, shape }: { design: Design; shape: 'wide' | 'tall' 
   return <canvas ref={ref} className={`preview ${shape}`} aria-label="Preview of your design" />;
 }
 
-function Make({ product, form, setForm, onAdd }: { product: Product; form: FormState; setForm: (f: FormState) => void; onAdd: (l: Line) => void }) {
+function Make({ product, form, setForm, onAdd, coffee }: { product: Product; form: FormState; setForm: (f: FormState) => void; onAdd: (l: Line) => void; coffee: string }) {
   const [qty, setQty] = useState(1);
+  const [made, setMade] = useState<MadeFile[] | 'making' | { error: string } | null>(null);
   const design = useMemo(() => designOf(product.id === 'wedding' && form.occasion === 'birthday' ? { ...form, occasion: 'wedding' } : form), [form, product.id]);
   const card = product.id === 'card' || product.id === 'wedding';
+  useEffect(() => setMade(null), [design, product.id]);
   return (
     <section className="make">
       <div className="make-form">
         <h1>
-          {product.name} <span className="price">{formatPrice(product.cents)}</span>
+          {product.name} <span className="price">{priceLabel(product.cents)}</span>
         </h1>
         <p className="lead">{product.blurb}</p>
         <DesignForm value={form} onChange={setForm} show={{ message: card, calendar: product.id === 'calendar', paper: card || product.id === 'calendar', style: !card }} />
@@ -219,6 +236,34 @@ function Make({ product, form, setForm, onAdd }: { product: Product; form: FormS
             <li key={f}>{f}</li>
           ))}
         </ul>
+        {FREE_FOR_NOW ? (
+          <div className="buy free">
+            <button
+              type="button"
+              className="primary"
+              disabled={!design || made === 'making'}
+              onClick={() => {
+                if (!design) return;
+                setMade('making');
+                makeFiles(product.id, design).then(setMade, (e: unknown) => setMade({ error: e instanceof Error ? e.message : String(e) }));
+              }}
+            >
+              {made === 'making' ? 'Making your files…' : '⤓ Make my files (free)'}
+            </button>
+            <CoffeeButton href={coffee} />
+            {made && made !== 'making' && 'error' in made && <p className="error">{made.error}</p>}
+            {Array.isArray(made) && (
+              <div className="made">
+                {made.map((f) => (
+                  <button key={f.name} type="button" onClick={() => save(f)}>
+                    ⤓ {f.name}
+                  </button>
+                ))}
+                <p className="hint">Change anything above and make them again; they are free. If you like them, a coffee keeps sp4cetime going.</p>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="buy">
           {product.maxQty > 1 && (
             <label className="qty">
@@ -231,6 +276,7 @@ function Make({ product, form, setForm, onAdd }: { product: Product; form: FormS
             Add to cart · {formatPrice(product.cents * qty)}
           </button>
         </div>
+        )}
       </div>
       <div className="make-preview">
         {design ? (
@@ -463,6 +509,55 @@ function Astrologers() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * ☕ Buy me a coffee: the live Stripe Payment Link (COFFEE_URL in wrangler.store.jsonc, served by
+ * /api/config). Without one, the button goes to /coffee, which says it opens soon.
+ */
+function CoffeeButton({ href, go }: { href: string; go?: (to: string) => void }) {
+  if (href)
+    return (
+      <a className="button coffee" href={href} target="_blank" rel="noopener" title="Pay what you like, through Stripe: it keeps sp4cetime going">
+        ☕ Buy me a coffee
+      </a>
+    );
+  return (
+    <a
+      className="button coffee"
+      href="/coffee"
+      onClick={
+        go
+          ? (e) => {
+              e.preventDefault();
+              go('/coffee');
+            }
+          : undefined
+      }
+      title="Pay what you like: it keeps sp4cetime going"
+    >
+      ☕ Buy me a coffee
+    </a>
+  );
+}
+
+/** /coffee (sp4cetime.org's ☕ links here): straight on to the Payment Link, or "opens soon". */
+function CoffeePage({ config, go }: { config: { coffee: string } | null; go: (to: string) => void }) {
+  const url = config?.coffee ?? '';
+  useEffect(() => {
+    if (url) location.replace(url);
+  }, [url]);
+  if (!config) return <section className="order"><p>One moment…</p></section>;
+  if (url) return <section className="order"><p>Taking you to Stripe… <a href={url}>Go now</a></p></section>;
+  return (
+    <section className="order">
+      <h1>☕ Thank you!</h1>
+      <p>The coffee cup is not quite ready: payments open in a few days. Everything here is free in the meantime.</p>
+      <button type="button" className="primary" onClick={() => go('/')}>
+        Make something free
+      </button>
     </section>
   );
 }

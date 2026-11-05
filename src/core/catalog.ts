@@ -80,6 +80,19 @@ export function formatPrice(cents: number): string {
   return `US$${(cents / 100).toFixed(2)}`;
 }
 
+/**
+ * Free for now (owner, 4 November 2026): until Stripe pays out to the bank, every product is
+ * made and downloaded free, straight in the browser (no cart, no checkout), with ☕ Buy me a
+ * coffee beside each download. The prices above stay, ready for when the shop charges; the
+ * Worker's checkout still checks them. Readouts wait: they need the email service.
+ */
+export const FREE_FOR_NOW = true;
+
+/** What the shop shows as a product's price. */
+export function priceLabel(cents: number): string {
+  return FREE_FOR_NOW ? 'Free for now' : formatPrice(cents);
+}
+
 export type Occasion = 'birthday' | 'baby' | 'wedding' | 'anniversary' | 'moment' | 'memory';
 
 export const OCCASIONS: ReadonlyArray<{ id: Occasion; name: string; title: string }> = [

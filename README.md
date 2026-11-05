@@ -4,7 +4,7 @@
 
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
-Version 0.4.2 · 4 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
+Version 0.4.6 · 4 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
 Live at [sp4cetime.org](https://sp4cetime.org). (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
@@ -58,6 +58,8 @@ What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `di
 Where it stands (2 November 2026, v0.4.0): the shop and the coffee buttons are built, tested and on GitHub; everything is set up in Stripe's **sandbox** ("Lamp Diagnostics sandbox", test mode) and works there; nothing takes real money yet. sp4cetime.com, .io and .ai already redirect to sp4cetime.org.
 
 How the money moves, once live: a buyer pays on Stripe's own checkout page (card, Apple Pay, Google Pay, Link) → Stripe holds it, minus its fee (about 2.9% + 30¢ a card payment; small payments like a $0.99 background lose about a third) → Stripe pays out to the bank account on a rolling schedule (first payout about a week after the first sale, then every few days). Prices are in US dollars; Stripe converts to Canadian dollars at payout unless a USD bank account is added. Coffees work the same way through a Payment Link and need nothing from the shop.
+
+**Free for now** (4 November 2026, v0.4.6): until payouts work, the shop runs with `FREE_FOR_NOW = true` (`src/core/catalog.ts`): every product's files are made free in the browser, with ☕ beside each download; checkout and readouts are off. It needs no Stripe keys, so steps 6 (the Worker) can go ahead before steps 0–5; set `FREE_FOR_NOW = false` at step 10. The bank (step 0): RBC needs no special set-up to receive Stripe deposits; in Stripe choose to **enter the bank details by hand** (transit, institution 003, account number from RBC's direct deposit form in online banking) rather than signing in to the bank, with the account holder's name exactly as Stripe has it.
 
 Step by step, in order. The owner signs in and types every password, key, ID and bank detail; Claude does the rest in the browser or through the Stripe connector:
 

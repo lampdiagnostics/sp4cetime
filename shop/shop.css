@@ -405,3 +405,41 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* Free for now (FREE_FOR_NOW in src/core/catalog.ts): files made on the product page, ☕ beside them. */
+.buy.free {
+  align-items: center;
+}
+.buy.free .made {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.buy.free .made button {
+  word-break: break-all;
+  text-align: left;
+}
+a.button.coffee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+a.button.coffee:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+header nav a.button.coffee {
+  padding: 5px 12px;
+}
