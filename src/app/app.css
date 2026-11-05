@@ -2281,3 +2281,82 @@ body:has(.dock[data-open='true']) .scale-corner {
 .float-tools .capture .popover.capture-popover.capture-tiles {
   width: min(360px, calc(100vw - 2 * var(--gap)));
 }
+
+/* The gift edition (5 Nov 2026): the title card, centred on the view for the first seconds of
+   a ▶ Go recording; drawn into the video with the other boxes (capture.ts). */
+.gift-card {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  width: min(760px, calc(100vw - 48px));
+  margin: 0;
+  padding: 34px 40px 30px;
+  border-radius: 22px;
+  background: rgba(5, 7, 15, 0.72);
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  box-shadow: 0 0 60px rgba(255, 179, 71, 0.18);
+  text-align: center;
+  pointer-events: none;
+  color: #f2efe6;
+}
+.gift-card p {
+  margin: 0;
+}
+.gift-card .gift-heading {
+  font-size: clamp(30px, 5vw, 52px);
+  font-weight: 700;
+  line-height: 1.12;
+  color: #ffd27a;
+}
+.gift-card .gift-message {
+  margin-top: 16px;
+  font-size: clamp(18px, 2.6vw, 26px);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.gift-card .gift-sub {
+  margin-top: 20px;
+  font-size: clamp(13px, 1.7vw, 17px);
+  letter-spacing: 0.04em;
+  color: #9fb0d8;
+}
+.astro-dialog .astro-gift {
+  margin: 14px 0 6px;
+  padding: 10px 14px 12px;
+  border: 1px solid rgba(255, 179, 71, 0.45);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.astro-dialog .astro-gift legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: #ffb347;
+}
+.astro-dialog .astro-gift label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.astro-dialog .astro-gift input:not([type='file']),
+.astro-dialog .astro-gift textarea,
+.astro-dialog .astro-gift select {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(160, 176, 216, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  resize: vertical;
+}
+.astro-dialog .astro-track {
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.astro-dialog .astro-track .listen {
+  white-space: nowrap;
+}

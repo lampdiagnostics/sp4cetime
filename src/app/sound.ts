@@ -123,5 +123,70 @@ export function soundSamples(onData: (left: Float32Array, right: Float32Array, s
   };
 }
 
+// --- A gift's soundtrack (5 Nov 2026) ---------------------------------------------------
+
+/** What a gift video plays: one of the moods made from numbers, or the customer's own audio file. */
+export type Soundtrack = { readonly kind: 'mood'; readonly mood: import('../core/ambience').Mood } | { readonly kind: 'file'; readonly data: ArrayBuffer; readonly name: string };
+
+let music: GainNode | null = null;
+let musicSrc: AudioBufferSourceNode | null = null;
+const moodCache = new Map<string, AudioBuffer>();
+
+/**
+ * Play a soundtrack under everything else (and so into recordings), fading in over `fadeIn`
+ * seconds; it loops until stopSoundtrack. Resolves once it is playing (a mood is made the
+ * first time, a fraction of a second; a file is decoded). Rejects if a file cannot be read.
+ */
+export async function playSoundtrack(t: Soundtrack, fadeIn = 1.5): Promise<void> {
+  const c = make();
+  if (!c || !master) return;
+  stopSoundtrack(0.05);
+  let buf: AudioBuffer;
+  if (t.kind === 'mood') {
+    const hit = moodCache.get(t.mood);
+    if (hit) buf = hit;
+    else {
+      const { musicLoop } = await import('../core/ambience');
+      const loop = musicLoop(t.mood, c.sampleRate);
+      buf = c.createBuffer(2, loop.left.length, c.sampleRate);
+      buf.copyToChannel(loop.left as Float32Array<ArrayBuffer>, 0);
+      buf.copyToChannel(loop.right as Float32Array<ArrayBuffer>, 1);
+      moodCache.set(t.mood, buf);
+    }
+  } else {
+    // decodeAudioData takes the buffer over, so it gets a copy (the gift can be flown again).
+    buf = await c.decodeAudioData(t.data.slice(0));
+  }
+  music = c.createGain();
+  music.gain.setValueAtTime(0, c.currentTime);
+  music.gain.linearRampToValueAtTime(1, c.currentTime + Math.max(0.02, fadeIn));
+  music.connect(master);
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  src.connect(music);
+  src.start();
+  musicSrc = src;
+}
+
+/** Fade the soundtrack out over `fade` seconds and let it go. */
+export function stopSoundtrack(fade = 1.5): void {
+  const c = ctx;
+  const g = music, src = musicSrc;
+  music = null;
+  musicSrc = null;
+  if (!c || !g || !src) return;
+  const now = c.currentTime;
+  g.gain.cancelScheduledValues(now);
+  g.gain.setValueAtTime(g.gain.value, now);
+  g.gain.linearRampToValueAtTime(0, now + Math.max(0.02, fade));
+  try {
+    src.stop(now + Math.max(0.02, fade) + 0.05);
+  } catch {
+    /* already stopped */
+  }
+  src.onended = () => g.disconnect();
+}
+
 /** The sample rate sounds are made at (48 kHz where the browser allows). */
 export const soundRate = (): number => make()?.sampleRate ?? 48_000;

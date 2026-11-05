@@ -1,7 +1,7 @@
 {
   "name": "sp4cetime",
   "private": true,
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "Galactic Calendar: map any timeline on the path the solar system is already traveling.",
   "license": "Apache-2.0",
   "author": "Lamp Diagnostics",

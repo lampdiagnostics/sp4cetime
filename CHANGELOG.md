@@ -2,6 +2,10 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.7 — 5 November 2026
+
+- **The gift edition** (ADR-0023), at sp4cetime.org/?gift: ✶ Starsigns gets a Gift section. A **heading and message** show as a title card for the first seconds of the ▶ Go video, with the moment and place under them; a **soundtrack** plays under the whole tour and fades out on the last view: Calm, Music box or Deep space (made from numbers, nothing to license), or the customer's own song. ♪ Listen tries it first. The public Starsigns dialog is unchanged.
+
 ## 0.4.6 — 4 November 2026
 
 - **sp4cetime.store is free for now** (`FREE_FOR_NOW` in `src/core/catalog.ts`): every product (card, wedding pack, sky calendar, screensaver, phone background) is customised on its page and **⤓ Make my files (free)** makes and downloads them straight away in your browser: no cart, no checkout, no watermark. Prices read "Free for now"; the readouts by email say "Coming soon" (they need the email service).

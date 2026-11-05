@@ -4,8 +4,8 @@ import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time, toUnixMs } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
 import { drawShot, recordVideo, type Shot, stageIn, viewStages, type VideoSize } from './capture';
-import type { StarsignsActions } from './StarsignsDialog';
-import { setSound, soundNow, unlockSound } from './sound';
+import type { Gift, StarsignsActions } from './StarsignsDialog';
+import { playSoundtrack, setSound, soundNow, stopSoundtrack, unlockSound } from './sound';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { Pane, type PaneHandle, type PaneInfo } from './Pane';
 import { newPathId, type Path, pathFileName, type PathPoint, type PointLook, pointLabel } from '../core/path';
@@ -574,7 +574,7 @@ export function App() {
     path: Path,
     record: boolean,
     from = 0,
-    opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; onEnd?: (still: Still | null, completed: boolean) => void; stopAtEnd?: boolean } = {},
+    opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; onEnd?: (still: Still | null, completed: boolean) => void; onLast?: () => void; stopAtEnd?: boolean } = {},
   ): Promise<void> => {
     const run = ++playing.current;
     unlockSound();
@@ -634,6 +634,7 @@ export function App() {
     }
     if (playing.current !== run) {
       finish();
+      opts.onEnd?.(null, false);
       return;
     }
     let completed = false;
@@ -646,6 +647,8 @@ export function App() {
         // is held a little longer instead (more for each body it would have picked out).
         if (rec && pt.look.highlight && i < path.points.length - 1) continue;
         if (!(await arrive(i))) break;
+        // Arrived at the last view: whatever should end with the video (a gift's music) starts to go now.
+        if (i === path.points.length - 1) opts.onLast?.();
         let picks = 0;
         if (rec) for (let j = i + 1; j < path.points.length - 1 && path.points[j]!.look.highlight; j++) picks++;
         // A point may say how long to stay (Starsigns does); otherwise a body picked out is a quick
@@ -687,10 +690,35 @@ export function App() {
   // Download package pops up (the MP4, a PDF of the last frame, the path token).
   const [pack, setPack] = useState<PackState | null>(null);
   const packRun = useRef(0);
-  const go = (path: Path): void => {
+  // The gift edition (5 Nov 2026): the title card shown for the first seconds of the recording
+  // (`fade` 10 = fully there, stepping down to 0 so each step is captured), and the soundtrack.
+  const [giftCard, setGiftCard] = useState<{ gift: Gift; fade: number } | null>(null);
+  const giftTimers = useRef<number[]>([]);
+  const clearGift = (): void => {
+    for (const t of giftTimers.current) clearTimeout(t);
+    giftTimers.current = [];
+    setGiftCard(null);
+  };
+  const go = (path: Path, gift?: Gift): void => {
     const n = ++packRun.current;
     setPack(null);
     setStarsigns(false);
+    clearGift();
+    stopSoundtrack(0.2);
+    if (gift) {
+      if (gift.heading || gift.message) {
+        setGiftCard({ gift, fade: 10 });
+        // Held 5 s, then faded over a second in ten steps.
+        for (let k = 1; k <= 10; k++) giftTimers.current.push(window.setTimeout(() => packRun.current === n && setGiftCard((g) => (g ? { ...g, fade: 10 - k } : g)), 5000 + k * 100));
+        giftTimers.current.push(window.setTimeout(() => packRun.current === n && setGiftCard(null), 6150));
+      }
+      if (gift.soundtrack) void playSoundtrack(gift.soundtrack, 1.5).catch(() => {});
+    }
+    const endGift = (): void => {
+      if (packRun.current !== n) return;
+      clearGift();
+      if (gift?.soundtrack) stopSoundtrack(1.5);
+    };
     void savePath(path).then(refreshPaths);
     let video: PackState['video'] = 'pending';
     const into = (f: (p: PackState) => PackState): void => setPack((p) => (p && packRun.current === n ? f(p) : p));
@@ -705,7 +733,11 @@ export function App() {
         video = 'none';
         into((p) => ({ ...p, video }));
       },
+      onLast: () => {
+        if (packRun.current === n && gift?.soundtrack) stopSoundtrack(3);
+      },
       onEnd: (still) => {
+        endGift();
         if (packRun.current !== n) return;
         setPack({ path, video, pdf: still ? 'pending' : null });
         if (still) void framePdf(path, still).then((pdf) => into((p) => ({ ...p, pdf })), () => into((p) => ({ ...p, pdf: null })));
@@ -810,6 +842,15 @@ export function App() {
         <div className="place-stamp" aria-label="Place and time">
           {settings.chart?.when && <p>{placeCaption(settings.chart.place, settings.chart.lat, settings.chart.lon)}</p>}
           <TimeCaption clock={clock} zone={shownPoint?.zone ?? lastZone.current} />
+        </div>
+      )}
+
+      {/* The gift edition's title card, centred, recorded with the view (capture.ts pageBoxes). */}
+      {giftCard && (
+        <div className={`gift-card step-${giftCard.fade}`} style={{ opacity: giftCard.fade / 10 }} aria-live="polite">
+          {giftCard.gift.heading && <p className="gift-heading">{giftCard.gift.heading}</p>}
+          {giftCard.gift.message && <p className="gift-message">{giftCard.gift.message}</p>}
+          {giftCard.gift.sub && <p className="gift-sub">✶ {giftCard.gift.sub}</p>}
         </div>
       )}
 
