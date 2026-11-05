@@ -520,8 +520,8 @@ function Astrologers() {
 function CoffeeButton({ href, go }: { href: string; go?: (to: string) => void }) {
   if (href)
     return (
-      <a className="button coffee" href={href} target="_blank" rel="noopener" title="Pay what you like, through Stripe: it keeps sp4cetime going">
-        ☕ Buy me a coffee
+      <a className="button coffee" href={href} target="_blank" rel="noopener" title="Pay what you like, through Stripe: it keeps sp4cetime going" aria-label="Buy me a coffee">
+        ☕<span className="label"> Buy me a coffee</span>
       </a>
     );
   return (
@@ -537,27 +537,39 @@ function CoffeeButton({ href, go }: { href: string; go?: (to: string) => void })
           : undefined
       }
       title="Pay what you like: it keeps sp4cetime going"
+      aria-label="Buy me a coffee"
     >
-      ☕ Buy me a coffee
+      ☕<span className="label"> Buy me a coffee</span>
     </a>
   );
 }
 
-/** /coffee (sp4cetime.org's ☕ links here): straight on to the Payment Link, or "opens soon". */
+/**
+ * /coffee (sp4cetime.org's ☕ links here; owner, 5 Nov 2026): stop at the shop first, so the
+ * visitor sees everything there is, with a ☕ button on to Stripe's coffee page.
+ */
 function CoffeePage({ config, go }: { config: { coffee: string } | null; go: (to: string) => void }) {
   const url = config?.coffee ?? '';
-  useEffect(() => {
-    if (url) location.replace(url);
-  }, [url]);
-  if (!config) return <section className="order"><p>One moment…</p></section>;
-  if (url) return <section className="order"><p>Taking you to Stripe… <a href={url}>Go now</a></p></section>;
   return (
-    <section className="order">
-      <h1>☕ Thank you!</h1>
-      <p>The coffee cup is not quite ready: payments open in a few days. Everything here is free in the meantime.</p>
-      <button type="button" className="primary" onClick={() => go('/')}>
-        Make something free
-      </button>
-    </section>
+    <>
+      <section className="coffee-banner">
+        <div className="cup" aria-hidden>
+          ☕
+        </div>
+        <div>
+          <h1>Thank you for stopping by!</h1>
+          <p>A coffee, at whatever price you like, keeps sp4cetime free for everyone. Stripe takes the payment: card, Apple Pay or Link.</p>
+          {url ? (
+            <a className="button primary big" href={url} target="_blank" rel="noopener">
+              ☕ Buy me a coffee
+            </a>
+          ) : config ? (
+            <p className="hint">The coffee cup opens in a few days.</p>
+          ) : null}
+        </div>
+      </section>
+      <h2 className="also">While you’re here: everything below is free for now</h2>
+      <Home go={go} />
+    </>
   );
 }
