@@ -142,7 +142,7 @@ The first example of Planetary mode (a person on Earth's surface is a sphere on 
 #### Screen saver and live wallpaper
 - [ ] **Live mode** (web, free): a URL that opens one view with no boxes and time running, e.g. `?live&view=fly&dest=earthMoon&speed=3600&theme=dark`, or `?live&path=a-first-tour` to loop a path. Works at once in [WebViewScreenSaver](https://github.com/wojteeek/webviewscreensaver) (macOS screen saver showing any web page) and [Plash](https://github.com/Joehuu/Plash) (a web page as the macOS desktop wallpaper).
 - [ ] Optional slow camera drift for screen savers (DECISIONS §6 "autopilot camera").
-- [ ] **Packaged screen saver** (paid, later): a native macOS `.saver` and a Windows `.scr`, each a thin web view around an offline copy of the app, sold directly (Lemon Squeezy or Paddle, as planned for Pro).
+- [ ] **Packaged screen saver** (paid, later): a native macOS `.saver` and a Windows `.scr`, each a thin web view around an offline copy of the app, sold on sp4cetime.store (owner, 5 Nov 2026: the screensaver and a desktop widget showing the date, the time and the planets now, with pre-set views or paths, or any chosen in the app, are the store's next products; the made-to-order gifts sell on Etsy).
 
 #### Desktop widget and calendar layer
 - [ ] macOS/iOS widgets (WidgetKit) are snapshots refreshed on a schedule, not live 3D: a small native app could render "today on the Sun's path" (the date, the Moon's phase, the signs) as an image a few times a day. Later, only if wanted.

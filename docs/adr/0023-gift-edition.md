@@ -15,6 +15,6 @@ The Starsigns tour is free on sp4cetime.org and stays free (DECISIONS: paid tier
 
 ## Consequences
 
-- Each Etsy order: open sp4cetime.org/?gift, fill in the customer's details and gift, ▶ Go, upload the package's MP4 and PDF to the order.
+- Each Etsy order: open sp4cetime.org/?gift, fill in the customer's details and gift, ▶ Go, upload the package's MP4 and e-card (ADR-0024; the PDF until 0.4.8) to the order. The full routine, the three listings and the subscription: README.md "Where things are sold".
 - Videos must still upload to X as they are (ADR-0020): the soundtrack is part of the one AAC track. Headless Chromium has no AAC encoder, so cloud checks measure the sound at the output instead; check a real recording on the Mac.
 - Later: the card's text in the PDF, the gift on sp4cetime.store as a product, an e-card sent on the day.

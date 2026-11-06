@@ -53,9 +53,38 @@ Still to do: tags `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` and releases on GitHub 
 
 What goes up: everything git tracks. `.gitignore` keeps out `node_modules/`, `dist/`, `.env` files, logs and `.DS_Store`.
 
+## Where things are sold: sp4cetime.org, sp4cetime.store and Etsy
+
+Owner, 5–6 November 2026. Three places, one job each:
+
+| Place | What it is for | Money |
+| --- | --- | --- |
+| **sp4cetime.org** | The free instrument. Everything there stays free: ✶ Starsigns, ▶ Go and its Download package (MP4, PDF, e-card in the gift edition, path token), paths, capture. No prices. | Two buttons in the Download package at the end of a ▶ Go: **✶ Customize on Etsy** (to the Etsy shop, `ETSY_URL` in `src/app/shop.ts`) and **☕ Buy me a coffee** (to sp4cetime.store/coffee). Both are hidden in the gift edition (`?gift`), which is how the owner makes orders. |
+| **Etsy, shop AstrologyTours** | Made-to-order gifts: the tour video with a title card and a soundtrack, and the Zodiac Wheel e-card, made by the owner after each order. Etsy brings people searching for gifts and handles payment. | Etsy pays out; its fees are roughly 6.5% a sale, payment processing, and US$0.20 for each unit sold. |
+| **sp4cetime.store** | ☕ coffee (a live Stripe Payment Link; the /coffee page shows the products above the Stripe button), and products made once and sold many times. Next there: a live **screensaver** and **desktop widget** (date, time and the planets now, with chosen views or paths). Its other products are free for now (`FREE_FOR_NOW` in `src/core/catalog.ts`). | Stripe, live since 5 November 2026 (public name sp4cetime, descriptor SP4CETIME); checkout stays off until step 10 of the money trail below. |
+
+**The Etsy listings** (published 6 November 2026, shown in this order):
+
+1. **An Astrological Tour of the Solar System at Your Birth (Or Any Date!)** (listing 4611249364), CA$4.99: any date from 1800 to 2200. Buyer's boxes: date and time, town, heading, message (optional), soundtrack.
+2. **Present Moment Sky** (4611336130), CA$4.99: the sky now, or at a moment coming up (a solstice, New Year's midnight). Boxes: your moment, town, heading, soundtrack, message (optional).
+3. **Present Moment Subscription** (4611329514), CA$3.99 a delivery, prepaid: weekly (quantity 52), monthly (12), seasons (4: each solstice and equinox) or a trial of any quantity. Etsy allows no variations on digital items and no prices on list options, so the plan is a list option and the quantity sets the price. Nothing renews by itself.
+
+Each listing has a crop-safe cover (all its words inside the central square Etsy uses for thumbnails), the tour's steps, the e-card's three views, a how-it-works panel, and two videos (a 14 s tour and the e-card opening). The birth listing shows 21 June 1990, 2:30 pm, Winnipeg; the Present Moment listings show 6 November 2026, noon, Winnipeg.
+
+**Making an order** (by hand, on the Mac):
+
+1. Open sp4cetime.org/?gift, fill in the buyer's date, time, place, heading, message and soundtrack, and press ▶ Go.
+2. At the end, ⤓ Download. The .zip holds the MP4 (the title card first, the soundtrack under it), the e-card (one HTML file: the front, the inside with the star map, the back with a QR code that opens the same tour on sp4cetime.org; ADR-0024), the PDF and the path token.
+3. Upload the MP4 and the e-card to the Etsy order and mark it complete; Etsy emails the buyer.
+4. Subscriptions: the first delivery is the order's files; each later one goes by Etsy message with a download link (Etsy messages carry images only), weekly on the same day, monthly on the same date, seasonally on the day of each solstice and equinox (next: 21 December 2026, 20 March, 21 June and 23 September 2027).
+
+Make orders in Chrome or Safari on the Mac: headless Chromium (Claude's cloud workspace) has no AAC encoder, so recordings made there are silent.
+
+**Why this split**: the free tour stays free (DECISIONS §1, Payments); a paid tour has to be more than the free one (a gift, ready to send: ADR-0023), and made-to-order gifts sell where gift buyers already search. sp4cetime.store keeps what needs no hand work.
+
 ## Opening sp4cetime.store: the money trail
 
-Where it stands (2 November 2026, v0.4.0): the shop and the coffee buttons are built, tested and on GitHub; everything is set up in Stripe's **sandbox** ("Lamp Diagnostics sandbox", test mode) and works there; nothing takes real money yet. sp4cetime.com, .io and .ai already redirect to sp4cetime.org.
+Where it stands (6 November 2026, v0.4.8): Stripe is live (payments and payouts active since 5 November); the ☕ coffee link is live and takes real money; sp4cetime.store is live on Cloudflare with everything free for now; checkout is off until steps 2, 3, 5 and 7–12 are done. The made-to-order gifts sell on Etsy instead (above). sp4cetime.com, .io and .ai redirect to sp4cetime.org.
 
 How the money moves, once live: a buyer pays on Stripe's own checkout page (card, Apple Pay, Google Pay, Link) → Stripe holds it, minus its fee (about 2.9% + 30¢ a card payment; small payments like a $0.99 background lose about a third) → Stripe pays out to the bank account on a rolling schedule (first payout about a week after the first sale, then every few days). Prices are in US dollars; Stripe converts to Canadian dollars at payout unless a USD bank account is added. Coffees work the same way through a Payment Link and need nothing from the shop.
 
