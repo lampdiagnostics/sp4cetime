@@ -45,3 +45,10 @@ export function viewPdf(bytes: Uint8Array, name: string): void {
   if (!w) saveBytes(bytes, name, 'application/pdf');
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+/**
+ * The Etsy shop (owner, 6 Nov 2026): every Video + Card package is sold there (made to order);
+ * sp4cetime.store keeps the coffee and, later, the screen saver and desktop widget. The Download
+ * package's ✶ Customize goes here. Point it at the listing itself once it is published.
+ */
+export const ETSY_URL = 'https://www.etsy.com/shop/AstrologyTours';

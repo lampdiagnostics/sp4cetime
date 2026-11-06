@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { type Path, pathFileName } from '../core/path';
 import { zipParts } from '../core/zip';
 import { sp4ceText } from './pathStore';
-import { SHOP_URL } from './shop';
+import { ETSY_URL, SHOP_URL } from './shop';
 
 /**
  * The Download package (owner, 4 Nov 2026): pops up when ▶ Go's tour ends. ⤓ Download (free)
@@ -94,9 +94,11 @@ export function PackageDialog({
           <button type="button" className="go-big" disabled={!ready} onClick={() => void download()} title="One .zip with the video, the PDF and the path token: free">
             <span aria-hidden="true">⤓</span> {ready ? 'Download (free)' : 'Getting it ready…'}
           </button>
-          <a className="button" href={SHOP_URL} target="_blank" rel="noopener" title="More options and downloads at sp4cetime.store">
-            ✶ Customize
-          </a>
+          {!isGift && (
+            <a className="button" href={ETSY_URL} target="_blank" rel="noopener" title="Make it a gift: your heading, message and music on the video, and a greeting e-card, made for you (AstrologyTours on Etsy)">
+              ✶ Customize on Etsy
+            </a>
+          )}
           <a className="button coffee" href={`${SHOP_URL}coffee`} target="_blank" rel="noopener" title="Pay what you like, through Stripe at sp4cetime.store: it keeps sp4cetime going">
             ☕ Buy me a coffee
           </a>

@@ -6,6 +6,7 @@ Versions carry a leading zero until the public launch, which will be 1.0.
 
 - **The gift's e-card** (ADR-0024), in place of the PDF in the gift edition's Download package: one HTML file that opens in any browser like a greeting card folded in half (8.5 × 11 in landscape). The **front** is a picture from the person's own tour (the landing in the field) with the heading and message; **a click opens it**: their sky on the left (every body's sign, degree and house, the Ascendant and Midheaven) and the final star map on the right; **another click closes it, turned over**: the sp4cetime spiral and a **QR code** that opens their own tour on sp4cetime.org. **Print the card** gives the real thing: outside and inside on two landscape Letter pages, to print double-sided and fold.
 - **Sky links**: `sp4cetime.org/?sky&d=…&t=…&lat=…&lon=…&z=…&p=…` opens that Starsigns tour at its start with a welcome (the card's heading, the moment and the place): **▶ Fly my sky** plays it; → and ← step through it; look around any time. Short enough for a small QR code (version 8 or less).
+- **✶ Customize on Etsy**: the free Download package's Customize button now goes to the AstrologyTours shop on Etsy, where the Video + Card gift is sold; ☕ Buy me a coffee still goes to sp4cetime.store.
 - Our own **QR code** maker (`src/core/qr.ts`, no dependency), checked against an independent reader.
 
 ## 0.4.7 — 5 November 2026
