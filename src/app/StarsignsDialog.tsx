@@ -7,6 +7,7 @@ import { formatLat, formatLon } from '../core/spheres';
 import { starsignsPath } from '../core/starsigns';
 import { fromUnixMs } from '../core/time';
 import { MOODS, type Mood } from '../core/ambience';
+import type { SkyLink } from '../core/skyLink';
 import { playSoundtrack, type Soundtrack, stopSoundtrack } from './sound';
 import { formatOffset, localToUtc } from './zones';
 
@@ -44,6 +45,8 @@ export interface Gift {
   /** The moment and place, small under the message: "21 June 1990, 2:30 pm · Winnipeg". */
   readonly sub: string;
   readonly soundtrack: Soundtrack | null;
+  /** The tour as a sky link, for the e-card's QR code. */
+  readonly sky?: SkyLink;
 }
 export const GIFT_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).has('gift');
 
@@ -197,7 +200,26 @@ export function StarsignsDialog({ onClose, actions }: { onClose: () => void; act
     setListening(false);
     const gift: Gift | undefined =
       GIFT_MODE && (heading.trim() || message.trim() || track !== 'hum')
-        ? { heading: heading.trim(), message: message.trim(), sub: `${moment?.whenText ?? ''}${where ? ` · ${where.name}` : ''}`, soundtrack: soundtrack() }
+        ? {
+            heading: heading.trim(),
+            message: message.trim(),
+            sub: `${moment?.whenText ?? ''}${where ? ` · ${where.name}` : ''}`,
+            soundtrack: soundtrack(),
+            ...(where
+              ? {
+                  sky: {
+                    date,
+                    time: moment?.noTime ? null : time.slice(0, 5),
+                    lat: where.lat,
+                    lon: where.lon,
+                    zone: where.zone,
+                    place: where.name,
+                    system,
+                    ...(heading.trim() ? { heading: heading.trim() } : {}),
+                  },
+                }
+              : {}),
+          }
         : undefined;
     actions.go(p, gift);
   };

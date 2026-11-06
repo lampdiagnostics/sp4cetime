@@ -15,11 +15,14 @@ export function PackageDialog({
   path,
   video,
   pdf,
+  ecard = null,
   onClose,
 }: {
   path: Path;
   video: { readonly blob: Blob; readonly ext: string } | 'pending' | 'none';
   pdf: Uint8Array | 'pending' | null;
+  /** The gift edition's e-card (one HTML file), in place of the PDF (6 Nov 2026). */
+  ecard?: string | 'pending' | null;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -34,12 +37,20 @@ export function PackageDialog({
   }, [onClose]);
 
   const base = pathFileName(path.name).replace(/\.sp4ce\.json$/, '') || 'sp4cetime';
-  const ready = video !== 'pending' && pdf !== 'pending';
+  const ready = video !== 'pending' && pdf !== 'pending' && ecard !== 'pending';
+  const isGift = ecard !== null;
+  const openCard = (): void => {
+    if (typeof ecard !== 'string') return;
+    const url = URL.createObjectURL(new Blob([ecard], { type: 'text/html' }));
+    window.open(url, '_blank', 'noopener');
+    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+  };
   const download = async (): Promise<void> => {
     const c = new Date();
     const files: Array<{ name: string; data: Uint8Array }> = [];
     if (typeof video === 'object') files.push({ name: `${base}.${video.ext}`, data: new Uint8Array(await video.blob.arrayBuffer()) });
     if (pdf instanceof Uint8Array) files.push({ name: `${base}.pdf`, data: pdf });
+    if (typeof ecard === 'string') files.push({ name: `${base}-ecard.html`, data: new TextEncoder().encode(ecard) });
     files.push({ name: pathFileName(path.name), data: new TextEncoder().encode(sp4ceText(path)) });
     const parts = zipParts(files, { year: c.getFullYear(), month: c.getMonth() + 1, day: c.getDate(), hour: c.getHours(), minute: c.getMinutes() });
     const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: 'application/zip' }));
@@ -64,10 +75,17 @@ export function PackageDialog({
             <strong>Video</strong> (.mp4, made for X){' '}
             {video === 'pending' ? <span className="hint">finishing…</span> : video === 'none' ? <span className="hint">this browser could not record it</span> : null}
           </li>
-          <li>
-            <strong>PDF</strong>: the final view{path.points[path.points.length - 1]?.look.chart ? ', with your signs and houses' : ''}{' '}
-            {pdf === 'pending' ? <span className="hint">making…</span> : pdf === null ? <span className="hint">not available</span> : null}
-          </li>
+          {isGift ? (
+            <li>
+              <strong>E-card</strong> (.html, opens in any browser): your message on the front, your sky and star map inside, a QR code to fly it on the back; prints as a folded card{' '}
+              {ecard === 'pending' ? <span className="hint">making…</span> : typeof ecard === 'string' ? <button type="button" className="link-button" onClick={openCard}>✉ Open it</button> : null}
+            </li>
+          ) : (
+            <li>
+              <strong>PDF</strong>: the final view{path.points[path.points.length - 1]?.look.chart ? ', with your signs and houses' : ''}{' '}
+              {pdf === 'pending' ? <span className="hint">making…</span> : pdf === null ? <span className="hint">not available</span> : null}
+            </li>
+          )}
           <li>
             <strong>Path token</strong> (.sp4ce.json): drop it on ▷ Paths to fly it again
           </li>

@@ -3,7 +3,9 @@ import { THEMES } from '../../content/themes';
 import type { Theme } from '../core/theme';
 import { addSeconds, fromUnixMs, type Time, toUnixMs } from '../core/time';
 import { CaptureMenu, type PresentControls } from './CaptureMenu';
-import { drawShot, recordVideo, type Shot, stageIn, viewStages, type VideoSize } from './capture';
+import { drawShot, recordVideo, type Shot, stageIn, viewJpeg, viewStages, type VideoSize } from './capture';
+import { parseSkyLink } from '../core/skyLink';
+import { tourFromLink } from './skyTour';
 import type { Gift, StarsignsActions } from './StarsignsDialog';
 import { playSoundtrack, setSound, soundNow, stopSoundtrack, unlockSound } from './sound';
 import { loadSettings, saveSettings, type Settings } from './settings';
@@ -574,7 +576,7 @@ export function App() {
     path: Path,
     record: boolean,
     from = 0,
-    opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; onEnd?: (still: Still | null, completed: boolean) => void; onLast?: () => void; stopAtEnd?: boolean } = {},
+    opts: { size?: VideoSize; onVideo?: (video: Blob, ext: string) => void; onNoVideo?: () => void; onEnd?: (still: Still | null, completed: boolean) => void; onLast?: () => void; onArrive?: (index: number) => void; stopAtEnd?: boolean } = {},
   ): Promise<void> => {
     const run = ++playing.current;
     unlockSound();
@@ -647,6 +649,7 @@ export function App() {
         // is held a little longer instead (more for each body it would have picked out).
         if (rec && pt.look.highlight && i < path.points.length - 1) continue;
         if (!(await arrive(i))) break;
+        opts.onArrive?.(i);
         // Arrived at the last view: whatever should end with the video (a gift's music) starts to go now.
         if (i === path.points.length - 1) opts.onLast?.();
         let picks = 0;
@@ -721,6 +724,13 @@ export function App() {
     };
     void savePath(path).then(refreshPaths);
     let video: PackState['video'] = 'pending';
+    // The gift's e-card (6 Nov 2026): its front picture is the view on landing in the field
+    // (taken a moment after arriving, without the captions), its star map the final wheel.
+    let front: Promise<Blob | null> | null = null;
+    const viewNow = (): Promise<Blob | null> => {
+      const s = getShot(false);
+      return s ? viewJpeg(s) : Promise.resolve(null);
+    };
     const into = (f: (p: PackState) => PackState): void => setPack((p) => (p && packRun.current === n ? f(p) : p));
     void autoPlay(path, true, 0, {
       size: 'small',
@@ -733,12 +743,26 @@ export function App() {
         video = 'none';
         into((p) => ({ ...p, video }));
       },
+      onArrive: (i) => {
+        const pt = path.points[i];
+        if (!gift || front || !pt?.look.chart?.ground || pt.look.seeThrough) return;
+        front = new Promise((res) => window.setTimeout(() => void viewNow().then(res, () => res(null)), 1500));
+      },
       onLast: () => {
         if (packRun.current === n && gift?.soundtrack) stopSoundtrack(3);
       },
       onEnd: (still) => {
         endGift();
         if (packRun.current !== n) return;
+        if (gift) {
+          setPack({ path, video, pdf: null, ecard: 'pending' });
+          void (async () => {
+            const map = await viewNow();
+            const card = map ? await giftEcard(path, gift, (await front) ?? null, map) : null;
+            into((p) => ({ ...p, ecard: card }));
+          })().catch(() => into((p) => ({ ...p, ecard: null })));
+          return;
+        }
         setPack({ path, video, pdf: still ? 'pending' : null });
         if (still) void framePdf(path, still).then((pdf) => into((p) => ({ ...p, pdf })), () => into((p) => ({ ...p, pdf: null })));
       },
@@ -748,6 +772,28 @@ export function App() {
     base: () => keyRef.current.pointNow(),
     go,
   };
+
+  // A sky link (the e-card's QR code, 6 Nov 2026): rebuild that tour, stand at its start in
+  // Presentation mode, and greet: ▶ Fly my sky plays it; → and ← step; look around any time.
+  const [welcome, setWelcome] = useState<{ path: Path; heading: string; whenText: string; place: string } | null>(null);
+  useEffect(() => {
+    const link = parseSkyLink(location.search);
+    if (!link) return;
+    let tries = 0;
+    const t = window.setInterval(() => {
+      const base = keyRef.current.pointNow();
+      if (!base && ++tries < 60) return;
+      window.clearInterval(t);
+      if (!base) return;
+      const tour = tourFromLink(link, base);
+      if (!tour) return;
+      void savePath(tour.path).then(refreshPaths);
+      goToPoint(tour.path, 0);
+      setWelcome({ path: tour.path, heading: link.heading ?? 'Your sky', whenText: tour.whenText, place: link.place });
+    }, 250);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const round = settings.round;
   // A phone's first visit opens full screen; after that, as last chosen (the ◯/▭ button, top right).
@@ -861,8 +907,34 @@ export function App() {
       )}
       {pack && (
         <Suspense fallback={null}>
-          <PackageDialog path={pack.path} video={pack.video} pdf={pack.pdf} onClose={() => setPack(null)} />
+          <PackageDialog path={pack.path} video={pack.video} pdf={pack.pdf} ecard={pack.ecard ?? null} onClose={() => setPack(null)} />
         </Suspense>
+      )}
+      {welcome && (
+        <div className="sky-welcome" data-no-capture role="dialog" aria-label="Your sky">
+          <p className="kicker">✶ the sky of your moment</p>
+          <h2>{welcome.heading}</h2>
+          <p className="when">
+            {welcome.whenText} · {welcome.place}
+          </p>
+          <div className="row">
+            <button
+              type="button"
+              className="go-big"
+              onClick={() => {
+                const p = welcome.path;
+                setWelcome(null);
+                presentRun.current(p);
+              }}
+            >
+              <span aria-hidden="true">▶</span> Fly my sky
+            </button>
+            <button type="button" className="button" onClick={() => setWelcome(null)}>
+              Explore on my own
+            </button>
+          </div>
+          <p className="hint">→ next stop · ← back · drag to look around · Esc to stop. Everything here is free: fly any date, anywhere.</p>
+        </div>
       )}
 
       {dialog && (
@@ -1039,6 +1111,38 @@ interface PackState {
   readonly path: Path;
   readonly video: { readonly blob: Blob; readonly ext: string } | 'pending' | 'none';
   readonly pdf: Uint8Array | 'pending' | null;
+  /** The gift edition's e-card, in place of the PDF. */
+  readonly ecard?: string | 'pending' | null;
+}
+
+const dataUrl = async (b: Blob): Promise<string> => {
+  const bytes = new Uint8Array(await b.arrayBuffer());
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:${b.type || 'image/jpeg'};base64,${btoa(s)}`;
+};
+
+/** The gift edition's e-card: the front picture, the star map, the reading and the sky link (loaded when first needed). */
+async function giftEcard(path: Path, gift: Gift, front: Blob | null, map: Blob): Promise<string> {
+  const [{ ecardHtml }, { readingAt }, { HOUSE_SYSTEMS }, { skyLinkUrl, SITE_URL }] = await Promise.all([
+    import('../core/ecard'),
+    import('../core/reading'),
+    import('../core/houses'),
+    import('../core/skyLink'),
+  ]);
+  const last = path.points[path.points.length - 1]!;
+  const ch = last.look.chart;
+  return ecardHtml({
+    heading: gift.heading,
+    message: gift.message,
+    whenText: ch?.when ?? '',
+    placeText: gift.sky?.place ?? ch?.place ?? '',
+    front: front ? await dataUrl(front) : null,
+    starMap: await dataUrl(map),
+    link: gift.sky ? skyLinkUrl(gift.sky) : SITE_URL,
+    reading: ch ? readingAt(last.present, ch.lat, ch.lon, ch.system) : null,
+    systemName: HOUSE_SYSTEMS.find((h) => h.id === ch?.system)?.name ?? '',
+  });
 }
 
 /** The PDF of the video's last frame; with the signs and houses when the path ends on a Starsigns chart (loaded when first needed). */

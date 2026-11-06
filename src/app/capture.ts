@@ -428,6 +428,21 @@ export async function screenshot(shot: Shot, o: { watermark: boolean; fit?: read
   if (blob) download(blob, 'png');
 }
 
+/**
+ * A picture of the views alone, without the page's boxes and captions, popped like the videos:
+ * for the e-card's front and its star map (6 Nov 2026). Longest side at most `maxSide` px. JPEG.
+ */
+export async function viewJpeg(shot: Shot, maxSide = 1400): Promise<Blob | null> {
+  const k = Math.min(shotScale(shot), maxSide / Math.max(shot.region.width, shot.region.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(shot.region.width * k));
+  c.height = Math.max(1, Math.round(shot.region.height * k));
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  drawShot({ ...shot, page: null }, ctx, c.width, c.height, { overlay: [], watermark: false, pop: 1 });
+  return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.88));
+}
+
 /** A running capture; `stop` ends it (and downloads the file). */
 export interface Recording {
   stop(): void;

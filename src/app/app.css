@@ -2360,3 +2360,57 @@ body:has(.dock[data-open='true']) .scale-corner {
 .astro-dialog .astro-track .listen {
   white-space: nowrap;
 }
+
+/* Opening a sky link (the e-card's QR code, 6 Nov 2026): a welcome over the tour's start. */
+.sky-welcome {
+  position: fixed;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(520px, calc(100vw - 32px));
+  padding: 22px 26px 18px;
+  border-radius: 18px;
+  background: rgba(5, 7, 15, 0.86);
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  box-shadow: 0 0 60px rgba(255, 179, 71, 0.16);
+  text-align: center;
+  color: #f2efe6;
+}
+.sky-welcome p {
+  margin: 0;
+}
+.sky-welcome .kicker {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffb347;
+}
+.sky-welcome h2 {
+  margin: 8px 0 4px;
+  font-size: clamp(24px, 5vw, 34px);
+  color: #ffd27a;
+}
+.sky-welcome .when {
+  color: #9fb0d8;
+  font-size: 15px;
+}
+.sky-welcome .row {
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  flex-wrap: wrap;
+}
+.sky-welcome .hint {
+  font-size: 13px;
+  color: #8f9ab5;
+}
+.package-dialog .link-button {
+  font: inherit;
+  color: #ffd27a;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}

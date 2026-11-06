@@ -2,6 +2,12 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## 0.4.8 — 6 November 2026
+
+- **The gift's e-card** (ADR-0024), in place of the PDF in the gift edition's Download package: one HTML file that opens in any browser like a greeting card folded in half (8.5 × 11 in landscape). The **front** is a picture from the person's own tour (the landing in the field) with the heading and message; **a click opens it**: their sky on the left (every body's sign, degree and house, the Ascendant and Midheaven) and the final star map on the right; **another click closes it, turned over**: the sp4cetime spiral and a **QR code** that opens their own tour on sp4cetime.org. **Print the card** gives the real thing: outside and inside on two landscape Letter pages, to print double-sided and fold.
+- **Sky links**: `sp4cetime.org/?sky&d=…&t=…&lat=…&lon=…&z=…&p=…` opens that Starsigns tour at its start with a welcome (the card's heading, the moment and the place): **▶ Fly my sky** plays it; → and ← step through it; look around any time. Short enough for a small QR code (version 8 or less).
+- Our own **QR code** maker (`src/core/qr.ts`, no dependency), checked against an independent reader.
+
 ## 0.4.7 — 5 November 2026
 
 - **The gift edition** (ADR-0023), at sp4cetime.org/?gift: ✶ Starsigns gets a Gift section. A **heading and message** show as a title card for the first seconds of the ▶ Go video, with the moment and place under them; a **soundtrack** plays under the whole tour and fades out on the last view: Calm, Music box or Deep space (made from numbers, nothing to license), or the customer's own song. ♪ Listen tries it first. The public Starsigns dialog is unchanged.
