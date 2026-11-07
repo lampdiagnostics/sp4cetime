@@ -26,8 +26,8 @@ How to use this file: tick items as they're done (`- [x]`), with the date and th
 - [ ] Decide: a "live" sky link (no date or time) that shows the sky at the moment it's opened, for the screensaver and for cards meant to be scanned again and again.
 
 ### Housekeeping
-- [ ] DECISIONS.md status line still says 0.4.8; bring it to the current version.
-- [ ] Merge the `watch-buttons` branch into `main`.
+- [x] DECISIONS.md status line brought to 0.4.9 (7 Nov 2026).
+- [x] 0.4.9 is on `main` (pushed from the icon-redesign chat; the local `watch-buttons` branch is no longer needed).
 
 ## 2. Make it pop (design pass)
 
