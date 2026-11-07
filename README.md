@@ -4,7 +4,7 @@
 
 sp4cetime is a zoomable map of time drawn as the real motion of the solar system. The Sun is always *now*, travelling at 230 km/s along its path around the galaxy; the planets and the Moon wind around that path as spirals, in their true orientation, from the Sun's birth (−4.6 billion years) to the end of its main-sequence life (+5 billion years). Time and distance grids flow past the Sun as the present moves. A 3D **Fly mode** puts you inside the solar system at true scale and in real sunlight, under the real sky, and out to the whole Milky Way, its central black hole and its neighbour galaxies.
 
-Version 0.4.6 · 4 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
+Version 0.4.9 · 6 November 2026 · solo, part-time project (Lamp Diagnostics) with AI help.
 Live at [sp4cetime.org](https://sp4cetime.org). (Versions carry a leading zero until the public launch, which will be 1.0.)
 
 ## Where it is going
@@ -18,7 +18,7 @@ The direction, in order (detail in [docs/PLAN.md](docs/PLAN.md) and [DECISIONS.m
 5. Year two, only if wanted: theme editor, accounts and sync, education licence, creator marketplace.
 6. **Four modes** (the 4 in sp4cetime): Galactic (built), then Planetary (detailed Earth, Moon and Mars from public geodata; imaginary planets), Cellular and Atomic, all on one model of spheres and skins. To-do lists: [docs/ROADMAP.md](docs/ROADMAP.md); the spheres: [docs/SPHERES.md](docs/SPHERES.md).
 
-What exists today (0.3.0) is the instrument (the calendar, Fly mode, the sky, the galaxy, and capture) and paths: presentations flown through it. It is a toy as much as a tool; the owner's next step is to show it publicly. Stories, sharing links and Pro are not built yet.
+What exists today (0.4.9) is the instrument (the calendar, Fly mode, the sky, the galaxy with its 500 nearest neighbours, and capture), paths (presentations flown through it), ✶ Starsigns with ▶ Go videos and the Download package, the gift edition with its e-card and sky links, and round watch buttons for every control. Made-to-order gifts sell on Etsy and self-serve products on sp4cetime.store ("Where things are sold" below). Next is 0.5.0, polish before the first testers: [docs/RELEASE-0.5.0.md](docs/RELEASE-0.5.0.md). Stories, sharing links and Pro are not built yet.
 
 ## 0.3.0: paths through time and space
 

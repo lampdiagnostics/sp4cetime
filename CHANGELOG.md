@@ -2,6 +2,11 @@
 
 Versions carry a leading zero until the public launch, which will be 1.0.
 
+## Unreleased (docs only)
+
+- **The 0.5.0 release checklist**, [docs/RELEASE-0.5.0.md](docs/RELEASE-0.5.0.md): bugs, a design pass to make the site pop, checks on real devices and the release steps; bigger features (Stand here, the spheres, the screensaver, live shop payments) move to after 0.5.0, when the first testers' feedback sets the order.
+- README and DECISIONS: where things are sold (sp4cetime.org free, Etsy made-to-order gifts, sp4cetime.store) and the order routine; status lines brought to 0.4.9.
+
 ## 0.4.9 — 6 November 2026
 
 - **Watch buttons** (owner, 5 November 2026): the main controls are little round buttons, like a watch's, each with an icon for what it is. Top right: **Now** (a clock, green while live), **the three views in one tray**: the calendar (a calendar page), **Fly** (a spaceship) and **Galaxy** (a spiral galaxy), always there so any view is one tap away; then **✶ Starsigns** and the window's shape. Bottom left: **Capture** (a camera) and **Paths** (a route to a flag). Bottom right: **the speedometer** (tap for speed and direction; its needle leans right for forwards, left for backwards, further the faster, with a small badge such as "day" or "◀ yr" when not Live), **▶ Play / ❚❚ Pause** (Play waits in green while time is held) and **☰ More**.
