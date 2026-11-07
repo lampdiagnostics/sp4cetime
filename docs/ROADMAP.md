@@ -30,6 +30,8 @@ Everything built so far is 0.3.0 (0.1 and 0.2 are in CHANGELOG.md):
 
 ## Heading into 0.5.0 (written 3 November 2026, end of the 0.4.0 session)
 
+**7 November 2026: the 0.5.0 list is now [RELEASE-0.5.0.md](RELEASE-0.5.0.md)** (bugs, the design pass to make the site pop, device checks, release steps). 0.5.0 is about polish before the first testers; the bigger items below move to after 0.5.0 unless the owner says otherwise.
+
 How to work (owner): commit changes locally as they are made; push to GitHub, and so to sp4cetime.org, only after substantial progress.
 
 ### 0.5.0 to-do
